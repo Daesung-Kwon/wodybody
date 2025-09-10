@@ -12,7 +12,10 @@ import {
     ExerciseCategory,
     Exercise,
     ProgramExercise,
-    ProgramParticipantsResponse
+    ProgramParticipantsResponse,
+    WorkoutRecordsResponse,
+    CreateWorkoutRecordRequest,
+    UpdateWorkoutRecordRequest
 } from '../types';
 
 // API 기본 설정
@@ -194,6 +197,35 @@ export const participationApi = {
             method: 'PUT',
             body: JSON.stringify({ action })
         }),
+};
+
+// 운동 기록 API
+export const workoutRecordsApi = {
+    // 운동 기록 생성
+    createRecord: (programId: number, data: CreateWorkoutRecordRequest): Promise<{ message: string; record_id: number; completion_time: number; completed_at: string }> =>
+        apiRequest<{ message: string; record_id: number; completion_time: number; completed_at: string }>(`/api/programs/${programId}/records`, {
+            method: 'POST',
+            body: JSON.stringify(data)
+        }),
+
+    // 프로그램의 운동 기록 조회
+    getProgramRecords: (programId: number): Promise<WorkoutRecordsResponse> =>
+        apiRequest<WorkoutRecordsResponse>(`/api/programs/${programId}/records`),
+
+    // 사용자의 개인 운동 기록 조회
+    getUserRecords: (): Promise<WorkoutRecordsResponse> =>
+        apiRequest<WorkoutRecordsResponse>('/api/users/records'),
+
+    // 운동 기록 수정
+    updateRecord: (recordId: number, data: UpdateWorkoutRecordRequest): Promise<{ message: string; completion_time: number; notes: string; is_public: boolean }> =>
+        apiRequest<{ message: string; completion_time: number; notes: string; is_public: boolean }>(`/api/records/${recordId}`, {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        }),
+
+    // 운동 기록 삭제
+    deleteRecord: (recordId: number): Promise<{ message: string }> =>
+        apiRequest<{ message: string }>(`/api/records/${recordId}`, { method: 'DELETE' }),
 };
 
 // 서버 연결 테스트

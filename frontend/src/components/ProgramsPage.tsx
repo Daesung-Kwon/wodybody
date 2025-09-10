@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Program, ProgramWithParticipation } from '../types';
-import { programApi, participationApi } from '../utils/api';
+import { Program, ProgramWithParticipation, CreateWorkoutRecordRequest } from '../types';
+import { programApi, participationApi, workoutRecordsApi } from '../utils/api';
 import LoadingSpinner from './LoadingSpinner';
+import WorkoutTimer from './WorkoutTimer';
+import WorkoutRecordModal from './WorkoutRecordModal';
 
 const ProgramsPage: React.FC = () => {
     const [programs, setPrograms] = useState<ProgramWithParticipation[]>([]);
@@ -9,6 +11,12 @@ const ProgramsPage: React.FC = () => {
     const [actionBusyId, setActionBusyId] = useState<number | null>(null);
     const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
     const [showModal, setShowModal] = useState<boolean>(false);
+    
+    // 운동 타이머 관련 상태
+    const [showTimer, setShowTimer] = useState<boolean>(false);
+    const [showRecordModal, setShowRecordModal] = useState<boolean>(false);
+    const [completionTime, setCompletionTime] = useState<number>(0);
+    const [isSavingRecord, setIsSavingRecord] = useState<boolean>(false);
 
     const load = async (): Promise<void> => {
         setBusy(true);
@@ -71,17 +79,29 @@ const ProgramsPage: React.FC = () => {
 
         if (participation_status === 'approved') {
             return (
-                <button
-                    className="register-button approved"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        leaveProgram(program.id);
-                    }}
-                    disabled={actionBusyId === program.id}
-                    title="프로그램에서 탈퇴합니다"
-                >
-                    {actionBusyId === program.id ? '취소 중...' : '참여 취소'}
-                </button>
+                <div className="approved-actions">
+                    <button
+                        className="register-button start-workout-button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            startWorkout(program);
+                        }}
+                        title="운동을 시작합니다"
+                    >
+                        🏃‍♂️ 운동 시작
+                    </button>
+                    <button
+                        className="register-button approved"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            leaveProgram(program.id);
+                        }}
+                        disabled={actionBusyId === program.id}
+                        title="프로그램에서 탈퇴합니다"
+                    >
+                        {actionBusyId === program.id ? '취소 중...' : '참여 취소'}
+                    </button>
+                </div>
             );
         }
 
@@ -131,6 +151,49 @@ const ProgramsPage: React.FC = () => {
         if (!(e.target as HTMLElement).closest('button')) {
             openModal(program);
         }
+    };
+
+    // 운동 시작
+    const startWorkout = (program: Program): void => {
+        setSelectedProgram(program);
+        setShowTimer(true);
+    };
+
+    // 운동 완료
+    const handleWorkoutComplete = (time: number): void => {
+        setCompletionTime(time);
+        setShowTimer(false);
+        setShowRecordModal(true);
+    };
+
+    // 운동 취소
+    const handleWorkoutCancel = (): void => {
+        setShowTimer(false);
+        setSelectedProgram(null);
+    };
+
+    // 기록 저장
+    const handleSaveRecord = async (data: CreateWorkoutRecordRequest): Promise<void> => {
+        if (!selectedProgram) return;
+
+        setIsSavingRecord(true);
+        try {
+            await workoutRecordsApi.createRecord(selectedProgram.id, data);
+            setShowRecordModal(false);
+            setSelectedProgram(null);
+            window.alert('운동 기록이 저장되었습니다!');
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : '기록 저장 실패';
+            window.alert(`기록 저장 중 오류가 발생했습니다: ${errorMessage}`);
+        } finally {
+            setIsSavingRecord(false);
+        }
+    };
+
+    // 기록 모달 닫기
+    const closeRecordModal = (): void => {
+        setShowRecordModal(false);
+        setSelectedProgram(null);
     };
 
     if (busy) return <LoadingSpinner label="프로그램 로딩 중..." />;
@@ -376,6 +439,31 @@ const ProgramsPage: React.FC = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* 운동 타이머 */}
+            {showTimer && selectedProgram && (
+                <div className="modal-overlay timer-modal">
+                    <div className="modal-content timer-content">
+                        <WorkoutTimer
+                            onComplete={handleWorkoutComplete}
+                            onCancel={handleWorkoutCancel}
+                            programTitle={selectedProgram.title}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* 운동 기록 저장 모달 */}
+            {showRecordModal && selectedProgram && (
+                <WorkoutRecordModal
+                    isOpen={showRecordModal}
+                    onClose={closeRecordModal}
+                    onSave={handleSaveRecord}
+                    completionTime={completionTime}
+                    programTitle={selectedProgram.title}
+                    isLoading={isSavingRecord}
+                />
             )}
         </div>
     );

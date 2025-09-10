@@ -1,0 +1,236 @@
+.workout-timer-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 20px;
+  color: white;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.timer-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.timer-header h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.timer-subtitle {
+  margin: 0;
+  font-size: 1rem;
+  opacity: 0.9;
+}
+
+.timer-display {
+  margin-bottom: 2rem;
+}
+
+.time-circle {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.time-circle:hover {
+  transform: scale(1.05);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.time-text {
+  font-size: 3rem;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.timer-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 300px;
+}
+
+.running-controls {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.timer-button {
+  padding: 1rem 1.5rem;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.start-button {
+  background: #27ae60;
+  color: white;
+  width: 100%;
+}
+
+.start-button:hover {
+  background: #219a52;
+  transform: translateY(-2px);
+}
+
+.pause-button {
+  background: #f39c12;
+  color: white;
+  flex: 1;
+}
+
+.pause-button:hover {
+  background: #e67e22;
+  transform: translateY(-2px);
+}
+
+.complete-button {
+  background: #e74c3c;
+  color: white;
+  flex: 1;
+}
+
+.complete-button:hover {
+  background: #c0392b;
+  transform: translateY(-2px);
+}
+
+.reset-button {
+  background: #95a5a6;
+  color: white;
+  width: 100%;
+}
+
+.reset-button:hover:not(:disabled) {
+  background: #7f8c8d;
+  transform: translateY(-2px);
+}
+
+.reset-button:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.cancel-button {
+  background: #34495e;
+  color: white;
+  width: 100%;
+}
+
+.cancel-button:hover {
+  background: #2c3e50;
+  transform: translateY(-2px);
+}
+
+.timer-status {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.status-text {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.status-text.running {
+  color: #2ecc71;
+  font-weight: 600;
+}
+
+.status-text.paused {
+  color: #f39c12;
+  font-weight: 600;
+}
+
+.status-text.completed {
+  color: #e74c3c;
+  font-weight: 600;
+}
+
+/* 모바일 최적화 */
+@media (max-width: 768px) {
+  .workout-timer-container {
+    padding: 1.5rem;
+    margin: 1rem;
+  }
+  
+  .timer-header h3 {
+    font-size: 1.25rem;
+  }
+  
+  .time-circle {
+    width: 160px;
+    height: 160px;
+  }
+  
+  .time-text {
+    font-size: 2.5rem;
+  }
+  
+  .timer-button {
+    padding: 0.875rem 1.25rem;
+    font-size: 0.95rem;
+  }
+  
+  .running-controls {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .workout-timer-container {
+    padding: 1rem;
+  }
+  
+  .time-circle {
+    width: 140px;
+    height: 140px;
+  }
+  
+  .time-text {
+    font-size: 2rem;
+  }
+  
+  .timer-button {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* 터치 디바이스 최적화 */
+@media (hover: none) and (pointer: coarse) {
+  .timer-button:hover {
+    transform: none;
+  }
+  
+  .time-circle:hover {
+    transform: none;
+  }
+}

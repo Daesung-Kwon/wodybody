@@ -241,3 +241,33 @@ export interface ProgramParticipantsResponse {
 export interface ProgramWithParticipation extends Program {
     participation_status?: 'pending' | 'approved' | 'rejected' | 'left';
 }
+
+// 운동 기록 관련 타입
+export interface WorkoutRecord {
+    id: number;
+    program_id: number;
+    program_title?: string;
+    user_name?: string;
+    completion_time: number; // 초 단위
+    completed_at: string;
+    notes: string;
+    is_public: boolean;
+}
+
+export interface WorkoutRecordsResponse {
+    program_title?: string;
+    records: WorkoutRecord[];
+    total_count: number;
+}
+
+export interface CreateWorkoutRecordRequest {
+    completion_time: number;
+    notes?: string;
+    is_public?: boolean;
+}
+
+export interface UpdateWorkoutRecordRequest {
+    completion_time?: number;
+    notes?: string;
+    is_public?: boolean;
+}

@@ -175,6 +175,23 @@ class ProgramParticipants(db.Model):
     # 복합 유니크 제약조건 (한 사용자는 한 프로그램에 한 번만 참여 가능)
     __table_args__ = (db.UniqueConstraint('program_id', 'user_id', name='unique_program_user'),)
 
+class WorkoutRecords(db.Model):
+    """운동 기록 모델"""
+    id = db.Column(db.Integer, primary_key=True)
+    program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    completion_time = db.Column(db.Integer, nullable=False)  # 완료 시간 (초)
+    completed_at = db.Column(db.DateTime, default=datetime.utcnow)
+    notes = db.Column(db.Text)  # 사용자 메모
+    is_public = db.Column(db.Boolean, default=True)  # 기록 공개 여부
+    
+    # 관계 설정
+    program = db.relationship('Programs', backref='workout_records')
+    user = db.relationship('Users', backref='workout_records')
+    
+    # 복합 인덱스: 프로그램별 사용자 기록 조회 최적화
+    __table_args__ = (db.Index('idx_program_user_time', 'program_id', 'user_id', 'completed_at'),)
+
 # Validators
 def validate_register(data):
     if not data: return '데이터가 필요합니다'
@@ -1127,6 +1144,209 @@ def handle_leave_user_room(data):
         leave_room(f'user_{user_id}')
         app.logger.info(f'사용자 {user_id}가 방에서 나갔습니다.')
         print(f'👤 사용자 {user_id}가 방에서 나갔습니다.')
+
+# 운동 기록 API
+@app.route('/api/programs/<int:program_id>/records', methods=['POST'])
+def create_workout_record(program_id):
+    """운동 기록 생성"""
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': '로그인이 필요합니다'}), 401
+        
+        # 프로그램 존재 확인
+        program = Programs.query.get(program_id)
+        if not program:
+            return jsonify({'error': '프로그램을 찾을 수 없습니다'}), 404
+        
+        # 사용자가 해당 프로그램에 참여했는지 확인
+        participation = ProgramParticipants.query.filter_by(
+            program_id=program_id, 
+            user_id=session['user_id'],
+            status='approved'
+        ).first()
+        
+        if not participation:
+            return jsonify({'error': '승인된 참여자만 기록을 남길 수 있습니다'}), 403
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': '데이터가 필요합니다'}), 400
+        
+        completion_time = data.get('completion_time')
+        if not completion_time or not isinstance(completion_time, int) or completion_time <= 0:
+            return jsonify({'error': '유효한 완료 시간이 필요합니다'}), 400
+        
+        # 운동 기록 생성
+        record = WorkoutRecords(
+            program_id=program_id,
+            user_id=session['user_id'],
+            completion_time=completion_time,
+            notes=data.get('notes', ''),
+            is_public=data.get('is_public', True)
+        )
+        
+        db.session.add(record)
+        db.session.commit()
+        
+        app.logger.info(f'사용자 {session["user_id"]}가 프로그램 {program_id}의 운동 기록을 생성했습니다: {completion_time}초')
+        
+        return jsonify({
+            'message': '운동 기록이 저장되었습니다',
+            'record_id': record.id,
+            'completion_time': completion_time,
+            'completed_at': record.completed_at.strftime('%Y-%m-%d %H:%M:%S')
+        }), 201
+        
+    except Exception as e:
+        app.logger.exception('create_workout_record error: %s', str(e))
+        return jsonify({'error': '운동 기록 저장 중 오류가 발생했습니다'}), 500
+
+@app.route('/api/programs/<int:program_id>/records', methods=['GET'])
+def get_program_records(program_id):
+    """프로그램의 운동 기록 조회"""
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': '로그인이 필요합니다'}), 401
+        
+        # 프로그램 존재 확인
+        program = Programs.query.get(program_id)
+        if not program:
+            return jsonify({'error': '프로그램을 찾을 수 없습니다'}), 404
+        
+        # 공개된 기록만 조회 (개인 기록은 별도 API에서)
+        records = WorkoutRecords.query.filter_by(
+            program_id=program_id,
+            is_public=True
+        ).order_by(WorkoutRecords.completion_time.asc()).all()
+        
+        records_data = []
+        for record in records:
+            user = Users.query.get(record.user_id)
+            records_data.append({
+                'id': record.id,
+                'user_name': user.name if user else 'Unknown',
+                'completion_time': record.completion_time,
+                'completed_at': record.completed_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'notes': record.notes,
+                'is_public': record.is_public
+            })
+        
+        return jsonify({
+            'program_title': program.title,
+            'records': records_data,
+            'total_count': len(records_data)
+        }), 200
+        
+    except Exception as e:
+        app.logger.exception('get_program_records error: %s', str(e))
+        return jsonify({'error': '운동 기록 조회 중 오류가 발생했습니다'}), 500
+
+@app.route('/api/users/records', methods=['GET'])
+def get_user_records():
+    """사용자의 개인 운동 기록 조회"""
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': '로그인이 필요합니다'}), 401
+        
+        # 사용자의 모든 운동 기록 조회
+        records = WorkoutRecords.query.filter_by(
+            user_id=session['user_id']
+        ).order_by(WorkoutRecords.completed_at.desc()).all()
+        
+        records_data = []
+        for record in records:
+            program = Programs.query.get(record.program_id)
+            records_data.append({
+                'id': record.id,
+                'program_id': record.program_id,
+                'program_title': program.title if program else 'Unknown Program',
+                'completion_time': record.completion_time,
+                'completed_at': record.completed_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'notes': record.notes,
+                'is_public': record.is_public
+            })
+        
+        return jsonify({
+            'records': records_data,
+            'total_count': len(records_data)
+        }), 200
+        
+    except Exception as e:
+        app.logger.exception('get_user_records error: %s', str(e))
+        return jsonify({'error': '개인 운동 기록 조회 중 오류가 발생했습니다'}), 500
+
+@app.route('/api/records/<int:record_id>', methods=['PUT'])
+def update_workout_record(record_id):
+    """운동 기록 수정"""
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': '로그인이 필요합니다'}), 401
+        
+        # 기록 존재 확인 및 소유자 확인
+        record = WorkoutRecords.query.get(record_id)
+        if not record:
+            return jsonify({'error': '기록을 찾을 수 없습니다'}), 404
+        
+        if record.user_id != session['user_id']:
+            return jsonify({'error': '본인의 기록만 수정할 수 있습니다'}), 403
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': '데이터가 필요합니다'}), 400
+        
+        # 수정 가능한 필드들 업데이트
+        if 'completion_time' in data:
+            if isinstance(data['completion_time'], int) and data['completion_time'] > 0:
+                record.completion_time = data['completion_time']
+            else:
+                return jsonify({'error': '유효한 완료 시간이 필요합니다'}), 400
+        
+        if 'notes' in data:
+            record.notes = data['notes']
+        
+        if 'is_public' in data:
+            record.is_public = bool(data['is_public'])
+        
+        db.session.commit()
+        
+        app.logger.info(f'사용자 {session["user_id"]}가 기록 {record_id}를 수정했습니다')
+        
+        return jsonify({
+            'message': '운동 기록이 수정되었습니다',
+            'completion_time': record.completion_time,
+            'notes': record.notes,
+            'is_public': record.is_public
+        }), 200
+        
+    except Exception as e:
+        app.logger.exception('update_workout_record error: %s', str(e))
+        return jsonify({'error': '운동 기록 수정 중 오류가 발생했습니다'}), 500
+
+@app.route('/api/records/<int:record_id>', methods=['DELETE'])
+def delete_workout_record(record_id):
+    """운동 기록 삭제"""
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': '로그인이 필요합니다'}), 401
+        
+        # 기록 존재 확인 및 소유자 확인
+        record = WorkoutRecords.query.get(record_id)
+        if not record:
+            return jsonify({'error': '기록을 찾을 수 없습니다'}), 404
+        
+        if record.user_id != session['user_id']:
+            return jsonify({'error': '본인의 기록만 삭제할 수 있습니다'}), 403
+        
+        db.session.delete(record)
+        db.session.commit()
+        
+        app.logger.info(f'사용자 {session["user_id"]}가 기록 {record_id}를 삭제했습니다')
+        
+        return jsonify({'message': '운동 기록이 삭제되었습니다'}), 200
+        
+    except Exception as e:
+        app.logger.exception('delete_workout_record error: %s', str(e))
+        return jsonify({'error': '운동 기록 삭제 중 오류가 발생했습니다'}), 500
 
 if __name__ == '__main__':
     with app.app_context(): 

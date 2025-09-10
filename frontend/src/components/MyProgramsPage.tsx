@@ -127,7 +127,6 @@ const MyProgramsPage: React.FC = () => {
 
             // 참여자 목록 새로고침 (성공 시)
             const data = await participationApi.getProgramParticipants(programId);
-            const program = mine.find(p => p.id === programId);
             setParticipantsModal(prev => ({
                 ...prev,
                 participants: data.participants,

@@ -224,6 +224,48 @@ body {
   align-items: center;
 }
 
+/* 승인된 참여자 액션 버튼들 */
+.approved-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.start-workout-button {
+  background: #e74c3c !important;
+  color: white !important;
+}
+
+.start-workout-button:hover {
+  background: #c0392b !important;
+  transform: translateY(-1px);
+}
+
+/* 타이머 모달 */
+.timer-modal {
+  z-index: 1004 !important;
+}
+
+.timer-content {
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  max-width: none;
+  width: auto;
+}
+
+/* 모바일에서 승인된 액션 버튼들 */
+@media (max-width: 768px) {
+  .approved-actions {
+    gap: 0.75rem;
+  }
+  
+  .start-workout-button {
+    font-size: 0.95rem;
+    padding: 0.875rem;
+  }
+}
+
 .programs-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));

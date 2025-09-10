@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { MyProgram, ModalState } from '../types';
-import { programApi } from '../utils/api';
+import { MyProgram, ModalState, ProgramParticipant } from '../types';
+import { programApi, participationApi } from '../utils/api';
 import LoadingSpinner from './LoadingSpinner';
 import CustomModal from './CustomModal';
 
@@ -13,12 +13,26 @@ const MyProgramsPage: React.FC = () => {
         msg: '',
         type: 'info'
     });
+    const [participantsModal, setParticipantsModal] = useState<{
+        open: boolean;
+        programId: number | null;
+        participants: ProgramParticipant[];
+        maxParticipants?: number;
+        approvedCount?: number;
+    }>({
+        open: false,
+        programId: null,
+        participants: []
+    });
 
     const showModal = (title: string, msg: string, type: ModalState['type'] = 'info') =>
         setModal({ open: true, title, msg, type });
 
     const closeModal = () =>
         setModal({ open: false, title: '', msg: '', type: 'info' });
+
+    const closeParticipantsModal = () =>
+        setParticipantsModal({ open: false, programId: null, participants: [] });
 
     const load = async (): Promise<void> => {
         setBusy(true);
@@ -51,12 +65,18 @@ const MyProgramsPage: React.FC = () => {
             const data = await programApi.getProgramResults(id);
 
             if (!data.results || data.results.length === 0) {
-                showModal('결과 없음', '아직 신청자가 없습니다.', 'info');
+                showModal('결과 없음', '아직 참여자가 없습니다.', 'info');
                 return;
             }
 
             const lines = data.results.map((result) => {
-                const status = result.completed ? '완료' : '신청';
+                let status = '';
+                if (result.status === 'pending') status = '대기 중';
+                else if (result.status === 'approved') status = '승인됨';
+                else if (result.status === 'rejected') status = '거부됨';
+                else if (result.status === 'left') status = '탈퇴함';
+                else status = result.completed ? '완료' : '신청';
+
                 const resultText = result.result ? ` - 결과: ${result.result}` : '';
                 return `${result.user_name} (${status})${resultText}`;
             });
@@ -79,6 +99,47 @@ const MyProgramsPage: React.FC = () => {
             await load(); // 목록 새로고침
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : '삭제 실패';
+            showModal('오류', errorMessage, 'error');
+        }
+    };
+
+    const manageParticipants = async (programId: number): Promise<void> => {
+        try {
+            const data = await participationApi.getProgramParticipants(programId);
+            // 현재 프로그램 정보도 함께 가져와서 정원 정보 확인
+            const program = mine.find(p => p.id === programId);
+            setParticipantsModal({
+                open: true,
+                programId,
+                participants: data.participants,
+                maxParticipants: program?.max_participants || 0,
+                approvedCount: data.approved_count
+            });
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : '참여자 목록 조회 실패';
+            showModal('오류', errorMessage, 'error');
+        }
+    };
+
+    const approveParticipant = async (programId: number, userId: number, action: 'approve' | 'reject'): Promise<void> => {
+        try {
+            await participationApi.approveParticipant(programId, userId, action);
+            showModal('처리 완료', `참여자가 ${action === 'approve' ? '승인' : '거부'}되었습니다.`, 'success');
+            // 참여자 목록 새로고침
+            const data = await participationApi.getProgramParticipants(programId);
+            setParticipantsModal(prev => ({
+                ...prev,
+                participants: data.participants
+            }));
+        } catch (error) {
+            let errorMessage = '처리 실패';
+            if (error instanceof Error) {
+                errorMessage = error.message;
+                // 정원 초과 에러 메시지 개선
+                if (errorMessage.includes('참여자 수가 가득 찼습니다')) {
+                    errorMessage = '정원이 가득 찼습니다. 더 이상 참여자를 승인할 수 없습니다.';
+                }
+            }
             showModal('오류', errorMessage, 'error');
         }
     };
@@ -110,12 +171,20 @@ const MyProgramsPage: React.FC = () => {
                                         프로그램 공개하기
                                     </button>
                                 ) : (
-                                    <button
-                                        className="results-button"
-                                        onClick={() => results(program.id)}
-                                    >
-                                        참여자 결과 보기
-                                    </button>
+                                    <>
+                                        <button
+                                            className="results-button"
+                                            onClick={() => results(program.id)}
+                                        >
+                                            참여자 결과 보기
+                                        </button>
+                                        <button
+                                            className="manage-button"
+                                            onClick={() => manageParticipants(program.id)}
+                                        >
+                                            참여자 관리
+                                        </button>
+                                    </>
                                 )}
 
                                 <button
@@ -136,6 +205,58 @@ const MyProgramsPage: React.FC = () => {
                 message={modal.msg}
                 type={modal.type}
             />
+
+            {/* 참여자 관리 모달 */}
+            {participantsModal.open && (
+                <div className="modal-overlay" onClick={closeParticipantsModal}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>참여자 관리</h3>
+                            <button className="close-button" onClick={closeParticipantsModal}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            {participantsModal.participants.length === 0 ? (
+                                <p>참여자가 없습니다.</p>
+                            ) : (
+                                <div className="participants-list">
+                                    {participantsModal.participants.map((participant) => (
+                                        <div key={participant.id} className="participant-item">
+                                            <div className="participant-info">
+                                                <strong>{participant.user_name}</strong>
+                                                <span className={`status status-${participant.status}`}>
+                                                    {participant.status === 'pending' && '대기 중'}
+                                                    {participant.status === 'approved' && '승인됨'}
+                                                    {participant.status === 'rejected' && '거부됨'}
+                                                    {participant.status === 'left' && '탈퇴함'}
+                                                </span>
+                                                <small>신청일: {new Date(participant.joined_at).toLocaleDateString()}</small>
+                                            </div>
+                                            {participant.status === 'pending' && (
+                                                <div className="participant-actions">
+                                                    <button
+                                                        className={`approve-button ${(participantsModal.approvedCount || 0) >= (participantsModal.maxParticipants || 0) ? 'disabled' : ''}`}
+                                                        onClick={() => approveParticipant(participantsModal.programId!, participant.user_id, 'approve')}
+                                                        disabled={(participantsModal.approvedCount || 0) >= (participantsModal.maxParticipants || 0)}
+                                                        title={(participantsModal.approvedCount || 0) >= (participantsModal.maxParticipants || 0) ? '정원이 가득 찼습니다' : ''}
+                                                    >
+                                                        승인
+                                                    </button>
+                                                    <button
+                                                        className="reject-button"
+                                                        onClick={() => approveParticipant(participantsModal.programId!, participant.user_id, 'reject')}
+                                                    >
+                                                        거부
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

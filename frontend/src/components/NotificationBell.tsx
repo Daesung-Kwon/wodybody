@@ -43,6 +43,12 @@ const NotificationBell: React.FC = () => {
                 return '👥';
             case 'program_cancelled':
                 return '❌';
+            case 'program_join_request':
+                return '🙋‍♂️';
+            case 'program_approved':
+                return '✅';
+            case 'program_rejected':
+                return '❌';
             default:
                 return '🔔';
         }

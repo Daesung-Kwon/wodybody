@@ -11,7 +11,8 @@ import {
     Notification,
     ExerciseCategory,
     Exercise,
-    ProgramExercise
+    ProgramExercise,
+    ProgramParticipantsResponse
 } from '../types';
 
 // API 기본 설정
@@ -171,6 +172,28 @@ export const exerciseApi = {
     // 프로그램의 운동 목록 조회
     getProgramExercises: (programId: number): Promise<{ exercises: ProgramExercise[] }> =>
         apiRequest<{ exercises: ProgramExercise[] }>(`/api/programs/${programId}/exercises`),
+};
+
+// 프로그램 참여 관련 API
+export const participationApi = {
+    // 프로그램 참여 신청
+    joinProgram: (programId: number): Promise<{ message: string }> =>
+        apiRequest<{ message: string }>(`/api/programs/${programId}/join`, { method: 'POST' }),
+
+    // 프로그램 참여 취소/탈퇴
+    leaveProgram: (programId: number): Promise<{ message: string }> =>
+        apiRequest<{ message: string }>(`/api/programs/${programId}/leave`, { method: 'DELETE' }),
+
+    // 프로그램 참여자 목록 조회
+    getProgramParticipants: (programId: number): Promise<ProgramParticipantsResponse> =>
+        apiRequest<ProgramParticipantsResponse>(`/api/programs/${programId}/participants`),
+
+    // 참여자 승인/거부
+    approveParticipant: (programId: number, userId: number, action: 'approve' | 'reject'): Promise<{ message: string }> =>
+        apiRequest<{ message: string }>(`/api/programs/${programId}/participants/${userId}/approve`, {
+            method: 'PUT',
+            body: JSON.stringify({ action })
+        }),
 };
 
 // 서버 연결 테스트

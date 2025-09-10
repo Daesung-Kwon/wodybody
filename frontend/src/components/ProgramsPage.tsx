@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Program } from '../types';
-import { programApi } from '../utils/api';
+import { Program, ProgramWithParticipation } from '../types';
+import { programApi, participationApi } from '../utils/api';
 import LoadingSpinner from './LoadingSpinner';
 
 const ProgramsPage: React.FC = () => {
-    const [programs, setPrograms] = useState<Program[]>([]);
+    const [programs, setPrograms] = useState<ProgramWithParticipation[]>([]);
     const [busy, setBusy] = useState<boolean>(false);
     const [actionBusyId, setActionBusyId] = useState<number | null>(null);
     const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
@@ -26,11 +26,12 @@ const ProgramsPage: React.FC = () => {
         load();
     }, []);
 
-    const apply = async (id: number): Promise<void> => {
+    const joinProgram = async (id: number): Promise<void> => {
         setActionBusyId(id);
         try {
-            await programApi.registerProgram(id);
+            await participationApi.joinProgram(id);
             await load(); // 최신 참가자 수/상태 반영
+            window.alert('참여 신청이 완료되었습니다!');
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : '참여 신청 실패';
             window.alert(errorMessage);
@@ -39,17 +40,80 @@ const ProgramsPage: React.FC = () => {
         }
     };
 
-    const cancel = async (id: number): Promise<void> => {
+    const leaveProgram = async (id: number): Promise<void> => {
         setActionBusyId(id);
         try {
-            await programApi.unregisterProgram(id);
+            await participationApi.leaveProgram(id);
             await load();
+            window.alert('프로그램에서 탈퇴했습니다.');
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : '참여 취소 실패';
+            const errorMessage = error instanceof Error ? error.message : '탈퇴 실패';
             window.alert(errorMessage);
         } finally {
             setActionBusyId(null);
         }
+    };
+
+    const getParticipationButton = (program: ProgramWithParticipation) => {
+        const { participation_status, participants, max_participants } = program;
+
+        if (participation_status === 'pending') {
+            return (
+                <button
+                    className="register-button pending"
+                    disabled={true}
+                    title="참여 신청이 대기 중입니다"
+                >
+                    대기 중...
+                </button>
+            );
+        }
+
+        if (participation_status === 'approved') {
+            return (
+                <button
+                    className="register-button approved"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        leaveProgram(program.id);
+                    }}
+                    disabled={actionBusyId === program.id}
+                    title="프로그램에서 탈퇴합니다"
+                >
+                    {actionBusyId === program.id ? '탈퇴 중...' : '탈퇴하기'}
+                </button>
+            );
+        }
+
+        if (participation_status === 'rejected') {
+            return (
+                <button
+                    className="register-button rejected"
+                    disabled={true}
+                    title="참여가 거부되었습니다"
+                >
+                    거부됨
+                </button>
+            );
+        }
+
+        // 참여하지 않은 상태
+        return (
+            <button
+                className="register-button"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    joinProgram(program.id);
+                }}
+                disabled={actionBusyId === program.id || participants >= max_participants}
+                title="프로그램에 참여 신청합니다"
+            >
+                {actionBusyId === program.id
+                    ? '신청 중...'
+                    : (participants >= max_participants ? '정원 마감' : '참여 신청')
+                }
+            </button>
+        );
     };
 
     const openModal = (program: Program): void => {
@@ -129,34 +193,7 @@ const ProgramsPage: React.FC = () => {
                             </div>
 
                             <div className="program-actions">
-                                {program.is_registered ? (
-                                    <button
-                                        className="register-button registered"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            cancel(program.id);
-                                        }}
-                                        disabled={actionBusyId === program.id}
-                                        title="신청을 취소합니다"
-                                    >
-                                        {actionBusyId === program.id ? '취소 중...' : '신청 취소'}
-                                    </button>
-                                ) : (
-                                    <button
-                                        className="register-button"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            apply(program.id);
-                                        }}
-                                        disabled={actionBusyId === program.id || program.participants >= program.max_participants}
-                                        title="프로그램에 참여 신청합니다"
-                                    >
-                                        {actionBusyId === program.id
-                                            ? '신청 중...'
-                                            : (program.participants >= program.max_participants ? '정원 마감' : '참여 신청')
-                                        }
-                                    </button>
-                                )}
+                                {getParticipationButton(program)}
                             </div>
                         </div>
                     ))}
@@ -301,18 +338,18 @@ const ProgramsPage: React.FC = () => {
                                 <button
                                     className="register-button registered"
                                     onClick={() => {
-                                        cancel(selectedProgram.id);
+                                        leaveProgram(selectedProgram.id);
                                         closeModal();
                                     }}
                                     disabled={actionBusyId === selectedProgram.id}
                                 >
-                                    {actionBusyId === selectedProgram.id ? '취소 중...' : '신청 취소'}
+                                    {actionBusyId === selectedProgram.id ? '탈퇴 중...' : '탈퇴하기'}
                                 </button>
                             ) : (
                                 <button
                                     className="register-button"
                                     onClick={() => {
-                                        apply(selectedProgram.id);
+                                        joinProgram(selectedProgram.id);
                                         closeModal();
                                     }}
                                     disabled={actionBusyId === selectedProgram.id || selectedProgram.participants >= selectedProgram.max_participants}

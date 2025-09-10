@@ -171,6 +171,24 @@
   cursor: not-allowed;
 }
 
+.register-button.pending {
+  background-color: #f39c12;
+  cursor: not-allowed;
+}
+
+.register-button.approved {
+  background-color: #e74c3c;
+}
+
+.register-button.approved:hover {
+  background-color: #c0392b;
+}
+
+.register-button.rejected {
+  background-color: #95a5a6;
+  cursor: not-allowed;
+}
+
 .register-button:disabled {
   background-color: #bdc3c7;
   cursor: not-allowed;
@@ -1746,4 +1764,125 @@ button:disabled {
   .exercise-name {
     flex: none;
   }
+}
+
+/* 참여자 관리 모달 스타일 */
+.participants-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.participant-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  background-color: #f9f9f9;
+}
+
+.participant-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.participant-info strong {
+  font-size: 1.1rem;
+  color: #2c3e50;
+}
+
+.participant-info small {
+  color: #666;
+  font-size: 0.85rem;
+}
+
+.status {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.status-pending {
+  background-color: #f39c12;
+  color: white;
+}
+
+.status-approved {
+  background-color: #27ae60;
+  color: white;
+}
+
+.status-rejected {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.status-left {
+  background-color: #95a5a6;
+  color: white;
+}
+
+.participant-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.approve-button {
+  background-color: #27ae60;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.3s ease;
+}
+
+.approve-button:hover {
+  background-color: #229954;
+}
+
+.reject-button {
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.3s ease;
+}
+
+.reject-button:hover {
+  background-color: #c0392b;
+}
+
+.manage-button {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.3s ease;
+}
+
+.manage-button:hover {
+  background-color: #2980b9;
+}
+
+.approve-button.disabled {
+  background-color: #95a5a6;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.approve-button.disabled:hover {
+  background-color: #95a5a6;
 }

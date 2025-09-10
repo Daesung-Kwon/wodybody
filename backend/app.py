@@ -158,6 +158,23 @@ class Notifications(db.Model):
     user = db.relationship('Users', backref='notifications')
     program = db.relationship('Programs', backref='notifications')
 
+# 프로그램 참여자 모델
+class ProgramParticipants(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    status = db.Column(db.String(20), default='pending')  # 'pending', 'approved', 'rejected', 'left'
+    joined_at = db.Column(db.DateTime, default=datetime.utcnow)
+    approved_at = db.Column(db.DateTime)
+    left_at = db.Column(db.DateTime)
+    
+    # 관계 설정
+    program = db.relationship('Programs', backref='participants')
+    user = db.relationship('Users', backref='program_participations')
+    
+    # 복합 유니크 제약조건 (한 사용자는 한 프로그램에 한 번만 참여 가능)
+    __table_args__ = (db.UniqueConstraint('program_id', 'user_id', name='unique_program_user'),)
+
 # Validators
 def validate_register(data):
     if not data: return '데이터가 필요합니다'
@@ -323,10 +340,15 @@ def get_programs():
         result = []
         for p in programs:
             creator = Users.query.get(p.creator_id)
-            participant_count = Registrations.query.filter_by(program_id=p.id).count()
+            # 새로운 참여 시스템 사용
+            participant_count = ProgramParticipants.query.filter_by(program_id=p.id, status='approved').count()
             is_registered = False
+            participation_status = None
             if current_user_id:
-                is_registered = Registrations.query.filter_by(program_id=p.id, user_id=current_user_id).first() is not None
+                participation = ProgramParticipants.query.filter_by(program_id=p.id, user_id=current_user_id).first()
+                if participation:
+                    is_registered = participation.status in ['pending', 'approved']
+                    participation_status = participation.status
             
             # 프로그램에 포함된 운동들 조회 (기존 방식)
             program_exercises = ProgramExercises.query.filter_by(program_id=p.id).order_by(ProgramExercises.order_index).all()
@@ -375,6 +397,7 @@ def get_programs():
                 'max_participants': p.max_participants,
                 'created_at': p.created_at.strftime('%Y-%m-%d %H:%M'),
                 'is_registered': is_registered,
+                'participation_status': participation_status,  # 'pending', 'approved', 'rejected', 'left'
                 'exercises': exercises,  # 기존 운동 정보
                 'workout_pattern': workout_pattern  # WOD 패턴 정보
             })
@@ -482,29 +505,24 @@ def program_results(program_id):
         if not program or program.creator_id != session['user_id']:  # 소유자만 조회
             return jsonify({'message': '권한이 없습니다'}), 403
 
-        # 쿼리 파라미터: completed_only=true/false (기본 false: 신청자 전원 표시)
-        completed_only = (request.args.get('completed_only', 'false').lower() == 'true')
-
-        q = Registrations.query.filter_by(program_id=program_id)
-        if completed_only:
-            q = q.filter_by(completed=True)
-
-        regs = q.order_by(Registrations.registered_at.desc()).all()
+        # 새로운 참여 시스템 사용: ProgramParticipants 테이블
+        participants = ProgramParticipants.query.filter_by(program_id=program_id).all()
 
         out = []
-        for r in regs:
-            u = Users.query.get(r.user_id)
+        for participant in participants:
+            u = Users.query.get(participant.user_id)
             out.append({
                 'user_name': u.name if u else 'Unknown',
-                'result': r.result or '',
-                'completed': bool(r.completed),
-                'registered_at': r.registered_at.strftime('%Y-%m-%d %H:%M')
+                'result': '',  # 아직 운동 결과 기능이 구현되지 않음
+                'completed': participant.status == 'approved',  # 승인된 참여자를 완료로 간주
+                'registered_at': participant.joined_at.strftime('%Y-%m-%d %H:%M'),
+                'status': participant.status
             })
 
         return jsonify({
             'program_title': program.title,
-            'total_registrations': Registrations.query.filter_by(program_id=program_id).count(),
-            'completed_count': Registrations.query.filter_by(program_id=program_id, completed=True).count(),
+            'total_registrations': len(participants),
+            'completed_count': len([p for p in participants if p.status == 'approved']),
             'results': out
         }), 200
     except Exception as e:
@@ -837,6 +855,242 @@ def seed_exercise_data():
     except Exception as e:
         app.logger.exception('seed_exercise_data error: %s', str(e))
         db.session.rollback()
+
+# 프로그램 참여 관련 API
+@app.route('/api/programs/<int:program_id>/join', methods=['POST'])
+def join_program(program_id):
+    """프로그램 참여 신청"""
+    if 'user_id' not in session:
+        return jsonify({'error': '로그인이 필요합니다'}), 401
+    
+    try:
+        # 프로그램 존재 확인
+        program = Programs.query.get(program_id)
+        if not program:
+            return jsonify({'error': '프로그램을 찾을 수 없습니다'}), 404
+        
+        # 공개 프로그램인지 확인
+        if not program.is_open:
+            return jsonify({'error': '공개되지 않은 프로그램입니다'}), 400
+        
+        # 이미 참여했는지 확인
+        existing_participation = ProgramParticipants.query.filter_by(
+            program_id=program_id, 
+            user_id=session['user_id']
+        ).first()
+        
+        if existing_participation:
+            if existing_participation.status == 'pending':
+                return jsonify({'error': '이미 참여 신청이 대기 중입니다'}), 400
+            elif existing_participation.status == 'approved':
+                return jsonify({'error': '이미 참여 중인 프로그램입니다'}), 400
+            elif existing_participation.status == 'rejected':
+                return jsonify({'error': '참여가 거부된 프로그램입니다'}), 400
+            elif existing_participation.status == 'left':
+                # 탈퇴한 사용자가 다시 참여 신청하는 경우 기존 레코드 업데이트
+                existing_participation.status = 'pending'
+                existing_participation.joined_at = datetime.now()
+                existing_participation.approved_at = None
+                existing_participation.left_at = None
+                db.session.commit()
+                
+                # 프로그램 생성자에게 알림 전송
+                create_notification(
+                    user_id=program.creator_id,
+                    program_id=program_id,
+                    notification_type='program_join_request',
+                    title='새로운 참여 신청이 있습니다',
+                    message=f'"{program.title}" 프로그램에 새로운 참여 신청이 있습니다.'
+                )
+                
+                return jsonify({'message': '참여 신청이 완료되었습니다'}), 200
+        
+        # 최대 참여자 수 확인
+        current_participants = ProgramParticipants.query.filter_by(
+            program_id=program_id, 
+            status='approved'
+        ).count()
+        
+        if current_participants >= program.max_participants:
+            return jsonify({'error': '참여자 수가 가득 찼습니다'}), 400
+        
+        # 참여 신청 생성
+        participation = ProgramParticipants(
+            program_id=program_id,
+            user_id=session['user_id'],
+            status='pending'
+        )
+        
+        db.session.add(participation)
+        db.session.commit()
+        
+        # 프로그램 생성자에게 알림 전송
+        create_notification(
+            user_id=program.creator_id,
+            notification_type='program_join_request',
+            title='새로운 참여 신청이 있습니다',
+            message=f'"{program.title}" 프로그램에 새로운 참여 신청이 있습니다.',
+            program_id=program_id
+        )
+        
+        return jsonify({'message': '참여 신청이 완료되었습니다'}), 200
+        
+    except Exception as e:
+        app.logger.exception('join_program error: %s', str(e))
+        db.session.rollback()
+        return jsonify({'error': '참여 신청 중 오류가 발생했습니다'}), 500
+
+@app.route('/api/programs/<int:program_id>/leave', methods=['DELETE'])
+def leave_program(program_id):
+    """프로그램 참여 취소/탈퇴"""
+    if 'user_id' not in session:
+        return jsonify({'error': '로그인이 필요합니다'}), 401
+    
+    try:
+        # 참여 기록 찾기
+        participation = ProgramParticipants.query.filter_by(
+            program_id=program_id, 
+            user_id=session['user_id']
+        ).first()
+        
+        if not participation:
+            return jsonify({'error': '참여 기록을 찾을 수 없습니다'}), 404
+        
+        if participation.status == 'left':
+            return jsonify({'error': '이미 탈퇴한 프로그램입니다'}), 400
+        
+        # 상태를 'left'로 변경
+        participation.status = 'left'
+        participation.left_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({'message': '프로그램에서 탈퇴했습니다'}), 200
+        
+    except Exception as e:
+        app.logger.exception('leave_program error: %s', str(e))
+        db.session.rollback()
+        return jsonify({'error': '탈퇴 중 오류가 발생했습니다'}), 500
+
+@app.route('/api/programs/<int:program_id>/participants', methods=['GET'])
+def get_program_participants(program_id):
+    """프로그램 참여자 목록 조회"""
+    if 'user_id' not in session:
+        return jsonify({'error': '로그인이 필요합니다'}), 401
+    
+    try:
+        # 프로그램 존재 확인
+        program = Programs.query.get(program_id)
+        if not program:
+            return jsonify({'error': '프로그램을 찾을 수 없습니다'}), 404
+        
+        # 참여자 목록 조회
+        participants = ProgramParticipants.query.filter_by(program_id=program_id).all()
+        
+        participants_data = []
+        for p in participants:
+            participants_data.append({
+                'id': p.id,
+                'user_id': p.user_id,
+                'user_name': p.user.name,
+                'status': p.status,
+                'joined_at': p.joined_at.isoformat() if p.joined_at else None,
+                'approved_at': p.approved_at.isoformat() if p.approved_at else None,
+                'left_at': p.left_at.isoformat() if p.left_at else None
+            })
+        
+        return jsonify({
+            'participants': participants_data,
+            'total_count': len(participants_data),
+            'approved_count': len([p for p in participants_data if p['status'] == 'approved']),
+            'pending_count': len([p for p in participants_data if p['status'] == 'pending'])
+        }), 200
+        
+    except Exception as e:
+        app.logger.exception('get_program_participants error: %s', str(e))
+        return jsonify({'error': '참여자 목록 조회 중 오류가 발생했습니다'}), 500
+
+@app.route('/api/programs/<int:program_id>/participants/<int:user_id>/approve', methods=['PUT'])
+def approve_participant(program_id, user_id):
+    """참여자 승인/거부"""
+    if 'user_id' not in session:
+        return jsonify({'error': '로그인이 필요합니다'}), 401
+    
+    try:
+        # 프로그램 존재 확인
+        program = Programs.query.get(program_id)
+        if not program:
+            return jsonify({'error': '프로그램을 찾을 수 없습니다'}), 404
+        
+        # 프로그램 생성자인지 확인
+        if program.creator_id != session['user_id']:
+            return jsonify({'error': '프로그램 생성자만 승인할 수 있습니다'}), 403
+        
+        # 참여 기록 찾기
+        participation = ProgramParticipants.query.filter_by(
+            program_id=program_id, 
+            user_id=user_id
+        ).first()
+        
+        if not participation:
+            return jsonify({'error': '참여 기록을 찾을 수 없습니다'}), 404
+        
+        if participation.status != 'pending':
+            return jsonify({'error': '대기 중인 참여 신청만 승인할 수 있습니다'}), 400
+        
+        # 요청 데이터 확인
+        data = request.get_json() or {}
+        action = data.get('action')  # 'approve' or 'reject'
+        
+        if action == 'approve':
+            # 최대 참여자 수 확인
+            current_participants = ProgramParticipants.query.filter_by(
+                program_id=program_id, 
+                status='approved'
+            ).count()
+            
+            if current_participants >= program.max_participants:
+                return jsonify({'error': '정원이 가득 찼습니다. 더 이상 참여자를 승인할 수 없습니다.'}), 400
+            
+            participation.status = 'approved'
+            participation.approved_at = datetime.utcnow()
+            
+            # 참여자에게 알림 전송
+            create_notification(
+                user_id=user_id,
+                notification_type='program_approved',
+                title='프로그램 참여가 승인되었습니다',
+                message=f'"{program.title}" 프로그램 참여가 승인되었습니다.',
+                program_id=program_id
+            )
+            
+            message = '참여가 승인되었습니다'
+            
+        elif action == 'reject':
+            participation.status = 'rejected'
+            
+            # 참여자에게 알림 전송
+            create_notification(
+                user_id=user_id,
+                notification_type='program_rejected',
+                title='프로그램 참여가 거부되었습니다',
+                message=f'"{program.title}" 프로그램 참여가 거부되었습니다.',
+                program_id=program_id
+            )
+            
+            message = '참여가 거부되었습니다'
+            
+        else:
+            return jsonify({'error': '유효하지 않은 액션입니다'}), 400
+        
+        db.session.commit()
+        
+        return jsonify({'message': message}), 200
+        
+    except Exception as e:
+        app.logger.exception('approve_participant error: %s', str(e))
+        db.session.rollback()
+        return jsonify({'error': '승인 처리 중 오류가 발생했습니다'}), 500
 
 # WebSocket 이벤트 핸들러
 @socketio.on('connect')

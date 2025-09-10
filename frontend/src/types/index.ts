@@ -108,6 +108,7 @@ export interface ProgramResult {
     result: string;
     completed: boolean;
     registered_at: string;
+    status?: 'pending' | 'approved' | 'rejected' | 'left';
 }
 
 // 프로그램 결과 응답 타입
@@ -217,4 +218,26 @@ export interface NotificationContextType {
     markAsRead: (notificationId: number) => void;
     markAllAsRead: () => void;
     fetchNotifications: () => void;
+}
+
+// 프로그램 참여 관련 타입
+export interface ProgramParticipant {
+    id: number;
+    user_id: number;
+    user_name: string;
+    status: 'pending' | 'approved' | 'rejected' | 'left';
+    joined_at: string;
+    approved_at?: string;
+    left_at?: string;
+}
+
+export interface ProgramParticipantsResponse {
+    participants: ProgramParticipant[];
+    total_count: number;
+    approved_count: number;
+    pending_count: number;
+}
+
+export interface ProgramWithParticipation extends Program {
+    participation_status?: 'pending' | 'approved' | 'rejected' | 'left';
 }

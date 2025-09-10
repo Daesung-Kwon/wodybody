@@ -120,7 +120,7 @@ export interface ProgramResultsResponse {
 }
 
 // 페이지 타입
-export type Page = 'login' | 'register' | 'programs' | 'my' | 'create';
+export type Page = 'login' | 'register' | 'programs' | 'my' | 'records' | 'create';
 
 // 모달 타입
 export interface ModalState {
@@ -270,4 +270,52 @@ export interface UpdateWorkoutRecordRequest {
     completion_time?: number;
     notes?: string;
     is_public?: boolean;
+}
+
+// 개인 통계 관련 타입
+export interface PersonalStats {
+    total_workouts: number;
+    average_time: number;
+    best_time: number;
+    programs_completed: number;
+    recent_improvement: number;
+    program_stats: {
+        [programId: string]: {
+            count: number;
+            average_time: number;
+            best_time: number;
+            program_title: string;
+        };
+    };
+}
+
+export interface PersonalGoal {
+    id: number;
+    program_id: number;
+    program_title: string;
+    target_time: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface PersonalGoalsResponse {
+    goals: PersonalGoal[];
+}
+
+export interface CreateGoalRequest {
+    program_id: number;
+    target_time: number;
+}
+
+// 개인 기록 페이지용 타입
+export interface ProgramRecordGroup {
+    program_id: number;
+    program_title: string;
+    records: WorkoutRecord[];
+    stats: {
+        count: number;
+        average_time: number;
+        best_time: number;
+    };
+    goal?: PersonalGoal;
 }

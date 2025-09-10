@@ -192,6 +192,22 @@ class WorkoutRecords(db.Model):
     # 복합 인덱스: 프로그램별 사용자 기록 조회 최적화
     __table_args__ = (db.Index('idx_program_user_time', 'program_id', 'user_id', 'completed_at'),)
 
+class PersonalGoals(db.Model):
+    """개인 목표 모델"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=False)
+    target_time = db.Column(db.Integer, nullable=False)  # 목표 시간 (초)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # 관계 설정
+    user = db.relationship('Users', backref='personal_goals')
+    program = db.relationship('Programs', backref='personal_goals')
+    
+    # 복합 유니크 제약조건: 한 사용자는 한 프로그램에 하나의 목표만 설정 가능
+    __table_args__ = (db.UniqueConstraint('user_id', 'program_id', name='unique_user_program_goal'),)
+
 # Validators
 def validate_register(data):
     if not data: return '데이터가 필요합니다'
@@ -1347,6 +1363,201 @@ def delete_workout_record(record_id):
     except Exception as e:
         app.logger.exception('delete_workout_record error: %s', str(e))
         return jsonify({'error': '운동 기록 삭제 중 오류가 발생했습니다'}), 500
+
+# 개인 통계 API
+@app.route('/api/users/records/stats', methods=['GET'])
+def get_user_stats():
+    """사용자의 개인 통계 조회"""
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': '로그인이 필요합니다'}), 401
+        
+        # 사용자의 모든 운동 기록 조회
+        records = WorkoutRecords.query.filter_by(user_id=session['user_id']).all()
+        
+        if not records:
+            return jsonify({
+                'total_workouts': 0,
+                'average_time': 0,
+                'best_time': 0,
+                'programs_completed': 0,
+                'recent_improvement': 0
+            }), 200
+        
+        # 기본 통계 계산
+        total_workouts = len(records)
+        completion_times = [record.completion_time for record in records]
+        average_time = sum(completion_times) / len(completion_times)
+        best_time = min(completion_times)
+        
+        # 프로그램별 통계
+        program_stats = {}
+        for record in records:
+            program_id = record.program_id
+            if program_id not in program_stats:
+                program_stats[program_id] = []
+            program_stats[program_id].append(record.completion_time)
+        
+        programs_completed = len(program_stats)
+        
+        # 최근 개선도 계산 (최근 5개 기록의 평균 vs 이전 5개 기록의 평균)
+        recent_improvement = 0
+        if len(records) >= 10:
+            recent_5 = sorted(records, key=lambda x: x.completed_at)[-5:]
+            previous_5 = sorted(records, key=lambda x: x.completed_at)[-10:-5]
+            
+            recent_avg = sum(r.completion_time for r in recent_5) / 5
+            previous_avg = sum(r.completion_time for r in previous_5) / 5
+            
+            recent_improvement = ((previous_avg - recent_avg) / previous_avg) * 100
+        
+        return jsonify({
+            'total_workouts': total_workouts,
+            'average_time': round(average_time, 1),
+            'best_time': best_time,
+            'programs_completed': programs_completed,
+            'recent_improvement': round(recent_improvement, 1),
+            'program_stats': {
+                str(program_id): {
+                    'count': len(times),
+                    'average_time': round(sum(times) / len(times), 1),
+                    'best_time': min(times),
+                    'program_title': Programs.query.get(program_id).title if Programs.query.get(program_id) else 'Unknown'
+                }
+                for program_id, times in program_stats.items()
+            }
+        }), 200
+        
+    except Exception as e:
+        app.logger.exception('get_user_stats error: %s', str(e))
+        return jsonify({'error': '개인 통계 조회 중 오류가 발생했습니다'}), 500
+
+# 개인 목표 API
+@app.route('/api/users/goals', methods=['GET'])
+def get_user_goals():
+    """사용자의 개인 목표 조회"""
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': '로그인이 필요합니다'}), 401
+        
+        goals = PersonalGoals.query.filter_by(user_id=session['user_id']).all()
+        
+        goals_data = []
+        for goal in goals:
+            program = Programs.query.get(goal.program_id)
+            if program:
+                goals_data.append({
+                    'id': goal.id,
+                    'program_id': goal.program_id,
+                    'program_title': program.title,
+                    'target_time': goal.target_time,
+                    'created_at': goal.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    'updated_at': goal.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+                })
+        
+        return jsonify({'goals': goals_data}), 200
+        
+    except Exception as e:
+        app.logger.exception('get_user_goals error: %s', str(e))
+        return jsonify({'error': '개인 목표 조회 중 오류가 발생했습니다'}), 500
+
+@app.route('/api/users/goals', methods=['POST'])
+def create_user_goal():
+    """개인 목표 생성"""
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': '로그인이 필요합니다'}), 401
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': '데이터가 필요합니다'}), 400
+        
+        program_id = data.get('program_id')
+        target_time = data.get('target_time')
+        
+        if not program_id or not target_time:
+            return jsonify({'error': '프로그램 ID와 목표 시간이 필요합니다'}), 400
+        
+        if not isinstance(target_time, int) or target_time <= 0:
+            return jsonify({'error': '유효한 목표 시간이 필요합니다'}), 400
+        
+        # 프로그램 존재 확인
+        program = Programs.query.get(program_id)
+        if not program:
+            return jsonify({'error': '프로그램을 찾을 수 없습니다'}), 404
+        
+        # 사용자가 해당 프로그램에 참여했는지 확인
+        participation = ProgramParticipants.query.filter_by(
+            program_id=program_id,
+            user_id=session['user_id'],
+            status='approved'
+        ).first()
+        
+        if not participation:
+            return jsonify({'error': '승인된 참여자만 목표를 설정할 수 있습니다'}), 403
+        
+        # 기존 목표가 있는지 확인
+        existing_goal = PersonalGoals.query.filter_by(
+            user_id=session['user_id'],
+            program_id=program_id
+        ).first()
+        
+        if existing_goal:
+            # 기존 목표 업데이트
+            existing_goal.target_time = target_time
+            existing_goal.updated_at = datetime.utcnow()
+            db.session.commit()
+            
+            return jsonify({
+                'message': '목표가 업데이트되었습니다',
+                'goal_id': existing_goal.id,
+                'target_time': target_time
+            }), 200
+        else:
+            # 새 목표 생성
+            goal = PersonalGoals(
+                user_id=session['user_id'],
+                program_id=program_id,
+                target_time=target_time
+            )
+            
+            db.session.add(goal)
+            db.session.commit()
+            
+            return jsonify({
+                'message': '목표가 설정되었습니다',
+                'goal_id': goal.id,
+                'target_time': target_time
+            }), 201
+        
+    except Exception as e:
+        app.logger.exception('create_user_goal error: %s', str(e))
+        return jsonify({'error': '목표 설정 중 오류가 발생했습니다'}), 500
+
+@app.route('/api/users/goals/<int:goal_id>', methods=['DELETE'])
+def delete_user_goal(goal_id):
+    """개인 목표 삭제"""
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': '로그인이 필요합니다'}), 401
+        
+        goal = PersonalGoals.query.get(goal_id)
+        if not goal:
+            return jsonify({'error': '목표를 찾을 수 없습니다'}), 404
+        
+        if goal.user_id != session['user_id']:
+            return jsonify({'error': '본인의 목표만 삭제할 수 있습니다'}), 403
+        
+        db.session.delete(goal)
+        db.session.commit()
+        
+        app.logger.info(f'사용자 {session["user_id"]}가 목표 {goal_id}를 삭제했습니다')
+        
+        return jsonify({'message': '목표가 삭제되었습니다'}), 200
+        
+    except Exception as e:
+        app.logger.exception('delete_user_goal error: %s', str(e))
+        return jsonify({'error': '목표 삭제 중 오류가 발생했습니다'}), 500
 
 if __name__ == '__main__':
     with app.app_context(): 

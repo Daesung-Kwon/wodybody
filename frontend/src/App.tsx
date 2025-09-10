@@ -8,6 +8,7 @@ import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
 import ProgramsPage from './components/ProgramsPage';
 import MyProgramsPage from './components/MyProgramsPage';
+import PersonalRecordsPage from './components/PersonalRecordsPage';
 import StepBasedCreateProgramPage from './components/StepBasedCreateProgramPage';
 import NotificationBell from './components/NotificationBell';
 import WebSocketDebugger from './components/WebSocketDebugger';
@@ -50,6 +51,9 @@ const AppContent: React.FC = () => {
                                 <button onClick={() => setPage('my')}>
                                     내 프로그램
                                 </button>
+                                <button onClick={() => setPage('records')}>
+                                    내 기록
+                                </button>
                                 <button onClick={() => setPage('create')}>
                                     프로그램 등록
                                 </button>
@@ -61,6 +65,7 @@ const AppContent: React.FC = () => {
                         </nav>
                         {page === 'programs' && <ProgramsPage />}
                         {page === 'my' && <MyProgramsPage />}
+                        {page === 'records' && <PersonalRecordsPage />}
                         {page === 'create' && (
                             <StepBasedCreateProgramPage
                                 goMy={() => setPage('my')}

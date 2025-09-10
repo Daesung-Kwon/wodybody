@@ -15,7 +15,10 @@ import {
     ProgramParticipantsResponse,
     WorkoutRecordsResponse,
     CreateWorkoutRecordRequest,
-    UpdateWorkoutRecordRequest
+    UpdateWorkoutRecordRequest,
+    PersonalStats,
+    PersonalGoalsResponse,
+    CreateGoalRequest
 } from '../types';
 
 // API 기본 설정
@@ -226,6 +229,31 @@ export const workoutRecordsApi = {
     // 운동 기록 삭제
     deleteRecord: (recordId: number): Promise<{ message: string }> =>
         apiRequest<{ message: string }>(`/api/records/${recordId}`, { method: 'DELETE' }),
+};
+
+// 개인 통계 API
+export const personalStatsApi = {
+    // 개인 통계 조회
+    getStats: (): Promise<PersonalStats> =>
+        apiRequest<PersonalStats>('/api/users/records/stats'),
+};
+
+// 개인 목표 API
+export const personalGoalsApi = {
+    // 개인 목표 조회
+    getGoals: (): Promise<PersonalGoalsResponse> =>
+        apiRequest<PersonalGoalsResponse>('/api/users/goals'),
+
+    // 개인 목표 생성/수정
+    createGoal: (data: CreateGoalRequest): Promise<{ message: string; goal_id: number; target_time: number }> =>
+        apiRequest<{ message: string; goal_id: number; target_time: number }>('/api/users/goals', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        }),
+
+    // 개인 목표 삭제
+    deleteGoal: (goalId: number): Promise<{ message: string }> =>
+        apiRequest<{ message: string }>(`/api/users/goals/${goalId}`, { method: 'DELETE' }),
 };
 
 // 서버 연결 테스트

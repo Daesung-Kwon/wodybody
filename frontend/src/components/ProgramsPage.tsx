@@ -11,7 +11,7 @@ const ProgramsPage: React.FC = () => {
     const [actionBusyId, setActionBusyId] = useState<number | null>(null);
     const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
     const [showModal, setShowModal] = useState<boolean>(false);
-    
+
     // 운동 타이머 관련 상태
     const [showTimer, setShowTimer] = useState<boolean>(false);
     const [showRecordModal, setShowRecordModal] = useState<boolean>(false);

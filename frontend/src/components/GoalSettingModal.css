@@ -1,0 +1,308 @@
+.goal-setting-modal {
+  z-index: 1005 !important;
+}
+
+.goal-setting-content {
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.program-info {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.program-info h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.current-record {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.record-label {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.record-time {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.goal-setting {
+  margin-bottom: 1.5rem;
+}
+
+.goal-setting label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.goal-setting input {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid #e1e8ed;
+  border-radius: 12px;
+  font-size: 1.25rem;
+  font-family: 'Courier New', monospace;
+  text-align: center;
+  transition: border-color 0.3s ease;
+  box-sizing: border-box;
+}
+
+.goal-setting input:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.goal-setting input:disabled {
+  background: #f8f9fa;
+  cursor: not-allowed;
+}
+
+.time-display {
+  text-align: center;
+  margin-top: 0.75rem;
+  font-size: 1rem;
+  color: #7f8c8d;
+}
+
+.target-display {
+  font-weight: 700;
+  color: #e74c3c;
+  font-family: 'Courier New', monospace;
+}
+
+.suggestions {
+  margin-bottom: 1.5rem;
+}
+
+.suggestions h5 {
+  margin: 0 0 1rem 0;
+  color: #2c3e50;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.suggestion-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.suggestion-button {
+  background: #f8f9fa;
+  border: 2px solid #e1e8ed;
+  border-radius: 12px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.suggestion-button:hover:not(:disabled) {
+  background: #e3f2fd;
+  border-color: #3498db;
+  transform: translateY(-1px);
+}
+
+.suggestion-button.selected {
+  background: #3498db;
+  color: white;
+  border-color: #2980b9;
+}
+
+.suggestion-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.suggestion-percent {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.goal-preview {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.preview-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.preview-item:last-child {
+  margin-bottom: 0;
+}
+
+.preview-label {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.preview-value {
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  color: #2c3e50;
+}
+
+.preview-value.target {
+  color: #e74c3c;
+}
+
+.preview-value.improvement {
+  color: #27ae60;
+}
+
+.preview-value.no-improvement {
+  color: #e74c3c;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  border-top: 1px solid #e1e8ed;
+}
+
+.modal-button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 100px;
+}
+
+.cancel-button {
+  background: #95a5a6;
+  color: white;
+}
+
+.cancel-button:hover:not(:disabled) {
+  background: #7f8c8d;
+  transform: translateY(-1px);
+}
+
+.save-button {
+  background: #3498db;
+  color: white;
+}
+
+.save-button:hover:not(:disabled) {
+  background: #2980b9;
+  transform: translateY(-1px);
+}
+
+.modal-button:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* 모바일 최적화 */
+@media (max-width: 768px) {
+  .goal-setting-content {
+    width: 95%;
+    margin: 1rem;
+  }
+  
+  .program-info {
+    padding: 1.25rem;
+  }
+  
+  .program-info h4 {
+    font-size: 1.1rem;
+  }
+  
+  .record-time {
+    font-size: 1.25rem;
+  }
+  
+  .goal-setting input {
+    padding: 0.875rem;
+    font-size: 1.1rem;
+  }
+  
+  .suggestion-button {
+    padding: 0.875rem;
+  }
+  
+  .goal-preview {
+    padding: 0.875rem;
+  }
+  
+  .modal-footer {
+    flex-direction: column;
+  }
+  
+  .modal-button {
+    width: 100%;
+    padding: 0.875rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .program-info {
+    padding: 1rem;
+  }
+  
+  .goal-setting input {
+    padding: 0.75rem;
+    font-size: 1rem;
+  }
+  
+  .suggestion-button {
+    padding: 0.75rem;
+  }
+  
+  .goal-preview {
+    padding: 0.75rem;
+  }
+  
+  .preview-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+}
+
+/* 터치 디바이스 최적화 */
+@media (hover: none) and (pointer: coarse) {
+  .suggestion-button:hover {
+    transform: none;
+  }
+  
+  .modal-button:hover {
+    transform: none;
+  }
+}

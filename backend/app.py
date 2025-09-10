@@ -6,6 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import secrets, logging, os
 from logging.handlers import RotatingFileHandler
+from utils.timezone import format_korea_time
 
 app = Flask(__name__)
 
@@ -373,8 +374,8 @@ def get_programs():
         result = []
         for p in programs:
             creator = Users.query.get(p.creator_id)
-            # 새로운 참여 시스템 사용
-            participant_count = ProgramParticipants.query.filter_by(program_id=p.id, status='approved').count()
+            # 새로운 참여 시스템 사용 - pending과 approved 모두 카운트
+            participant_count = ProgramParticipants.query.filter_by(program_id=p.id).filter(ProgramParticipants.status.in_(['pending', 'approved'])).count()
             is_registered = False
             participation_status = None
             if current_user_id:
@@ -428,7 +429,7 @@ def get_programs():
                 'difficulty': p.difficulty,
                 'participants': participant_count,
                 'max_participants': p.max_participants,
-                'created_at': p.created_at.strftime('%Y-%m-%d %H:%M'),
+                'created_at': format_korea_time(p.created_at),
                 'is_registered': is_registered,
                 'participation_status': participation_status,  # 'pending', 'approved', 'rejected', 'left'
                 'exercises': exercises,  # 기존 운동 정보
@@ -518,10 +519,11 @@ def my_programs():
         mine = Programs.query.filter_by(creator_id=session['user_id']).order_by(Programs.created_at.desc()).all()
         out = []
         for p in mine:
-            cnt = Registrations.query.filter_by(program_id=p.id).count()
+            # 새로운 참여 시스템 사용 - pending과 approved 모두 카운트
+            cnt = ProgramParticipants.query.filter_by(program_id=p.id).filter(ProgramParticipants.status.in_(['pending', 'approved'])).count()
             out.append({
                 'id':p.id,'title':p.title,'description':p.description,'is_open':p.is_open,
-                'participants':cnt,'max_participants':p.max_participants,'created_at':p.created_at.strftime('%Y-%m-%d %H:%M')
+                'participants':cnt,'max_participants':p.max_participants,'created_at':format_korea_time(p.created_at)
             })
         return jsonify({'programs':out}), 200
     except Exception as e:

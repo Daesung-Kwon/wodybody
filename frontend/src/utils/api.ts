@@ -22,7 +22,7 @@ import {
 } from '../types';
 
 // API 기본 설정
-const API_BASE = '';
+const API_BASE = 'http://localhost:5001';
 
 // 전역 리다이렉트 함수 (AuthProvider에서 설정됨)
 let globalRedirectToLogin: (() => void) | null = null;

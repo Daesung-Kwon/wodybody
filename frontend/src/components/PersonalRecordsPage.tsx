@@ -68,8 +68,8 @@ const PersonalRecordsPage: React.FC = () => {
             const times = group.records.map(r => r.completion_time);
             group.stats = {
                 count: times.length,
-                average_time: Math.round(times.reduce((a, b) => a + b, 0) / times.length),
-                best_time: Math.min(...times)
+                average_time: times.length > 0 ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : 0,
+                best_time: times.length > 0 ? Math.min(...times) : 0
             };
 
             // 목표 설정
@@ -197,7 +197,7 @@ const PersonalRecordsPage: React.FC = () => {
                                     <div className="goal-info">
                                         <span className="goal-label">목표:</span>
                                         <span className="goal-time">{Math.floor(group.goal.target_time / 60)}분 {group.goal.target_time % 60}초</span>
-                                        {group.stats.best_time <= group.goal.target_time && (
+                                        {group.goal && group.stats.best_time <= group.goal.target_time && (
                                             <span className="goal-achieved">🎉 달성!</span>
                                         )}
                                     </div>

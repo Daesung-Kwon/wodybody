@@ -136,7 +136,7 @@ const MyProgramsPage: React.FC = () => {
             if (error instanceof Error) {
                 errorMessage = error.message;
                 // 정원 초과 에러 메시지 개선
-                if (errorMessage.includes('참여자 수가 가득 찼습니다')) {
+                if (errorMessage.includes('정원이 가득 찼습니다')) {
                     errorMessage = '정원이 가득 찼습니다. 더 이상 참여자를 승인할 수 없습니다.';
                 }
             }

@@ -124,7 +124,7 @@ const MyProgramsPage: React.FC = () => {
     const approveParticipant = async (programId: number, userId: number, action: 'approve' | 'reject'): Promise<void> => {
         try {
             await participationApi.approveParticipant(programId, userId, action);
-            
+
             // 참여자 목록 새로고침 (성공 시)
             const data = await participationApi.getProgramParticipants(programId);
             const program = mine.find(p => p.id === programId);
@@ -133,10 +133,10 @@ const MyProgramsPage: React.FC = () => {
                 participants: data.participants,
                 approvedCount: data.approved_count
             }));
-            
+
             // 성공 메시지 표시 (모달 위에 표시되도록 z-index 높게)
             showModal('처리 완료', `참여자가 ${action === 'approve' ? '승인' : '거부'}되었습니다.`, 'success');
-            
+
         } catch (error) {
             let errorMessage = '처리 실패';
             if (error instanceof Error) {
@@ -155,7 +155,17 @@ const MyProgramsPage: React.FC = () => {
 
     return (
         <div className="programs-container">
-            <h2>내가 등록한 프로그램</h2>
+            <div className="page-header">
+                <h2>내가 등록한 프로그램</h2>
+                <button
+                    className="refresh-button"
+                    onClick={load}
+                    disabled={busy}
+                    title="목록 새로고침"
+                >
+                    🔄
+                </button>
+            </div>
             {mine.length === 0 ? (
                 <p>등록한 프로그램이 없습니다.</p>
             ) : (
@@ -219,7 +229,16 @@ const MyProgramsPage: React.FC = () => {
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3>참여자 관리</h3>
-                            <button className="close-button" onClick={closeParticipantsModal}>×</button>
+                            <div className="modal-header-actions">
+                                <button
+                                    className="refresh-button"
+                                    onClick={() => participantsModal.programId && manageParticipants(participantsModal.programId)}
+                                    title="참여자 목록 새로고침"
+                                >
+                                    🔄
+                                </button>
+                                <button className="close-button" onClick={closeParticipantsModal}>×</button>
+                            </div>
                         </div>
                         <div className="modal-body">
                             {participantsModal.participants.length === 0 ? (

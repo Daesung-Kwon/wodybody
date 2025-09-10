@@ -80,7 +80,7 @@ const ProgramsPage: React.FC = () => {
                     disabled={actionBusyId === program.id}
                     title="프로그램에서 탈퇴합니다"
                 >
-                    {actionBusyId === program.id ? '탈퇴 중...' : '탈퇴하기'}
+                    {actionBusyId === program.id ? '취소 중...' : '참여 취소'}
                 </button>
             );
         }
@@ -137,7 +137,17 @@ const ProgramsPage: React.FC = () => {
 
     return (
         <div className="programs-container">
-            <h2>공개된 크로스핏 프로그램</h2>
+            <div className="page-header">
+                <h2>공개된 크로스핏 프로그램</h2>
+                <button
+                    className="refresh-button"
+                    onClick={load}
+                    disabled={busy}
+                    title="목록 새로고침"
+                >
+                    🔄
+                </button>
+            </div>
             {programs.length === 0 ? (
                 <p>현재 공개된 프로그램이 없습니다.</p>
             ) : (
@@ -343,7 +353,7 @@ const ProgramsPage: React.FC = () => {
                                     }}
                                     disabled={actionBusyId === selectedProgram.id}
                                 >
-                                    {actionBusyId === selectedProgram.id ? '탈퇴 중...' : '탈퇴하기'}
+                                    {actionBusyId === selectedProgram.id ? '취소 중...' : '참여 취소'}
                                 </button>
                             ) : (
                                 <button

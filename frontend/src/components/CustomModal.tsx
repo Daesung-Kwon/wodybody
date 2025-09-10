@@ -18,7 +18,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-overlay custom-modal-overlay" onClick={onClose}>
             <div className={`custom-modal ${type}`} onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
                     <span className="modal-icon">{icons[type] || 'ℹ️'}</span>

@@ -39,7 +39,10 @@ const AppContent: React.FC = () => {
                 {user ? (
                     <>
                         <nav className="navbar">
-                            <h1>크로스핏 프로그램 관리</h1>
+                            <div className="navbar-left">
+                                <h1>크로스핏 프로그램 관리</h1>
+                                <span className="user-name">안녕하세요, {user.name}님!</span>
+                            </div>
                             <div className="nav-buttons">
                                 <button onClick={() => setPage('programs')}>
                                     공개 프로그램

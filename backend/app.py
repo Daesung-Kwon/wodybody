@@ -1049,7 +1049,10 @@ def approve_participant(program_id, user_id):
                 status='approved'
             ).count()
             
+            app.logger.info(f'정원 체크: 현재 승인된 참여자 {current_participants}명, 최대 정원 {program.max_participants}명')
+            
             if current_participants + 1 > program.max_participants:
+                app.logger.warning(f'정원 초과: {current_participants + 1} > {program.max_participants}')
                 return jsonify({'error': '정원이 가득 찼습니다. 더 이상 참여자를 승인할 수 없습니다.'}), 400
             
             participation.status = 'approved'

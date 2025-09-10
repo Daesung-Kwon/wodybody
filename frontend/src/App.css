@@ -443,6 +443,11 @@ button:disabled {
   animation: fadeIn 0.3s ease-out;
 }
 
+/* 알림창은 가장 높은 z-index */
+.custom-modal .modal-overlay {
+  z-index: 1002;
+}
+
 .custom-modal {
   background: white;
   border-radius: 12px;
@@ -1075,6 +1080,11 @@ button:disabled {
   justify-content: center;
   z-index: 1000;
   animation: fadeIn 0.3s ease;
+}
+
+/* 참여자 관리 모달은 더 높은 z-index */
+.participants-modal .modal-overlay {
+  z-index: 1001;
 }
 
 .modal-content {

@@ -124,13 +124,19 @@ const MyProgramsPage: React.FC = () => {
     const approveParticipant = async (programId: number, userId: number, action: 'approve' | 'reject'): Promise<void> => {
         try {
             await participationApi.approveParticipant(programId, userId, action);
-            showModal('처리 완료', `참여자가 ${action === 'approve' ? '승인' : '거부'}되었습니다.`, 'success');
-            // 참여자 목록 새로고침
+            
+            // 참여자 목록 새로고침 (성공 시)
             const data = await participationApi.getProgramParticipants(programId);
+            const program = mine.find(p => p.id === programId);
             setParticipantsModal(prev => ({
                 ...prev,
-                participants: data.participants
+                participants: data.participants,
+                approvedCount: data.approved_count
             }));
+            
+            // 성공 메시지 표시 (모달 위에 표시되도록 z-index 높게)
+            showModal('처리 완료', `참여자가 ${action === 'approve' ? '승인' : '거부'}되었습니다.`, 'success');
+            
         } catch (error) {
             let errorMessage = '처리 실패';
             if (error instanceof Error) {
@@ -140,6 +146,7 @@ const MyProgramsPage: React.FC = () => {
                     errorMessage = '정원이 가득 찼습니다. 더 이상 참여자를 승인할 수 없습니다.';
                 }
             }
+            // 에러 메시지 표시 (모달 위에 표시되도록 z-index 높게)
             showModal('오류', errorMessage, 'error');
         }
     };
@@ -208,7 +215,7 @@ const MyProgramsPage: React.FC = () => {
 
             {/* 참여자 관리 모달 */}
             {participantsModal.open && (
-                <div className="modal-overlay" onClick={closeParticipantsModal}>
+                <div className="modal-overlay participants-modal" onClick={closeParticipantsModal}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3>참여자 관리</h3>

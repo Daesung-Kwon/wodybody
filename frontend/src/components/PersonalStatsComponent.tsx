@@ -81,7 +81,7 @@ const PersonalStatsComponent: React.FC<PersonalStatsComponentProps> = ({ stats, 
                 </div>
             )}
 
-            {Object.keys(stats.program_stats).length > 0 && (
+            {stats.program_stats && Object.keys(stats.program_stats).length > 0 && (
                 <div className="program-stats-section">
                     <h4>프로그램별 상세 통계</h4>
                     <div className="program-stats-list">

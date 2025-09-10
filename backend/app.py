@@ -1381,7 +1381,8 @@ def get_user_stats():
                 'average_time': 0,
                 'best_time': 0,
                 'programs_completed': 0,
-                'recent_improvement': 0
+                'recent_improvement': 0,
+                'program_stats': {}
             }), 200
         
         # 기본 통계 계산

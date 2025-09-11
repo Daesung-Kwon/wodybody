@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 import secrets, logging, os
 from logging.handlers import RotatingFileHandler
 from utils.timezone import format_korea_time
+from models.program import Programs, ProgramParticipants
+from models.exercise import ProgramExercises, WorkoutPatterns, ExerciseSets
 
 app = Flask(__name__)
 
@@ -1561,6 +1563,144 @@ def delete_user_goal(goal_id):
     except Exception as e:
         app.logger.exception('delete_user_goal error: %s', str(e))
         return jsonify({'error': '목표 삭제 중 오류가 발생했습니다'}), 500
+
+# 프로그램 수정 API (SQLAlchemy 인스턴스 문제 해결을 위해 app.py에 직접 추가)
+@app.route('/api/programs/<int:program_id>', methods=['PUT'])
+def update_program(program_id):
+    """프로그램 수정 (공개 전에만 가능)"""
+    if 'user_id' not in session:
+        return jsonify({'message': '로그인이 필요합니다'}), 401
+    
+    try:
+        program = Programs.query.get(program_id)
+        if not program:
+            return jsonify({'message': '프로그램을 찾을 수 없습니다'}), 404
+        
+        # 권한 확인
+        if program.creator_id != session['user_id']:
+            return jsonify({'message': '프로그램을 수정할 권한이 없습니다'}), 403
+        
+        # 공개된 프로그램은 수정 불가
+        if program.is_open:
+            return jsonify({'message': '공개된 프로그램은 수정할 수 없습니다'}), 400
+        
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({'message': '요청 데이터가 없습니다'}), 400
+        
+        # 기본 검증
+        if 'title' not in data or not data['title'].strip():
+            return jsonify({'message': '프로그램 제목은 필수입니다'}), 400
+        
+        # 프로그램 정보 업데이트 (운동 유형과 난이도는 변경 불가)
+        program.title = data['title'].strip()
+        program.description = (data.get('description') or '').strip()
+        # program.workout_type = data.get('workout_type') or 'time_based'  # 변경 불가
+        program.target_value = (data.get('target_value') or '').strip()
+        # program.difficulty = data.get('difficulty') or 'beginner'  # 변경 불가
+        try:
+            program.max_participants = int(data.get('max_participants') or 20)
+        except (ValueError, TypeError):
+            program.max_participants = 20
+        
+        # 기존 운동 삭제
+        ProgramExercises.query.filter_by(program_id=program_id).delete()
+        
+        # 새로운 운동 추가 (selected_exercises 또는 exercises 필드 처리)
+        exercises_data = data.get('selected_exercises') or data.get('exercises') or []
+        if isinstance(exercises_data, list):
+            for idx, exercise_data in enumerate(exercises_data):
+                if isinstance(exercise_data, dict) and 'exercise_id' in exercise_data:
+                    program_exercise = ProgramExercises(
+                        program_id=program.id,
+                        exercise_id=exercise_data['exercise_id'],
+                        target_value=exercise_data.get('target_value', ''),
+                        order_index=idx
+                    )
+                    db.session.add(program_exercise)
+        
+        db.session.commit()
+        return jsonify({'message': '프로그램이 성공적으로 수정되었습니다'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.exception('프로그램 수정 중 오류: %s', str(e))
+        return jsonify({'message': '프로그램 수정 중 오류가 발생했습니다'}), 500
+
+# 프로그램 상세 정보 조회 API (SQLAlchemy 인스턴스 문제 해결을 위해 app.py에 직접 추가)
+@app.route('/api/programs/<int:program_id>', methods=['GET'])
+def get_program_detail(program_id):
+    """프로그램 상세 정보 조회"""
+    try:
+        program = Programs.query.get(program_id)
+        if not program:
+            return jsonify({'message': '프로그램을 찾을 수 없습니다'}), 404
+        
+        # 프로그램에 포함된 운동들 조회 (운동명 포함)
+        program_exercises = ProgramExercises.query.filter_by(program_id=program_id).order_by(ProgramExercises.order_index).all()
+        exercises = []
+        for pe in program_exercises:
+            exercises.append({
+                'id': pe.exercise_id,
+                'name': pe.exercise.name if pe.exercise else '알 수 없는 운동',
+                'target_value': pe.target_value,
+                'order': pe.order_index
+            })
+        
+        # WOD 패턴 조회 (새로운 방식)
+        workout_pattern = None
+        workout_patterns = WorkoutPatterns.query.filter_by(program_id=program_id).first()
+        if workout_patterns:
+            exercise_sets = ExerciseSets.query.filter_by(pattern_id=workout_patterns.id).order_by(ExerciseSets.order_index).all()
+            # 기존 패턴 타입을 새로운 타입으로 매핑
+            def map_pattern_type(old_type):
+                if old_type == 'time_cap':
+                    return 'time_cap'
+                else:
+                    return 'round_based'  # fixed_reps, ascending, descending, mixed_progression 모두 round_based로 통합
+            
+            workout_pattern = {
+                'id': workout_patterns.id,
+                'type': map_pattern_type(workout_patterns.pattern_type),
+                'description': workout_patterns.description,
+                'exercises': []
+            }
+            for es in exercise_sets:
+                workout_pattern['exercises'].append({
+                    'id': es.exercise_id,
+                    'name': es.exercise.name if es.exercise else '알 수 없는 운동',
+                    'target_value': f"{es.base_reps}회",  # base_reps를 target_value로 변환
+                    'order': es.order_index
+                })
+        
+        # 참여자 수 조회
+        participant_count = ProgramParticipants.query.filter_by(program_id=program_id).filter(ProgramParticipants.status.in_(['pending', 'approved'])).count()
+        
+        result = {
+            'id': program.id,
+            'title': program.title,
+            'description': program.description,
+            'workout_type': program.workout_type,
+            'target_value': program.target_value,
+            'difficulty': program.difficulty,
+            'participants': participant_count,
+            'max_participants': program.max_participants,
+            'is_open': program.is_open,
+            'created_at': format_korea_time(program.created_at),
+            'exercises': exercises,
+            'workout_pattern': workout_pattern
+        }
+        
+        return jsonify({'program': result}), 200
+        
+    except Exception as e:
+        app.logger.exception('프로그램 상세 조회 중 오류: %s', str(e))
+        return jsonify({'message': '프로그램 상세 조회 중 오류가 발생했습니다'}), 500
+
+# 라우트 등록
+from routes import auth, programs
+app.register_blueprint(auth.bp)
+app.register_blueprint(programs.bp)
 
 if __name__ == '__main__':
     with app.app_context(): 

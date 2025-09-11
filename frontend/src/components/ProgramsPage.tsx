@@ -244,7 +244,7 @@ const ProgramsPage: React.FC = () => {
                                         <div className="exercise-tags">
                                             {program.exercises.slice(0, 3).map((exercise, index) => (
                                                 <span key={index} className="exercise-tag">
-                                                    {exercise.exercise_name}
+                                                    {exercise.name}
                                                 </span>
                                             ))}
                                             {program.exercises.length > 3 && (
@@ -352,7 +352,7 @@ const ProgramsPage: React.FC = () => {
                                         <div className="exercises-grid">
                                             {selectedProgram.exercises.map((exercise, index) => (
                                                 <div key={index} className="exercise-card">
-                                                    <div className="exercise-name">{exercise.exercise_name}</div>
+                                                    <div className="exercise-name">{exercise.name}</div>
                                                     {exercise.target_value && (
                                                         <div className="exercise-target">{exercise.target_value}</div>
                                                     )}

@@ -16,6 +16,7 @@ const ExerciseSelector: React.FC<ExerciseSelectorProps> = ({
     const [exercises, setExercises] = useState<Exercise[]>([]);
     const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
+    const [searchTerm, setSearchTerm] = useState<string>('');
 
     // 카테고리 로드
     useEffect(() => {
@@ -79,6 +80,12 @@ const ExerciseSelector: React.FC<ExerciseSelectorProps> = ({
         onExercisesChange(newExercises);
     };
 
+    // 운동 검색 필터링
+    const filteredExercises = exercises.filter(exercise =>
+        exercise.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        exercise.description.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     // 운동 순서 변경
     const moveExercise = (index: number, direction: 'up' | 'down') => {
         const newExercises = [...selectedExercises];
@@ -117,24 +124,60 @@ const ExerciseSelector: React.FC<ExerciseSelectorProps> = ({
             {/* 운동 목록 */}
             <div className="exercise-list">
                 <h4>운동 종류</h4>
+
+                {/* 운동 검색 */}
+                <div className="exercise-search">
+                    <input
+                        type="text"
+                        placeholder="운동명 또는 설명으로 검색..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="search-input"
+                    />
+                    {searchTerm && (
+                        <button
+                            onClick={() => setSearchTerm('')}
+                            className="clear-search-btn"
+                        >
+                            ×
+                        </button>
+                    )}
+                </div>
+
                 {loading ? (
                     <LoadingSpinner label="운동 로딩 중..." />
                 ) : (
                     <div className="exercise-grid">
-                        {exercises.map(exercise => (
-                            <div key={exercise.id} className="exercise-item">
-                                <div className="exercise-info">
-                                    <h5>{exercise.name}</h5>
-                                    <p>{exercise.description}</p>
-                                </div>
+                        {filteredExercises.length > 0 ? (
+                            filteredExercises.map(exercise => {
+                                const isAlreadyAdded = selectedExercises.some(ex => ex.exercise_id === exercise.id);
+                                return (
+                                    <div key={exercise.id} className={`exercise-item ${isAlreadyAdded ? 'added' : ''}`}>
+                                        <div className="exercise-info">
+                                            <h5>{exercise.name}</h5>
+                                            <p>{exercise.description}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => addExercise(exercise)}
+                                            className={`add-exercise-btn ${isAlreadyAdded ? 'added' : ''}`}
+                                            disabled={isAlreadyAdded}
+                                        >
+                                            {isAlreadyAdded ? '추가됨' : '추가'}
+                                        </button>
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <div className="no-results">
+                                <p>검색 결과가 없습니다.</p>
                                 <button
-                                    onClick={() => addExercise(exercise)}
-                                    className="add-exercise-btn"
+                                    onClick={() => setSearchTerm('')}
+                                    className="clear-search-btn"
                                 >
-                                    추가
+                                    검색 초기화
                                 </button>
                             </div>
-                        ))}
+                        )}
                     </div>
                 )}
             </div>

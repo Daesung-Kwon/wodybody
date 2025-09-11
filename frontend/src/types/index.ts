@@ -23,7 +23,7 @@ export interface Exercise {
 export interface ProgramExercise {
     id: number;
     exercise_id: number;
-    exercise_name: string;
+    name: string;
     target_value: string;
     order: number;
 }
@@ -45,6 +45,22 @@ export interface Program {
     workout_pattern?: WorkoutPattern;  // WOD 패턴 정보
 }
 
+// 프로그램 상세 정보 타입
+export interface ProgramDetail {
+    id: number;
+    title: string;
+    description: string;
+    workout_type: 'time_based' | 'rep_based' | 'wod';
+    target_value: string;
+    difficulty: 'beginner' | 'intermediate' | 'advanced';
+    participants: number;
+    max_participants: number;
+    is_open: boolean;
+    created_at: string;
+    exercises: ProgramExercise[];
+    workout_pattern?: WorkoutPattern;
+}
+
 // 프로그램 생성 폼 타입
 export interface CreateProgramForm {
     title: string;
@@ -59,17 +75,15 @@ export interface CreateProgramForm {
 
 export interface SelectedExercise {
     exercise_id: number;
+    name?: string;  // 운동명 (선택적)
     target_value: string;
     order: number;
 }
 
 // WOD 유형 정의
 export type WorkoutType =
-    | 'fixed_reps'      // 고정 횟수 (유형 2, 4)
-    | 'ascending'       // 증가 패턴 (유형 3)
-    | 'descending'      // 감소 패턴 (유형 1)
-    | 'mixed_progression' // 혼합 진행 (유형 1)
-    | 'time_cap';       // 시간 제한 (유형 5)
+    | 'round_based'     // 라운드 제한 (고정 횟수, 증가 패턴, 감소 패턴, 혼합 진행 통합)
+    | 'time_cap';        // 시간 제한
 
 // 운동 세트 정의
 export interface ExerciseSet {
@@ -96,6 +110,9 @@ export interface MyProgram {
     id: number;
     title: string;
     description: string;
+    workout_type: 'time_based' | 'rep_based' | 'wod';
+    target_value: string;
+    difficulty: 'beginner' | 'intermediate' | 'advanced';
     is_open: boolean;
     participants: number;
     max_participants: number;

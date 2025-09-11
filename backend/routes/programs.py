@@ -1,11 +1,12 @@
 """프로그램 관련 라우트"""
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, current_app
 from models.program import Programs, Registrations, ProgramParticipants
 from models.exercise import ProgramExercises, WorkoutPatterns, ExerciseSets
 from models.notification import Notifications
+from models.user import Users
 from utils.validators import validate_program
-from config.database import db
+from utils.timezone import format_korea_time
 from datetime import datetime
 
 # 블루프린트 생성
@@ -32,13 +33,13 @@ def get_programs():
                     is_registered = participation.status in ['pending', 'approved']
                     participation_status = participation.status
             
-            # 프로그램에 포함된 운동들 조회 (기존 방식)
+            # 프로그램에 포함된 운동들 조회 (기존 방식) - 운동명 포함
             program_exercises = ProgramExercises.query.filter_by(program_id=p.id).order_by(ProgramExercises.order_index).all()
             exercises = []
             for pe in program_exercises:
                 exercises.append({
                     'id': pe.exercise_id,
-                    'name': pe.exercise.name if pe.exercise else '',
+                    'name': pe.exercise.name if pe.exercise else '알 수 없는 운동',
                     'target_value': pe.target_value,
                     'order': pe.order_index
                 })
@@ -59,8 +60,15 @@ def get_programs():
                         'order': es.order_index
                     })
                 
+                # 기존 패턴 타입을 새로운 타입으로 매핑
+                def map_pattern_type(old_type):
+                    if old_type == 'time_cap':
+                        return 'time_cap'
+                    else:
+                        return 'round_based'  # fixed_reps, ascending, descending, mixed_progression 모두 round_based로 통합
+                
                 workout_pattern = {
-                    'type': workout_patterns.pattern_type,
+                    'type': map_pattern_type(workout_patterns.pattern_type),
                     'total_rounds': workout_patterns.total_rounds,
                     'time_cap_per_round': workout_patterns.time_cap_per_round,
                     'description': workout_patterns.description,
@@ -77,7 +85,7 @@ def get_programs():
                 'difficulty': p.difficulty,
                 'participants': participant_count,
                 'max_participants': p.max_participants,
-                'created_at': p.created_at.strftime('%Y-%m-%d %H:%M'),
+                'created_at': format_korea_time(p.created_at),
                 'is_registered': is_registered,
                 'participation_status': participation_status,
                 'exercises': exercises,
@@ -230,3 +238,7 @@ def create_notification(user_id, notification_type, title, message, program_id=N
         print(f'❌ 알림 생성 오류: {str(e)}')
         db.session.rollback()
         return None
+
+# 프로그램 수정 API는 app.py에 직접 구현됨 (SQLAlchemy 인스턴스 문제 해결)
+
+# 프로그램 상세 조회 API는 app.py에 직접 구현됨 (SQLAlchemy 인스턴스 문제 해결)

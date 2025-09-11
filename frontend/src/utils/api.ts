@@ -18,7 +18,8 @@ import {
     UpdateWorkoutRecordRequest,
     PersonalStats,
     PersonalGoalsResponse,
-    CreateGoalRequest
+    CreateGoalRequest,
+    ProgramDetail
 } from '../types';
 
 // API 기본 설정
@@ -139,6 +140,17 @@ export const programApi = {
             method: 'POST',
             body: JSON.stringify(data),
         }),
+
+    // 프로그램 수정
+    updateProgram: (programId: number, data: CreateProgramForm): Promise<{ message: string }> =>
+        apiRequest<{ message: string }>(`/api/programs/${programId}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        }),
+
+    // 프로그램 상세 조회
+    getProgramDetail: (programId: number): Promise<{ program: ProgramDetail }> =>
+        apiRequest<{ program: ProgramDetail }>(`/api/programs/${programId}`),
 
     // 프로그램 삭제
     deleteProgram: (programId: number): Promise<{ message: string }> =>

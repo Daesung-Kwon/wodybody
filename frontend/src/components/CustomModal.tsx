@@ -24,11 +24,11 @@ const CustomModal: React.FC<CustomModalProps> = ({
                     <span className="modal-icon">{icons[type] || 'ℹ️'}</span>
                     <h3 className="modal-title">{title}</h3>
                 </div>
-                <div className="modal-content">
+                <div className="modal-body">
                     <p className="modal-message">{message}</p>
                 </div>
                 <div className="modal-footer">
-                    <button className="modal-button" onClick={onClose}>
+                    <button className="modal-button primary" onClick={onClose}>
                         확인
                     </button>
                 </div>

@@ -1,5 +1,5 @@
 .workout-record-modal {
-  z-index: 1003 !important;
+  z-index: var(--z-modal) !important;
 }
 
 .workout-record-content {
@@ -7,85 +7,90 @@
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
+  background-color: var(--color-surface);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-2xl);
 }
 
 .record-summary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-700) 100%);
   color: white;
-  padding: 1.5rem;
-  border-radius: 12px;
-  margin-bottom: 1.5rem;
+  padding: var(--space-6);
+  border-radius: var(--radius-xl);
+  margin-bottom: var(--space-6);
   text-align: center;
 }
 
 .record-summary h4 {
-  margin: 0 0 1rem 0;
-  font-size: 1.25rem;
-  font-weight: 600;
+  margin: 0 0 var(--space-4) 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
 }
 
 .completion-time {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .time-label {
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
   opacity: 0.9;
 }
 
 .time-value {
-  font-size: 2rem;
-  font-weight: 700;
-  font-family: 'Courier New', monospace;
+  font-size: var(--font-size-4xl);
+  font-weight: var(--font-weight-bold);
+  font-family: var(--font-family-mono);
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .form-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-6);
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: #2c3e50;
+  margin-bottom: var(--space-2);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 
 .form-group textarea {
   width: 100%;
-  padding: 0.75rem;
-  border: 2px solid #e1e8ed;
-  border-radius: 8px;
-  font-size: 1rem;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-base);
   font-family: inherit;
   resize: vertical;
   min-height: 80px;
-  transition: border-color 0.3s ease;
+  transition: all var(--transition-base);
   box-sizing: border-box;
+  background-color: var(--color-surface);
+  color: var(--color-text);
 }
 
 .form-group textarea:focus {
   outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
 }
 
 .char-count {
   text-align: right;
-  font-size: 0.8rem;
-  color: #7f8c8d;
-  margin-top: 0.25rem;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
 }
 
 .checkbox-label {
   display: flex !important;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
   cursor: pointer;
-  margin-bottom: 0.5rem !important;
+  margin-bottom: var(--space-2) !important;
 }
 
 .checkbox-label input[type="checkbox"] {
@@ -95,108 +100,121 @@
 }
 
 .checkbox-text {
-  font-weight: 500 !important;
+  font-weight: var(--font-weight-medium) !important;
   margin-bottom: 0 !important;
 }
 
 .help-text {
   margin: 0;
-  font-size: 0.85rem;
-  color: #7f8c8d;
-  line-height: 1.4;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  line-height: var(--line-height-relaxed);
 }
 
 .modal-footer {
   display: flex;
-  gap: 1rem;
+  gap: var(--space-4);
   justify-content: flex-end;
-  padding-top: 1rem;
-  border-top: 1px solid #e1e8ed;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border-light);
 }
 
 .modal-button {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
+  padding: var(--space-3) var(--space-6);
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
   min-width: 100px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .cancel-button {
-  background: #95a5a6;
+  background: var(--color-text-muted);
   color: white;
+  border-color: var(--color-text-muted);
 }
 
 .cancel-button:hover:not(:disabled) {
-  background: #7f8c8d;
-  transform: translateY(-1px);
+  background: var(--neutral-600);
+  border-color: var(--neutral-600);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .save-button {
-  background: #3498db;
+  background: var(--color-primary);
   color: white;
+  border-color: var(--color-primary);
 }
 
 .save-button:hover:not(:disabled) {
-  background: #2980b9;
-  transform: translateY(-1px);
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .modal-button:disabled {
-  background: #bdc3c7;
+  background: var(--color-text-muted);
+  border-color: var(--color-text-muted);
+  color: white;
   cursor: not-allowed;
   transform: none;
+  opacity: 0.6;
 }
 
 /* 모바일 최적화 */
 @media (max-width: 768px) {
   .workout-record-content {
     width: 95%;
-    margin: 1rem;
+    margin: var(--space-4);
   }
-  
+
   .record-summary {
-    padding: 1.25rem;
+    padding: var(--space-5);
   }
-  
+
   .record-summary h4 {
-    font-size: 1.1rem;
+    font-size: var(--font-size-lg);
   }
-  
+
   .time-value {
-    font-size: 1.75rem;
+    font-size: var(--font-size-3xl);
   }
-  
+
   .form-group textarea {
-    padding: 0.625rem;
-    font-size: 0.95rem;
+    padding: var(--space-2);
+    font-size: var(--font-size-sm);
   }
-  
+
   .modal-footer {
     flex-direction: column;
   }
-  
+
   .modal-button {
     width: 100%;
-    padding: 0.875rem;
+    padding: var(--space-3);
   }
 }
 
 @media (max-width: 480px) {
   .record-summary {
-    padding: 1rem;
+    padding: var(--space-4);
   }
-  
+
   .time-value {
-    font-size: 1.5rem;
+    font-size: var(--font-size-2xl);
   }
-  
+
   .form-group textarea {
-    padding: 0.5rem;
-    font-size: 0.9rem;
+    padding: var(--space-2);
+    font-size: var(--font-size-sm);
   }
 }
 

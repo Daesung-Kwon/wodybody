@@ -1,5 +1,5 @@
 .goal-setting-modal {
-  z-index: 1005 !important;
+  z-index: var(--z-modal) !important;
 }
 
 .goal-setting-content {
@@ -7,135 +7,148 @@
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
+  background-color: var(--color-surface);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-2xl);
 }
 
 .program-info {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-700) 100%);
   color: white;
-  padding: 1.5rem;
-  border-radius: 12px;
-  margin-bottom: 1.5rem;
+  padding: var(--space-6);
+  border-radius: var(--radius-xl);
+  margin-bottom: var(--space-6);
   text-align: center;
 }
 
 .program-info h4 {
-  margin: 0 0 1rem 0;
-  font-size: 1.25rem;
-  font-weight: 600;
+  margin: 0 0 var(--space-4) 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
 }
 
 .current-record {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .record-label {
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
   opacity: 0.9;
 }
 
 .record-time {
-  font-size: 1.5rem;
-  font-weight: 700;
-  font-family: 'Courier New', monospace;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  font-family: var(--font-family-mono);
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .goal-setting {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-6);
 }
 
 .goal-setting label {
   display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: #2c3e50;
+  margin-bottom: var(--space-2);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 
 .goal-setting input {
   width: 100%;
-  padding: 1rem;
-  border: 2px solid #e1e8ed;
-  border-radius: 12px;
-  font-size: 1.25rem;
-  font-family: 'Courier New', monospace;
+  padding: var(--space-4);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  font-size: var(--font-size-xl);
+  font-family: var(--font-family-mono);
   text-align: center;
-  transition: border-color 0.3s ease;
+  transition: all var(--transition-base);
   box-sizing: border-box;
+  background-color: var(--color-surface);
+  color: var(--color-text);
 }
 
 .goal-setting input:focus {
   outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
 }
 
 .goal-setting input:disabled {
-  background: #f8f9fa;
+  background-color: var(--color-background);
   cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .time-display {
   text-align: center;
-  margin-top: 0.75rem;
-  font-size: 1rem;
-  color: #7f8c8d;
+  margin-top: var(--space-3);
+  font-size: var(--font-size-base);
+  color: var(--color-text-muted);
 }
 
 .target-display {
-  font-weight: 700;
-  color: #e74c3c;
-  font-family: 'Courier New', monospace;
+  font-weight: var(--font-weight-bold);
+  color: var(--error-500);
+  font-family: var(--font-family-mono);
 }
 
 .suggestions {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-6);
 }
 
 .suggestions h5 {
-  margin: 0 0 1rem 0;
-  color: #2c3e50;
-  font-size: 1rem;
-  font-weight: 600;
+  margin: 0 0 var(--space-4) 0;
+  color: var(--color-text);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
 }
 
 .suggestion-buttons {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .suggestion-button {
-  background: #f8f9fa;
-  border: 2px solid #e1e8ed;
-  border-radius: 12px;
-  padding: 1rem;
+  background: var(--color-background);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
   text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
+  min-height: 60px;
+  justify-content: center;
 }
 
 .suggestion-button:hover:not(:disabled) {
-  background: #e3f2fd;
-  border-color: #3498db;
-  transform: translateY(-1px);
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .suggestion-button.selected {
-  background: #3498db;
+  background: var(--color-primary);
   color: white;
-  border-color: #2980b9;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
 }
 
 .suggestion-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
+  background: var(--color-text-muted);
+  border-color: var(--color-text-muted);
+  color: white;
 }
 
 .suggestion-percent {
@@ -186,47 +199,60 @@
 
 .modal-footer {
   display: flex;
-  gap: 1rem;
+  gap: var(--space-4);
   justify-content: flex-end;
-  padding-top: 1rem;
-  border-top: 1px solid #e1e8ed;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border-light);
 }
 
 .modal-button {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
+  padding: var(--space-3) var(--space-6);
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
   min-width: 100px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .cancel-button {
-  background: #95a5a6;
+  background: var(--color-text-muted);
   color: white;
+  border-color: var(--color-text-muted);
 }
 
 .cancel-button:hover:not(:disabled) {
-  background: #7f8c8d;
-  transform: translateY(-1px);
+  background: var(--neutral-600);
+  border-color: var(--neutral-600);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .save-button {
-  background: #3498db;
+  background: var(--color-primary);
   color: white;
+  border-color: var(--color-primary);
 }
 
 .save-button:hover:not(:disabled) {
-  background: #2980b9;
-  transform: translateY(-1px);
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .modal-button:disabled {
-  background: #bdc3c7;
+  background: var(--color-text-muted);
+  border-color: var(--color-text-muted);
+  color: white;
   cursor: not-allowed;
   transform: none;
+  opacity: 0.6;
 }
 
 /* 모바일 최적화 */
@@ -235,36 +261,36 @@
     width: 95%;
     margin: 1rem;
   }
-  
+
   .program-info {
     padding: 1.25rem;
   }
-  
+
   .program-info h4 {
     font-size: 1.1rem;
   }
-  
+
   .record-time {
     font-size: 1.25rem;
   }
-  
+
   .goal-setting input {
     padding: 0.875rem;
     font-size: 1.1rem;
   }
-  
+
   .suggestion-button {
     padding: 0.875rem;
   }
-  
+
   .goal-preview {
     padding: 0.875rem;
   }
-  
+
   .modal-footer {
     flex-direction: column;
   }
-  
+
   .modal-button {
     width: 100%;
     padding: 0.875rem;
@@ -275,20 +301,20 @@
   .program-info {
     padding: 1rem;
   }
-  
+
   .goal-setting input {
     padding: 0.75rem;
     font-size: 1rem;
   }
-  
+
   .suggestion-button {
     padding: 0.75rem;
   }
-  
+
   .goal-preview {
     padding: 0.75rem;
   }
-  
+
   .preview-item {
     flex-direction: column;
     align-items: flex-start;
@@ -301,7 +327,7 @@
   .suggestion-button:hover {
     transform: none;
   }
-  
+
   .modal-button:hover {
     transform: none;
   }

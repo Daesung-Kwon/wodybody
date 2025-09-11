@@ -12,6 +12,7 @@ const WODBuilder: React.FC<WODBuilderProps> = ({ workoutPattern, onPatternChange
     const [exercises, setExercises] = useState<Exercise[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [showBuilder, setShowBuilder] = useState<boolean>(false);
+    const [searchTerm, setSearchTerm] = useState<string>('');
 
     // 운동 목록 로드
     useEffect(() => {
@@ -140,14 +141,8 @@ const WODBuilder: React.FC<WODBuilderProps> = ({ workoutPattern, onPatternChange
         const rounds = pattern.total_rounds;
 
         switch (pattern.type) {
-            case 'fixed_reps':
+            case 'round_based':
                 return `${exerciseNames} 총 ${rounds}라운드`;
-            case 'ascending':
-                return `${exerciseNames} 총 ${rounds}라운드 (라운드별로 횟수 증가)`;
-            case 'descending':
-                return `${exerciseNames} 총 ${rounds}라운드 (라운드별로 횟수 감소)`;
-            case 'mixed_progression':
-                return `${exerciseNames} 총 ${rounds}라운드 (혼합 진행 패턴)`;
             case 'time_cap':
                 return `${exerciseNames} 총 ${rounds}라운드 (라운드당 ${pattern.time_cap_per_round}분 제한)`;
             default:
@@ -164,6 +159,12 @@ const WODBuilder: React.FC<WODBuilderProps> = ({ workoutPattern, onPatternChange
             }
         }
     }, [workoutPattern?.exercises, workoutPattern?.total_rounds, workoutPattern?.type, updatePattern, workoutPattern]);
+
+    // 운동 검색 필터링
+    const filteredExercises = exercises.filter(exercise =>
+        exercise.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        exercise.description.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     if (loading) return <LoadingSpinner label="운동 로딩 중..." />;
 
@@ -189,11 +190,8 @@ const WODBuilder: React.FC<WODBuilderProps> = ({ workoutPattern, onPatternChange
                             onChange={(e) => initializePattern(e.target.value as WorkoutType)}
                         >
                             <option value="">유형 선택</option>
-                            <option value="fixed_reps">고정 횟수 (유형 2, 4)</option>
-                            <option value="ascending">증가 패턴 (유형 3)</option>
-                            <option value="descending">감소 패턴 (유형 1)</option>
-                            <option value="mixed_progression">혼합 진행 (유형 1)</option>
-                            <option value="time_cap">시간 제한 (유형 5)</option>
+                            <option value="round_based">라운드 제한</option>
+                            <option value="time_cap">시간 제한</option>
                         </select>
                     </div>
 
@@ -229,25 +227,57 @@ const WODBuilder: React.FC<WODBuilderProps> = ({ workoutPattern, onPatternChange
                             {/* 운동 선택 */}
                             <div className="exercise-selection">
                                 <h4>운동 선택</h4>
+
+                                {/* 운동 검색 */}
+                                <div className="exercise-search">
+                                    <input
+                                        type="text"
+                                        placeholder="운동명 또는 설명으로 검색..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="search-input"
+                                    />
+                                    {searchTerm && (
+                                        <button
+                                            onClick={() => setSearchTerm('')}
+                                            className="clear-search-btn"
+                                        >
+                                            ×
+                                        </button>
+                                    )}
+                                </div>
+
                                 <div className="exercise-grid">
-                                    {exercises.map(exercise => {
-                                        const isAlreadyAdded = workoutPattern?.exercises.some(ex => ex.exercise_id === exercise.id) || false;
-                                        return (
-                                            <div key={exercise.id} className={`exercise-item ${isAlreadyAdded ? 'added' : ''}`}>
-                                                <div className="exercise-info">
-                                                    <h5>{exercise.name}</h5>
-                                                    <p>{exercise.description}</p>
+                                    {filteredExercises.length > 0 ? (
+                                        filteredExercises.map(exercise => {
+                                            const isAlreadyAdded = workoutPattern?.exercises.some(ex => ex.exercise_id === exercise.id) || false;
+                                            return (
+                                                <div key={exercise.id} className={`exercise-item ${isAlreadyAdded ? 'added' : ''}`}>
+                                                    <div className="exercise-info">
+                                                        <h5>{exercise.name}</h5>
+                                                        <p>{exercise.description}</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => addExercise(exercise)}
+                                                        className={`add-exercise-btn ${isAlreadyAdded ? 'added' : ''}`}
+                                                        disabled={isAlreadyAdded}
+                                                    >
+                                                        {isAlreadyAdded ? '추가됨' : '추가'}
+                                                    </button>
                                                 </div>
-                                                <button
-                                                    onClick={() => addExercise(exercise)}
-                                                    className={`add-exercise-btn ${isAlreadyAdded ? 'added' : ''}`}
-                                                    disabled={isAlreadyAdded}
-                                                >
-                                                    {isAlreadyAdded ? '추가됨' : '추가'}
-                                                </button>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })
+                                    ) : (
+                                        <div className="no-results">
+                                            <p>검색 결과가 없습니다.</p>
+                                            <button
+                                                onClick={() => setSearchTerm('')}
+                                                className="clear-search-btn"
+                                            >
+                                                검색 초기화
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

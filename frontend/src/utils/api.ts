@@ -49,8 +49,14 @@ async function apiRequest<T>(
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
 
-        // 401 오류인 경우 자동으로 로그인 페이지로 이동
+        // 401 오류인 경우 - 로그인 API가 아닌 경우에만 자동 리다이렉트
         if (response.status === 401) {
+            // 로그인 API인 경우 서버 메시지를 그대로 사용
+            if (endpoint === '/api/login') {
+                throw new Error(errorData.message || '로그인에 실패했습니다');
+            }
+
+            // 다른 API인 경우에만 자동으로 로그인 페이지로 이동
             if (globalRedirectToLogin) {
                 globalRedirectToLogin();
             } else {

@@ -117,6 +117,7 @@ export interface MyProgram {
     participants: number;
     max_participants: number;
     created_at: string;
+    exercises?: ProgramExercise[];  // 운동 정보 추가
 }
 
 // 프로그램 결과 타입

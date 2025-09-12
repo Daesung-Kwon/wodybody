@@ -277,6 +277,21 @@ const MyProgramsPage: React.FC = () => {
                         <div key={program.id} className="program-card">
                             <h3>{program.title}</h3>
                             <p className="program-description">{program.description}</p>
+
+                            {/* 운동 정보를 태그 형태로 표시 */}
+                            {program.exercises && program.exercises.length > 0 && (
+                                <div className="exercises-section">
+                                    <h4>포함된 운동</h4>
+                                    <div className="exercise-tags">
+                                        {program.exercises.map((exercise, index) => (
+                                            <span key={index} className="exercise-tag">
+                                                {exercise.name}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="program-details">
                                 <p><strong>상태:</strong> {program.is_open ? '공개됨' : '비공개'}</p>
                                 <p><strong>참여자:</strong> {program.participants}/{program.max_participants}명</p>
@@ -395,130 +410,177 @@ const MyProgramsPage: React.FC = () => {
                 </div>
             )}
 
-            {/* 프로그램 수정 모달 */}
+            {/* 프로그램 수정 모달 - 공개된 WOD 상세 보기와 동일한 디자인 */}
             {editModal.open && (
                 <div className="modal-overlay edit-modal" onClick={closeEditModal}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-content program-detail-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3>프로그램 수정</h3>
-                            <button className="close-button" onClick={closeEditModal}>×</button>
+                            <h2>WOD 수정</h2>
+                            <button className="modal-close" onClick={closeEditModal}>×</button>
                         </div>
-                        <div className="modal-body">
-                            <div className="form-group">
-                                <label htmlFor="title">프로그램 제목</label>
-                                <input
-                                    type="text"
-                                    id="title"
-                                    value={editModal.formData.title}
-                                    onChange={(e) => setEditModal({
-                                        ...editModal,
-                                        formData: { ...editModal.formData, title: e.target.value }
-                                    })}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label htmlFor="description">프로그램 설명</label>
-                                <textarea
-                                    id="description"
-                                    value={editModal.formData.description}
-                                    onChange={(e) => setEditModal({
-                                        ...editModal,
-                                        formData: { ...editModal.formData, description: e.target.value }
-                                    })}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label htmlFor="workout_type">운동 유형</label>
-                                <input
-                                    type="text"
-                                    id="workout_type"
-                                    value={editModal.formData.workout_type === 'time_based' ? '시간 기반' :
-                                        editModal.formData.workout_type === 'rep_based' ? '횟수 기반' : 'WOD'}
-                                    disabled
-                                    className="disabled-field"
-                                />
-                                <small className="form-hint">운동 유형은 수정할 수 없습니다</small>
-                            </div>
-                            <div className="form-group">
-                                <label htmlFor="target_value">목표 값</label>
-                                <input
-                                    type="text"
-                                    id="target_value"
-                                    value={editModal.formData.target_value}
-                                    onChange={(e) => setEditModal({
-                                        ...editModal,
-                                        formData: { ...editModal.formData, target_value: e.target.value }
-                                    })}
-                                    placeholder="예: 20분, 100회, 3라운드"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label htmlFor="difficulty">난이도</label>
-                                <input
-                                    type="text"
-                                    id="difficulty"
-                                    value={editModal.formData.difficulty === 'beginner' ? '초급' :
-                                        editModal.formData.difficulty === 'intermediate' ? '중급' : '고급'}
-                                    disabled
-                                    className="disabled-field"
-                                />
-                                <small className="form-hint">난이도는 수정할 수 없습니다</small>
-                            </div>
-                            <div className="form-group">
-                                <label htmlFor="max_participants">최대 참여자 수</label>
-                                <input
-                                    type="number"
-                                    id="max_participants"
-                                    value={editModal.formData.max_participants}
-                                    onChange={(e) => setEditModal({
-                                        ...editModal,
-                                        formData: { ...editModal.formData, max_participants: parseInt(e.target.value) || 20 }
-                                    })}
-                                    min="1"
-                                    max="100"
-                                />
-                            </div>
+                        <div className="modal-body program-detail-body">
+                            <div className="program-details">
+                                {/* 프로그램 설명 */}
+                                <div className="program-description">
+                                    <h3>설명</h3>
+                                    <textarea
+                                        value={editModal.formData.description}
+                                        onChange={(e) => setEditModal({
+                                            ...editModal,
+                                            formData: { ...editModal.formData, description: e.target.value }
+                                        })}
+                                        className="description-textarea"
+                                        placeholder="WOD에 대한 설명을 입력하세요"
+                                    />
+                                </div>
 
-                            {/* 등록한 운동 목록 */}
-                            {editModal.formData.selected_exercises.length > 0 && (
-                                <div className="form-group">
-                                    <label>등록한 운동 목록</label>
-                                    <div className="exercise-list">
-                                        {editModal.formData.selected_exercises.map((exercise, index) => (
-                                            <div key={index} className="exercise-item">
-                                                <div className="exercise-info">
-                                                    <span className="exercise-name">{exercise.name || `운동 ${index + 1}`}</span>
-                                                    <span className="exercise-id">ID: {exercise.exercise_id}</span>
-                                                </div>
-                                                <div className="exercise-target">
-                                                    <label htmlFor={`target_${index}`}>목표 값:</label>
-                                                    <input
-                                                        type="text"
-                                                        id={`target_${index}`}
-                                                        value={exercise.target_value}
-                                                        onChange={(e) => {
-                                                            const newExercises = [...editModal.formData.selected_exercises];
-                                                            newExercises[index].target_value = e.target.value;
+                                {/* 기본 정보를 그리드 형태로 표시 */}
+                                <div className="program-info-grid">
+                                    <div className="info-item">
+                                        <div className="info-icon">📝</div>
+                                        <div className="info-content">
+                                            <div className="info-label">제목</div>
+                                            <input
+                                                type="text"
+                                                value={editModal.formData.title}
+                                                onChange={(e) => setEditModal({
+                                                    ...editModal,
+                                                    formData: { ...editModal.formData, title: e.target.value }
+                                                })}
+                                                className="info-input"
+                                                placeholder="WOD 제목을 입력하세요"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="info-item">
+                                        <div className="info-icon">⏱️</div>
+                                        <div className="info-content">
+                                            <div className="info-label">목표 값</div>
+                                            <input
+                                                type="text"
+                                                value={editModal.formData.target_value}
+                                                onChange={(e) => setEditModal({
+                                                    ...editModal,
+                                                    formData: { ...editModal.formData, target_value: e.target.value }
+                                                })}
+                                                className="info-input"
+                                                placeholder="예: 20분, 100회, 3라운드"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="info-item">
+                                        <div className="info-icon">🏃</div>
+                                        <div className="info-content">
+                                            <div className="info-label">운동 유형</div>
+                                            <div className="info-value disabled">
+                                                {editModal.formData.workout_type === 'time_based' ? '시간 기반' :
+                                                    editModal.formData.workout_type === 'rep_based' ? '횟수 기반' : 'WOD'}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="info-item">
+                                        <div className="info-icon">📊</div>
+                                        <div className="info-content">
+                                            <div className="info-label">난이도</div>
+                                            <div className="info-value disabled">
+                                                {editModal.formData.difficulty === 'beginner' ? '초급' :
+                                                    editModal.formData.difficulty === 'intermediate' ? '중급' : '고급'}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="info-item">
+                                        <div className="info-icon">👥</div>
+                                        <div className="info-content">
+                                            <div className="info-label">최대 참여자 수</div>
+                                            <input
+                                                type="text"
+                                                value={editModal.formData.max_participants}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    // 숫자만 입력 허용
+                                                    if (value === '' || /^\d+$/.test(value)) {
+                                                        const numValue = value === '' ? 1 : parseInt(value);
+                                                        if (numValue >= 1 && numValue <= 100) {
                                                             setEditModal({
                                                                 ...editModal,
-                                                                formData: { ...editModal.formData, selected_exercises: newExercises }
+                                                                formData: { ...editModal.formData, max_participants: numValue }
                                                             });
-                                                        }}
-                                                        placeholder="예: 10회, 20분"
-                                                    />
-                                                </div>
-                                            </div>
-                                        ))}
+                                                        }
+                                                    }
+                                                }}
+                                                className="info-input"
+                                                placeholder="1-100"
+                                            />
+                                        </div>
                                     </div>
-                                    <small className="form-hint">운동의 목표 값만 수정할 수 있습니다</small>
                                 </div>
-                            )}
+
+                                {/* 운동 정보를 공개 WOD 상세 보기와 동일한 형태로 표시 */}
+                                {editModal.formData.selected_exercises.length > 0 && (
+                                    <div className="exercises-section">
+                                        <h3>운동 구성</h3>
+                                        <div className="wod-exercise-list">
+                                            {editModal.formData.selected_exercises.map((exercise, index) => (
+                                                <div key={index} className="wod-exercise-item">
+                                                    <div className="wod-exercise-info">
+                                                        <span className="wod-exercise-name">{exercise.name || `운동 ${index + 1}`}</span>
+                                                        <div className="wod-exercise-target-edit">
+                                                            <label>목표값:</label>
+                                                            <input
+                                                                type="text"
+                                                                value={exercise.target_value}
+                                                                onChange={(e) => {
+                                                                    const newExercises = [...editModal.formData.selected_exercises];
+                                                                    newExercises[index].target_value = e.target.value;
+                                                                    setEditModal({
+                                                                        ...editModal,
+                                                                        formData: { ...editModal.formData, selected_exercises: newExercises }
+                                                                    });
+                                                                }}
+                                                                className="wod-exercise-input"
+                                                                placeholder="예: 10회, 20분"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <small className="form-hint">운동의 목표 값만 수정할 수 있습니다</small>
+                                    </div>
+                                )}
+
+                                {/* WOD 패턴을 시각적으로 개선 */}
+                                {editModal.formData.workout_pattern && (
+                                    <div className="wod-section">
+                                        <h3>WOD 패턴</h3>
+                                        <div className="wod-pattern-card">
+                                            <div className="wod-pattern-header">
+                                                <span className="wod-pattern-type">
+                                                    {editModal.formData.workout_pattern.type === 'time_cap' ? '시간 제한' : '라운드 제한'}
+                                                </span>
+                                                <span className="wod-pattern-rounds">
+                                                    {editModal.formData.workout_pattern.total_rounds}라운드
+                                                </span>
+                                                {editModal.formData.workout_pattern.time_cap_per_round && (
+                                                    <span className="wod-pattern-time">
+                                                        {editModal.formData.workout_pattern.time_cap_per_round}분/라운드
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="wod-pattern-description">
+                                                {editModal.formData.workout_pattern.description}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         <div className="modal-footer">
-                            <button className="cancel-button" onClick={closeEditModal}>
-                                취소
-                            </button>
-                            <button className="save-button" onClick={updateProgram}>
+                            <button className="modal-button primary" onClick={updateProgram}>
                                 저장
                             </button>
                         </div>

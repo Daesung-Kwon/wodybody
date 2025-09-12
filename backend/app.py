@@ -523,9 +523,22 @@ def my_programs():
         for p in mine:
             # 새로운 참여 시스템 사용 - pending과 approved 모두 카운트
             cnt = ProgramParticipants.query.filter_by(program_id=p.id).filter(ProgramParticipants.status.in_(['pending', 'approved'])).count()
+            
+            # 프로그램에 포함된 운동들 조회
+            program_exercises = ProgramExercises.query.filter_by(program_id=p.id).order_by(ProgramExercises.order_index).all()
+            exercises = []
+            for pe in program_exercises:
+                exercises.append({
+                    'id': pe.exercise_id,
+                    'name': pe.exercise.name if pe.exercise else '알 수 없는 운동',
+                    'target_value': pe.target_value,
+                    'order': pe.order_index
+                })
+            
             out.append({
                 'id':p.id,'title':p.title,'description':p.description,'is_open':p.is_open,
-                'participants':cnt,'max_participants':p.max_participants,'created_at':format_korea_time(p.created_at)
+                'participants':cnt,'max_participants':p.max_participants,'created_at':format_korea_time(p.created_at),
+                'exercises': exercises  # 운동 정보 추가
             })
         return jsonify({'programs':out}), 200
     except Exception as e:

@@ -598,6 +598,45 @@
   margin-bottom: var(--space-8);
 }
 
+/* ========================================
+   EXERCISES SECTION (내가 등록한 WOD)
+   ======================================== */
+.exercises-section {
+  margin-bottom: var(--space-4);
+}
+
+.exercises-section h4 {
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-2);
+}
+
+.exercises-section .exercise-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.exercises-section .exercise-tag {
+  display: inline-flex;
+  align-items: center;
+  background: linear-gradient(135deg, var(--primary-100), var(--primary-200));
+  color: var(--primary-700);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--primary-300);
+  transition: all var(--transition-base);
+}
+
+.exercises-section .exercise-tag:hover {
+  background: linear-gradient(135deg, var(--primary-200), var(--primary-300));
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
 .program-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -1430,17 +1469,38 @@
 }
 
 .modal-header {
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
-  color: white;
+  background: #ffffff;
+  color: #2c3e50;
   padding: var(--space-6);
   border-bottom: 1px solid var(--color-border-light);
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 60px;
+  max-height: 80px;
 }
 
 .modal-header h2 {
-  color: #ffffff !important;
+  color: #2c3e50 !important;
   font-weight: var(--font-weight-bold);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  text-shadow: none !important;
+  margin: 0;
+  flex: 1;
+  font-size: var(--font-size-xl);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: calc(100% - 50px);
+  /* X 버튼 공간 확보 */
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/* 더 구체적인 선택자로 강제 적용 */
+.modal-content .modal-header h2 {
+  color: #2c3e50 !important;
+  text-shadow: none !important;
 }
 
 .modal-title {
@@ -1451,30 +1511,37 @@
 }
 
 .modal-close {
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  font-size: var(--font-size-xl);
-  color: white;
+  background: #f8f9fa;
+  border: 2px solid #e9ecef;
+  font-size: var(--font-size-2xl);
+  color: #2c3e50 !important;
   cursor: pointer;
   padding: var(--space-2);
-  border-radius: var(--radius-md);
+  border-radius: 50%;
   transition: all var(--transition-base);
-  min-height: 40px;
-  min-width: 40px;
+  min-height: 45px;
+  min-width: 45px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  z-index: 10;
+  position: relative;
+  font-weight: bold;
+  text-shadow: none;
 }
 
 .modal-close:hover {
-  background: rgba(255, 255, 255, 0.3);
-  color: white;
-  border-color: rgba(255, 255, 255, 0.5);
-  transform: scale(1.05);
+  background: #e9ecef;
+  color: #2c3e50 !important;
+  border-color: #dee2e6;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .modal-close:active {
-  transform: scale(0.95);
+  transform: scale(0.9);
+  background: #dee2e6;
 }
 
 .modal-body {
@@ -1647,6 +1714,24 @@
   .modal-body,
   .modal-footer {
     padding: var(--space-4);
+  }
+
+  .modal-header h2 {
+    font-size: var(--font-size-lg);
+    max-width: calc(100% - 50px);
+    text-shadow: none !important;
+    color: #2c3e50 !important;
+  }
+
+  .modal-content .modal-header h2 {
+    color: #2c3e50 !important;
+    text-shadow: none !important;
+  }
+
+  .modal-close {
+    min-height: 40px;
+    min-width: 40px;
+    font-size: var(--font-size-xl);
   }
 
   .modal-footer {
@@ -1834,6 +1919,25 @@
   .modal-body,
   .modal-footer {
     padding: var(--space-3);
+  }
+
+  .modal-header h2 {
+    font-size: var(--font-size-md);
+    max-width: calc(100% - 45px);
+    text-shadow: none !important;
+    color: #2c3e50 !important;
+  }
+
+  .modal-content .modal-header h2 {
+    color: #2c3e50 !important;
+    text-shadow: none !important;
+  }
+
+  .modal-close {
+    min-height: 38px;
+    min-width: 38px;
+    font-size: var(--font-size-lg);
+    border-width: 1px;
   }
 
   .step-navigation {
@@ -2294,6 +2398,252 @@
 
   .wod-pattern-card {
     padding: var(--space-3);
+  }
+}
+
+/* ========================================
+   EDIT MODAL STYLES (공개된 WOD 상세 보기와 동일한 디자인)
+   ======================================== */
+.program-detail-modal {
+  max-width: 800px;
+  width: 95%;
+  max-height: 90vh;
+  border-radius: var(--radius-2xl);
+}
+
+.description-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-base);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  transition: all var(--transition-base);
+  resize: vertical;
+  font-family: inherit;
+}
+
+.description-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+.info-input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  transition: all var(--transition-base);
+  min-height: 36px;
+}
+
+.info-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-light);
+}
+
+.info-value.disabled {
+  color: var(--color-text-muted);
+  background-color: var(--color-background);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-light);
+  font-size: var(--font-size-base);
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+}
+
+.exercise-tag-with-edit {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: linear-gradient(135deg, var(--primary-100), var(--primary-200));
+  color: var(--primary-700);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--primary-300);
+  transition: all var(--transition-base);
+  margin-bottom: var(--space-2);
+}
+
+.exercise-tag-with-edit:hover {
+  background: linear-gradient(135deg, var(--primary-200), var(--primary-300));
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.exercise-tag-with-edit .exercise-name {
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+  min-width: 80px;
+}
+
+.exercise-target-input {
+  background: white;
+  border: 1px solid var(--primary-300);
+  border-radius: var(--radius-md);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text);
+  min-width: 80px;
+  text-align: center;
+}
+
+.exercise-target-input:focus {
+  outline: none;
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 2px var(--primary-200);
+}
+
+/* 운동 구성 편집 스타일 (공개 WOD 상세 보기와 동일) */
+.wod-exercise-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.wod-exercise-item {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  transition: all var(--transition-base);
+}
+
+.wod-exercise-item:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.wod-exercise-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.wod-exercise-name {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  min-width: 120px;
+}
+
+
+.wod-exercise-target-edit {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 200px;
+}
+
+.wod-exercise-target-edit label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  min-width: 60px;
+}
+
+.wod-exercise-input {
+  flex: 1;
+  min-width: 120px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  background-color: white;
+  color: var(--color-text-dark);
+  transition: all var(--transition-base);
+}
+
+.wod-exercise-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-light);
+}
+
+.wod-exercise-input::placeholder {
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  opacity: 0.7;
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .program-detail-modal {
+    width: 98%;
+    max-height: 95vh;
+  }
+
+  .exercise-tag-with-edit {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-1);
+  }
+
+  .exercise-tag-with-edit .exercise-name {
+    min-width: auto;
+    text-align: center;
+  }
+
+  .exercise-target-input {
+    min-width: auto;
+  }
+
+  .wod-exercise-info {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+
+  .wod-exercise-name {
+    min-width: 80px;
+    font-size: var(--font-size-base);
+    text-align: left;
+  }
+
+
+  .wod-exercise-target-edit {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-1);
+    flex: 1;
+    min-width: 150px;
+  }
+
+  .wod-exercise-target-edit label {
+    min-width: 50px;
+    font-size: var(--font-size-xs);
+    text-align: left;
+  }
+
+  .wod-exercise-input {
+    min-width: 80px;
+    font-size: var(--font-size-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  .program-detail-modal {
+    width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .exercise-tag-with-edit {
+    padding: var(--space-1) var(--space-2);
   }
 }
 

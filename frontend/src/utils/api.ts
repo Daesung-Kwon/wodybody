@@ -198,7 +198,7 @@ export const participationApi = {
     joinProgram: (programId: number): Promise<{ message: string }> =>
         apiRequest<{ message: string }>(`/api/programs/${programId}/join`, { method: 'POST' }),
 
-    // 프로그램 참여 취소/탈퇴
+    // 프로그램 참여 취소/신청 취소
     leaveProgram: (programId: number): Promise<{ message: string }> =>
         apiRequest<{ message: string }>(`/api/programs/${programId}/leave`, { method: 'DELETE' }),
 

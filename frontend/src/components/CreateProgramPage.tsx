@@ -45,7 +45,7 @@ const CreateProgramPage: React.FC<CreateProgramPageProps> = ({ goMy, goPrograms 
 
         try {
             await programApi.createProgram(form);
-            window.alert('프로그램이 등록되었습니다');
+            window.alert('WOD가 등록되었습니다');
             goMy();
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : '등록 실패';
@@ -57,18 +57,18 @@ const CreateProgramPage: React.FC<CreateProgramPageProps> = ({ goMy, goPrograms 
 
     return (
         <div className="create-program-container">
-            <h2>새 크로스핏 프로그램 등록</h2>
+            <h2>새 크로스핏 WOD 등록</h2>
             <form onSubmit={submit} className="create-program-form">
                 <input
                     name="title"
-                    placeholder="프로그램 제목"
+                    placeholder="WOD 제목"
                     value={form.title}
                     onChange={onChange}
                     required
                 />
                 <textarea
                     name="description"
-                    placeholder="프로그램 설명"
+                    placeholder="WOD 설명"
                     value={form.description}
                     onChange={onChange}
                     rows={4}
@@ -119,7 +119,7 @@ const CreateProgramPage: React.FC<CreateProgramPageProps> = ({ goMy, goPrograms 
 
                 <div className="form-buttons">
                     <button type="submit" disabled={busy}>
-                        {busy ? '등록 중...' : '프로그램 등록'}
+                        {busy ? '등록 중...' : 'WOD 등록'}
                     </button>
                     <button type="button" onClick={goPrograms}>
                         취소

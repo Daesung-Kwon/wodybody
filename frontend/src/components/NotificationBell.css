@@ -79,16 +79,17 @@
 }
 
 .notification-dropdown {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    width: 350px;
-    max-height: 500px;
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(350px, calc(100vw - 40px));
+    max-height: calc(100vh - 120px);
     background: white;
     border: 1px solid #e0e0e0;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    z-index: 1000;
+    z-index: 1001;
     overflow: hidden;
     animation: slideDown 0.3s ease-out;
 }
@@ -245,15 +246,16 @@
 /* 반응형 디자인 */
 @media (max-width: 768px) {
     .notification-dropdown {
-        width: 300px;
-        right: -50px;
+        width: min(320px, calc(100vw - 40px));
+        top: 70px;
     }
 }
 
 @media (max-width: 480px) {
     .notification-dropdown {
-        width: 280px;
-        right: -80px;
+        width: min(300px, calc(100vw - 20px));
+        top: 60px;
+        max-height: calc(100vh - 100px);
     }
 
     .notification-item {

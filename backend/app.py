@@ -676,7 +676,13 @@ def delete_program(program_id):
         # 4. 참여 신청 삭제
         Registrations.query.filter_by(program_id=program_id).delete()
         
-        # 5. 프로그램 삭제 전에 알림 전송
+        # 5. 프로그램 참여자 삭제
+        ProgramParticipants.query.filter_by(program_id=program_id).delete()
+        
+        # 6. 운동 기록 삭제
+        WorkoutRecords.query.filter_by(program_id=program_id).delete()
+        
+        # 7. 프로그램 삭제 전에 알림 전송
         create_notification(
             user_id=program.creator_id,
             notification_type='program_deleted',
@@ -685,7 +691,7 @@ def delete_program(program_id):
             program_id=program.id
         )
         
-        # 6. 프로그램 삭제
+        # 8. 프로그램 삭제
         db.session.delete(program)
         db.session.commit()
         

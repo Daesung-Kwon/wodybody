@@ -3,6 +3,7 @@ import { MyProgram, ModalState, ProgramParticipant, CreateProgramForm } from '..
 import { programApi, participationApi } from '../utils/api';
 import LoadingSpinner from './LoadingSpinner';
 import CustomModal from './CustomModal';
+import ConfirmAlert from './ConfirmAlert';
 
 const MyProgramsPage: React.FC = () => {
     const [mine, setMine] = useState<MyProgram[]>([]);
@@ -23,6 +24,17 @@ const MyProgramsPage: React.FC = () => {
         open: false,
         programId: null,
         participants: []
+    });
+    const [confirmAlert, setConfirmAlert] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+        programId: number | null;
+    }>({
+        open: false,
+        title: '',
+        message: '',
+        programId: null
     });
 
     const [editModal, setEditModal] = useState<{
@@ -153,7 +165,7 @@ const MyProgramsPage: React.FC = () => {
                 if (result.status === 'pending') status = '대기 중';
                 else if (result.status === 'approved') status = '승인됨';
                 else if (result.status === 'rejected') status = '거부됨';
-                else if (result.status === 'left') status = '탈퇴함';
+                else if (result.status === 'left') status = '신청 취소함';
                 else status = result.completed ? '완료' : '신청';
 
                 const resultText = result.result ? ` - 결과: ${result.result}` : '';
@@ -167,19 +179,32 @@ const MyProgramsPage: React.FC = () => {
         }
     };
 
-    const deleteProgram = async (id: number, title: string): Promise<void> => {
-        if (!window.confirm(`"${title}" 프로그램을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`)) {
-            return;
-        }
+    const showDeleteConfirm = (id: number, title: string): void => {
+        setConfirmAlert({
+            open: true,
+            title: 'WOD 삭제 확인',
+            message: `"${title}" WOD를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`,
+            programId: id
+        });
+    };
+
+    const deleteProgram = async (): Promise<void> => {
+        if (!confirmAlert.programId) return;
 
         try {
-            await programApi.deleteProgram(id);
-            showModal('삭제 완료', '프로그램이 삭제되었습니다.', 'success');
+            await programApi.deleteProgram(confirmAlert.programId);
+            showModal('삭제 완료', 'WOD가 삭제되었습니다.', 'success');
             await load(); // 목록 새로고침
+            setConfirmAlert({ open: false, title: '', message: '', programId: null });
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : '삭제 실패';
             showModal('오류', errorMessage, 'error');
+            setConfirmAlert({ open: false, title: '', message: '', programId: null });
         }
+    };
+
+    const cancelDelete = (): void => {
+        setConfirmAlert({ open: false, title: '', message: '', programId: null });
     };
 
     const manageParticipants = async (programId: number): Promise<void> => {
@@ -234,7 +259,7 @@ const MyProgramsPage: React.FC = () => {
     return (
         <div className="programs-container">
             <div className="page-header">
-                <h2>내가 등록한 프로그램</h2>
+                <h2>내가 등록한 WOD</h2>
                 <button
                     className="refresh-button"
                     onClick={load}
@@ -245,7 +270,7 @@ const MyProgramsPage: React.FC = () => {
                 </button>
             </div>
             {mine.length === 0 ? (
-                <p>등록한 프로그램이 없습니다.</p>
+                <p>등록한 WOD가 없습니다.</p>
             ) : (
                 <div className="programs-grid">
                     {mine.map((program) => (
@@ -292,7 +317,7 @@ const MyProgramsPage: React.FC = () => {
 
                                 <button
                                     className="delete-button"
-                                    onClick={() => deleteProgram(program.id, program.title)}
+                                    onClick={() => showDeleteConfirm(program.id, program.title)}
                                 >
                                     삭제
                                 </button>
@@ -339,7 +364,7 @@ const MyProgramsPage: React.FC = () => {
                                                     {participant.status === 'pending' && '대기 중'}
                                                     {participant.status === 'approved' && '승인됨'}
                                                     {participant.status === 'rejected' && '거부됨'}
-                                                    {participant.status === 'left' && '탈퇴함'}
+                                                    {participant.status === 'left' && '신청 취소함'}
                                                 </span>
                                                 <small>신청일: {new Date(participant.joined_at).toLocaleDateString()}</small>
                                             </div>
@@ -500,6 +525,18 @@ const MyProgramsPage: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* 커스텀 컨펌 알럿 */}
+            <ConfirmAlert
+                isOpen={confirmAlert.open}
+                title={confirmAlert.title}
+                message={confirmAlert.message}
+                confirmText="삭제"
+                cancelText="취소"
+                onConfirm={deleteProgram}
+                onCancel={cancelDelete}
+                type="danger"
+            />
         </div>
     );
 };

@@ -63,7 +63,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ setUser, goRegister, goPrograms }
     return (
         <div className="auth-container">
             <div className="auth-form">
-                <h2>크로스핏 프로그램 관리 시스템</h2>
+                <h2>크로스핏 WOD 관리 시스템</h2>
                 <form onSubmit={submit}>
                     <input
                         type="email"

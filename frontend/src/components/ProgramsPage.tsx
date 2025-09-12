@@ -53,9 +53,9 @@ const ProgramsPage: React.FC = () => {
         try {
             await participationApi.leaveProgram(id);
             await load();
-            window.alert('프로그램에서 탈퇴했습니다.');
+            window.alert('WOD에서 신청 취소했습니다.');
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : '탈퇴 실패';
+            const errorMessage = error instanceof Error ? error.message : '신청 취소 실패';
             window.alert(errorMessage);
         } finally {
             setActionBusyId(null);
@@ -97,7 +97,7 @@ const ProgramsPage: React.FC = () => {
                             leaveProgram(program.id);
                         }}
                         disabled={actionBusyId === program.id}
-                        title="프로그램에서 탈퇴합니다"
+                        title="WOD에서 신청 취소합니다"
                     >
                         {actionBusyId === program.id ? '취소 중...' : '참여 취소'}
                     </button>
@@ -201,7 +201,7 @@ const ProgramsPage: React.FC = () => {
     return (
         <div className="programs-container">
             <div className="page-header">
-                <h2>공개된 크로스핏 프로그램</h2>
+                <h2>공개된 크로스핏 WOD</h2>
                 <button
                     className="refresh-button"
                     onClick={load}
@@ -212,7 +212,7 @@ const ProgramsPage: React.FC = () => {
                 </button>
             </div>
             {programs.length === 0 ? (
-                <p>현재 공개된 프로그램이 없습니다.</p>
+                <p>현재 공개된 WOD가 없습니다.</p>
             ) : (
                 <div className="programs-grid">
                     {programs.map((program) => (
@@ -282,65 +282,66 @@ const ProgramsPage: React.FC = () => {
                             <button className="modal-close" onClick={closeModal}>×</button>
                         </div>
 
-                        <div className="modal-body">
+                        <div className="modal-body program-detail-body">
                             <div className="program-details">
                                 <div className="program-description">
-                                    {selectedProgram.description}
+                                    <h3>설명</h3>
+                                    <p>{selectedProgram.description}</p>
                                 </div>
 
-                                {/* 기본 정보를 카드 형태로 표시 */}
-                                <div className="info-cards">
-                                    <div className="info-card">
+                                {/* 기본 정보를 그리드 형태로 표시 */}
+                                <div className="program-info-grid">
+                                    <div className="info-item">
                                         <div className="info-icon">👤</div>
                                         <div className="info-content">
-                                            <div className="info-label">작성자</div>
-                                            <div className="info-value">{selectedProgram.creator_name}</div>
+                                            <span className="info-label">작성자</span>
+                                            <span className="info-value">{selectedProgram.creator_name}</span>
                                         </div>
                                     </div>
 
-                                    <div className="info-card">
+                                    <div className="info-item">
                                         <div className="info-icon">🏃‍♂️</div>
                                         <div className="info-content">
-                                            <div className="info-label">운동 타입</div>
-                                            <div className="info-value">
+                                            <span className="info-label">운동 타입</span>
+                                            <span className="info-value">
                                                 {selectedProgram.workout_type === 'wod' ? 'WOD 패턴' :
                                                     selectedProgram.workout_type === 'time_based' ? '시간 기반' : '횟수 기반'}
-                                            </div>
+                                            </span>
                                         </div>
                                     </div>
 
-                                    <div className="info-card">
+                                    <div className="info-item">
                                         <div className="info-icon">🎯</div>
                                         <div className="info-content">
-                                            <div className="info-label">목표</div>
-                                            <div className="info-value">{selectedProgram.target_value}</div>
+                                            <span className="info-label">목표</span>
+                                            <span className="info-value">{selectedProgram.target_value}</span>
                                         </div>
                                     </div>
 
-                                    <div className="info-card">
+                                    <div className="info-item">
                                         <div className="info-icon">💪</div>
                                         <div className="info-content">
-                                            <div className="info-label">난이도</div>
-                                            <div className="info-value">
+                                            <span className="info-label">난이도</span>
+                                            <span className="info-value">
                                                 {selectedProgram.difficulty === 'beginner' ? '초급' :
                                                     selectedProgram.difficulty === 'intermediate' ? '중급' : '고급'}
-                                            </div>
+                                            </span>
                                         </div>
                                     </div>
 
-                                    <div className="info-card">
+                                    <div className="info-item">
                                         <div className="info-icon">👥</div>
                                         <div className="info-content">
-                                            <div className="info-label">참여자</div>
-                                            <div className="info-value">{selectedProgram.participants}/{selectedProgram.max_participants}명</div>
+                                            <span className="info-label">참여자</span>
+                                            <span className="info-value">{selectedProgram.participants}/{selectedProgram.max_participants}명</span>
                                         </div>
                                     </div>
 
-                                    <div className="info-card">
+                                    <div className="info-item">
                                         <div className="info-icon">📅</div>
                                         <div className="info-content">
-                                            <div className="info-label">등록일</div>
-                                            <div className="info-value">{selectedProgram.created_at}</div>
+                                            <span className="info-label">등록일</span>
+                                            <span className="info-value">{selectedProgram.created_at}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -348,13 +349,13 @@ const ProgramsPage: React.FC = () => {
                                 {/* 운동 정보를 태그 형태로 표시 */}
                                 {selectedProgram.exercises && selectedProgram.exercises.length > 0 && (
                                     <div className="exercises-section">
-                                        <h4>포함된 운동</h4>
-                                        <div className="exercises-grid">
+                                        <h3>포함된 운동</h3>
+                                        <div className="exercise-tags">
                                             {selectedProgram.exercises.map((exercise, index) => (
-                                                <div key={index} className="exercise-card">
-                                                    <div className="exercise-name">{exercise.name}</div>
+                                                <div key={index} className="exercise-tag">
+                                                    <span className="tag-name">{exercise.name}</span>
                                                     {exercise.target_value && (
-                                                        <div className="exercise-target">{exercise.target_value}</div>
+                                                        <span className="tag-value">{exercise.target_value}</span>
                                                     )}
                                                 </div>
                                             ))}
@@ -365,30 +366,32 @@ const ProgramsPage: React.FC = () => {
                                 {/* WOD 패턴을 시각적으로 개선 */}
                                 {selectedProgram.workout_pattern && (
                                     <div className="wod-section">
-                                        <h4>WOD 패턴</h4>
-                                        <div className="wod-card">
-                                            <div className="wod-header">
-                                                <div className="wod-type">{selectedProgram.workout_pattern.type}</div>
-                                                <div className="wod-rounds">{selectedProgram.workout_pattern.total_rounds}라운드</div>
+                                        <h3>WOD 패턴</h3>
+                                        <div className="wod-pattern-card">
+                                            <div className="wod-pattern-header">
+                                                <div className="wod-pattern-type">{selectedProgram.workout_pattern.type}</div>
+                                                <div className="wod-pattern-rounds">{selectedProgram.workout_pattern.total_rounds}라운드</div>
                                                 {selectedProgram.workout_pattern.time_cap_per_round && (
-                                                    <div className="wod-time-cap">{selectedProgram.workout_pattern.time_cap_per_round}분 제한</div>
+                                                    <div className="wod-pattern-time">{selectedProgram.workout_pattern.time_cap_per_round}분 제한</div>
                                                 )}
                                             </div>
 
                                             {selectedProgram.workout_pattern.description && (
-                                                <div className="wod-description">
+                                                <div className="wod-pattern-description">
                                                     {selectedProgram.workout_pattern.description}
                                                 </div>
                                             )}
 
                                             {selectedProgram.workout_pattern.exercises && selectedProgram.workout_pattern.exercises.length > 0 && (
-                                                <div className="wod-exercises">
-                                                    <div className="wod-exercises-title">운동 구성</div>
-                                                    <div className="wod-exercises-grid">
+                                                <div className="wod-pattern-exercises">
+                                                    <h4>운동 구성</h4>
+                                                    <div className="wod-exercise-list">
                                                         {selectedProgram.workout_pattern.exercises.map((exercise, index) => (
-                                                            <div key={index} className="wod-exercise-card">
-                                                                <div className="wod-exercise-name">{exercise.exercise_name}</div>
-                                                                <div className="wod-exercise-reps">{exercise.base_reps}회</div>
+                                                            <div key={index} className="wod-exercise-item">
+                                                                <div className="wod-exercise-info">
+                                                                    <span className="wod-exercise-name">{exercise.exercise_name}</span>
+                                                                    <span className="wod-exercise-reps">{exercise.base_reps}회</span>
+                                                                </div>
                                                                 <div className="wod-exercise-progression">
                                                                     {exercise.progression_type === 'fixed' ? '고정' :
                                                                         exercise.progression_type === 'increase' ? `+${exercise.progression_value}회씩 증가` :
@@ -406,37 +409,6 @@ const ProgramsPage: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="modal-footer">
-                            {selectedProgram.is_registered ? (
-                                <button
-                                    className="register-button registered"
-                                    onClick={() => {
-                                        leaveProgram(selectedProgram.id);
-                                        closeModal();
-                                    }}
-                                    disabled={actionBusyId === selectedProgram.id}
-                                >
-                                    {actionBusyId === selectedProgram.id ? '취소 중...' : '참여 취소'}
-                                </button>
-                            ) : (
-                                <button
-                                    className="register-button"
-                                    onClick={() => {
-                                        joinProgram(selectedProgram.id);
-                                        closeModal();
-                                    }}
-                                    disabled={actionBusyId === selectedProgram.id || selectedProgram.participants >= selectedProgram.max_participants}
-                                >
-                                    {actionBusyId === selectedProgram.id
-                                        ? '신청 중...'
-                                        : (selectedProgram.participants >= selectedProgram.max_participants ? '정원 마감' : '참여 신청')
-                                    }
-                                </button>
-                            )}
-                            <button className="modal-close-button" onClick={closeModal}>
-                                닫기
-                            </button>
-                        </div>
                     </div>
                 </div>
             )}

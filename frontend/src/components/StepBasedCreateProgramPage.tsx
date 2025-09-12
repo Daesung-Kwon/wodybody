@@ -89,7 +89,7 @@ const StepBasedCreateProgramPage: React.FC<CreateProgramPageProps> = ({ goMy, go
             };
 
             await programApi.createProgram(formData);
-            window.alert('프로그램이 등록되었습니다');
+            window.alert('WOD가 등록되었습니다');
             goMy();
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : '등록 실패';
@@ -119,7 +119,7 @@ const StepBasedCreateProgramPage: React.FC<CreateProgramPageProps> = ({ goMy, go
         <div className="step-content">
             <h3>기본 정보 입력</h3>
             <div className="form-group">
-                <label>프로그램 제목 *</label>
+                <label>WOD 제목 *</label>
                 <input
                     type="text"
                     placeholder="예: 아침 크로스핏 클래스"
@@ -129,9 +129,9 @@ const StepBasedCreateProgramPage: React.FC<CreateProgramPageProps> = ({ goMy, go
                 />
             </div>
             <div className="form-group">
-                <label>프로그램 설명 *</label>
+                <label>WOD 설명 *</label>
                 <textarea
-                    placeholder="프로그램에 대한 자세한 설명을 입력하세요"
+                    placeholder="WOD에 대한 자세한 설명을 입력하세요"
                     value={stepData.description}
                     onChange={(e) => updateStepData({ description: e.target.value })}
                     rows={4}
@@ -235,7 +235,7 @@ const StepBasedCreateProgramPage: React.FC<CreateProgramPageProps> = ({ goMy, go
         <div className="step-content">
             <h3>최종 확인</h3>
             <div className="review-card">
-                <h4>프로그램 정보</h4>
+                <h4>WOD 정보</h4>
                 <div className="review-section">
                     <strong>제목:</strong> {stepData.title}
                 </div>
@@ -290,7 +290,7 @@ const StepBasedCreateProgramPage: React.FC<CreateProgramPageProps> = ({ goMy, go
     return (
         <div className="step-based-create-container">
             <div className="create-header">
-                <h2>새 크로스핏 프로그램 등록</h2>
+                <h2>새 크로스핏 WOD 등록</h2>
                 {renderStepIndicator()}
             </div>
 
@@ -325,7 +325,7 @@ const StepBasedCreateProgramPage: React.FC<CreateProgramPageProps> = ({ goMy, go
                         disabled={!canProceedToNext() || busy}
                         className="nav-button submit"
                     >
-                        {busy ? '등록 중...' : '프로그램 등록'}
+                        {busy ? '등록 중...' : 'WOD 등록'}
                     </button>
                 )}
 

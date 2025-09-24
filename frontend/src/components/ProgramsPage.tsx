@@ -240,7 +240,21 @@ const ProgramsPage: React.FC = () => {
 
                                 {/* 간략한 운동 정보 */}
                                 <div className="exercise-preview">
-                                    {program.exercises && program.exercises.length > 0 && (
+                                    {/* WOD 패턴이 있을 때는 WOD 패턴 운동 표시, 없을 때는 기존 방식 운동 표시 */}
+                                    {program.workout_pattern && program.workout_pattern.exercises && program.workout_pattern.exercises.length > 0 ? (
+                                        <div className="exercise-tags">
+                                            {program.workout_pattern.exercises.slice(0, 3).map((exercise, index) => (
+                                                <span key={index} className="exercise-tag">
+                                                    {exercise.exercise_name}
+                                                </span>
+                                            ))}
+                                            {program.workout_pattern.exercises.length > 3 && (
+                                                <span className="exercise-tag more">
+                                                    +{program.workout_pattern.exercises.length - 3}개 더
+                                                </span>
+                                            )}
+                                        </div>
+                                    ) : program.exercises && program.exercises.length > 0 ? (
                                         <div className="exercise-tags">
                                             {program.exercises.slice(0, 3).map((exercise, index) => (
                                                 <span key={index} className="exercise-tag">
@@ -253,7 +267,7 @@ const ProgramsPage: React.FC = () => {
                                                 </span>
                                             )}
                                         </div>
-                                    )}
+                                    ) : null}
 
                                     {program.workout_pattern && (
                                         <div className="wod-preview">
@@ -347,7 +361,8 @@ const ProgramsPage: React.FC = () => {
                                 </div>
 
                                 {/* 운동 정보를 태그 형태로 표시 */}
-                                {selectedProgram.exercises && selectedProgram.exercises.length > 0 && (
+                                {/* WOD 패턴이 없을 때만 기존 방식 운동 표시 */}
+                                {!selectedProgram.workout_pattern && selectedProgram.exercises && selectedProgram.exercises.length > 0 && (
                                     <div className="exercises-section">
                                         <h3>포함된 운동</h3>
                                         <div className="exercise-tags">
@@ -384,7 +399,7 @@ const ProgramsPage: React.FC = () => {
 
                                             {selectedProgram.workout_pattern.exercises && selectedProgram.workout_pattern.exercises.length > 0 && (
                                                 <div className="wod-pattern-exercises">
-                                                    <h4>운동 구성</h4>
+                                                    <h4>포함된 운동</h4>
                                                     <div className="wod-exercise-list">
                                                         {selectedProgram.workout_pattern.exercises.map((exercise, index) => (
                                                             <div key={index} className="wod-exercise-item">

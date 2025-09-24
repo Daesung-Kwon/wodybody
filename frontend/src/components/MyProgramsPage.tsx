@@ -520,7 +520,8 @@ const MyProgramsPage: React.FC = () => {
                                 </div>
 
                                 {/* 운동 정보를 공개 WOD 상세 보기와 동일한 형태로 표시 */}
-                                {editModal.formData.selected_exercises.length > 0 && (
+                                {/* WOD 패턴이 없을 때만 기존 방식 운동 표시 */}
+                                {!editModal.formData.workout_pattern && editModal.formData.selected_exercises.length > 0 && (
                                     <div className="exercises-section">
                                         <h3>운동 구성</h3>
                                         <div className="wod-exercise-list">
@@ -574,6 +575,29 @@ const MyProgramsPage: React.FC = () => {
                                             <div className="wod-pattern-description">
                                                 {editModal.formData.workout_pattern.description}
                                             </div>
+
+                                            {/* WOD 패턴 운동 구성 표시 */}
+                                            {editModal.formData.workout_pattern.exercises && editModal.formData.workout_pattern.exercises.length > 0 && (
+                                                <div className="wod-pattern-exercises">
+                                                    <h4>포함된 운동</h4>
+                                                    <div className="wod-exercise-list">
+                                                        {editModal.formData.workout_pattern.exercises.map((exercise, index) => (
+                                                            <div key={index} className="wod-exercise-item">
+                                                                <div className="wod-exercise-info">
+                                                                    <span className="wod-exercise-name">{exercise.exercise_name}</span>
+                                                                    <span className="wod-exercise-reps">{exercise.base_reps}회</span>
+                                                                </div>
+                                                                <div className="wod-exercise-progression">
+                                                                    {exercise.progression_type === 'fixed' ? '고정' :
+                                                                        exercise.progression_type === 'increase' ? `+${exercise.progression_value}회씩 증가` :
+                                                                            exercise.progression_type === 'decrease' ? `-${exercise.progression_value}회씩 감소` :
+                                                                                '혼합'}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}

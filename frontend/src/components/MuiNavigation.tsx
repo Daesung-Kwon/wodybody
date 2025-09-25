@@ -48,7 +48,7 @@ const MuiNavigation: React.FC<MuiNavigationProps> = ({
     onNotifications,
     unreadCount,
 }) => {
-    const { isDarkMode } = useTheme();
+    const { isDarkMode, toggleTheme } = useTheme();
     const [drawerOpen, setDrawerOpen] = useState(false);
 
     const toggleDrawer = () => {
@@ -231,6 +231,27 @@ const MuiNavigation: React.FC<MuiNavigationProps> = ({
                             </ListItemButton>
                         </ListItem>
                     ))}
+
+                    {/* 테마 토글 */}
+                    <ListItem disablePadding>
+                        <ListItemButton
+                            onClick={() => {
+                                toggleTheme();
+                                toggleDrawer();
+                            }}
+                            sx={{ px: 3, py: 1.5 }}
+                        >
+                            <ListItemIcon sx={{ minWidth: 40, fontSize: '1.5rem' }}>
+                                {isDarkMode ? '☀️' : '🌙'}
+                            </ListItemIcon>
+                            <ListItemText
+                                primary={isDarkMode ? '라이트 모드' : '다크 모드'}
+                                primaryTypographyProps={{
+                                    fontWeight: 500,
+                                }}
+                            />
+                        </ListItemButton>
+                    </ListItem>
                 </List>
 
                 <Divider sx={{ my: 2 }} />

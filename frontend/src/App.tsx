@@ -10,11 +10,13 @@ import MuiLoginPage from './components/MuiLoginPage';
 import MuiRegisterPage from './components/MuiRegisterPage';
 import MuiNavigation from './components/MuiNavigation';
 import ProgramsPage from './components/ProgramsPage';
+import MuiProgramsPage from './components/MuiProgramsPage';
 import MyProgramsPage from './components/MyProgramsPage';
 import PersonalRecordsPage from './components/PersonalRecordsPage';
 import StepBasedCreateProgramPage from './components/StepBasedCreateProgramPage';
 import NotificationsPage from './components/NotificationsPage';
 import WebSocketDebugger from './components/WebSocketDebugger';
+import MuiWebSocketDebugger from './components/MuiWebSocketDebugger';
 import MuiExample from './components/common/MuiExample';
 
 // 알림 아이콘 컴포넌트 (MUI Navigation에서 처리하므로 주석 처리)
@@ -99,7 +101,7 @@ const AppWithNotifications: React.FC<{
                         <NotificationsPage onBack={() => setShowNotifications(false)} />
                     ) : (
                         <>
-                            {page === 'programs' && <ProgramsPage />}
+                            {page === 'programs' && <MuiProgramsPage />}
                             {page === 'my' && <MyProgramsPage />}
                             {page === 'records' && <PersonalRecordsPage />}
                             {page === 'create' && (
@@ -123,7 +125,7 @@ const AppWithNotifications: React.FC<{
                     <MuiRegisterPage goLogin={() => setPage('login')} />
                 )
             )}
-            <WebSocketDebugger />
+            <MuiWebSocketDebugger />
         </div>
     );
 };

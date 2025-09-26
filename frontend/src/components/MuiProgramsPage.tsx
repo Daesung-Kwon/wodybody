@@ -42,8 +42,9 @@ import {
     Cancel as CancelIcon,
     CheckCircle as CheckCircleIcon,
     Schedule as ScheduleIcon,
+    TrendingUp as TrendingUpIcon,
 } from '@mui/icons-material';
-import { Program, ProgramWithParticipation, CreateWorkoutRecordRequest } from '../types';
+import { Program, ProgramWithParticipation, CreateWorkoutRecordRequest, ProgramDetail } from '../types';
 import { programApi, participationApi, workoutRecordsApi } from '../utils/api';
 import LoadingSpinner from './LoadingSpinner';
 import WorkoutTimer from './WorkoutTimer';
@@ -57,7 +58,7 @@ const MuiProgramsPage: React.FC = () => {
     const [filteredPrograms, setFilteredPrograms] = useState<ProgramWithParticipation[]>([]);
     const [busy, setBusy] = useState<boolean>(false);
     const [actionBusyId, setActionBusyId] = useState<number | null>(null);
-    const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
+    const [selectedProgram, setSelectedProgram] = useState<ProgramDetail | null>(null);
     const [showModal, setShowModal] = useState<boolean>(false);
 
     // 필터링 상태
@@ -227,9 +228,24 @@ const MuiProgramsPage: React.FC = () => {
         );
     };
 
-    const openModal = (program: Program): void => {
-        setSelectedProgram(program);
-        setShowModal(true);
+    const openModal = async (program: Program): Promise<void> => {
+        try {
+            // 실제 API를 호출하여 최신 프로그램 상세 정보를 가져옴
+            const response = await programApi.getProgramDetail(program.id);
+            const programDetail = response.program;
+
+            setSelectedProgram(programDetail);
+            setShowModal(true);
+        } catch (error) {
+            console.error('프로그램 상세 정보 로드 실패:', error);
+            // 오류가 발생하면 Program을 ProgramDetail로 변환
+            const fallbackDetail: ProgramDetail = {
+                ...program,
+                is_open: true // 기본값 설정
+            };
+            setSelectedProgram(fallbackDetail);
+            setShowModal(true);
+        }
     };
 
     const closeModal = (): void => {
@@ -237,15 +253,19 @@ const MuiProgramsPage: React.FC = () => {
         setSelectedProgram(null);
     };
 
-    const handleCardClick = (e: React.MouseEvent, program: Program): void => {
+    const handleCardClick = async (e: React.MouseEvent, program: Program): Promise<void> => {
         if (!(e.target as HTMLElement).closest('button')) {
-            openModal(program);
+            await openModal(program);
         }
     };
 
     // 운동 시작
     const startWorkout = (program: Program): void => {
-        setSelectedProgram(program);
+        const programDetail: ProgramDetail = {
+            ...program,
+            is_open: true // 기본값 설정
+        };
+        setSelectedProgram(programDetail);
         setShowTimer(true);
     };
 
@@ -304,6 +324,10 @@ const MuiProgramsPage: React.FC = () => {
     };
 
     const getTypeLabel = (type: string) => {
+        console.log('MuiProgramsPage workout_type:', type, 'type:', typeof type);
+        if (!type || type.trim() === '') {
+            return null;
+        }
         switch (type) {
             case 'wod': return 'WOD';
             case 'time_based': return '시간 기반';
@@ -486,8 +510,8 @@ const MuiProgramsPage: React.FC = () => {
                                         </Box>
                                     </Stack>
 
-                                    {/* 운동 미리보기 */}
-                                    {program.workout_pattern?.exercises && program.workout_pattern.exercises.length > 0 && (
+                                    {/* 운동 미리보기 - workout_pattern 우선, exercises fallback */}
+                                    {program.workout_pattern?.exercises && program.workout_pattern.exercises.length > 0 ? (
                                         <Box sx={{ mb: 2 }}>
                                             <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
                                                 포함된 운동:
@@ -512,7 +536,32 @@ const MuiProgramsPage: React.FC = () => {
                                                 )}
                                             </Stack>
                                         </Box>
-                                    )}
+                                    ) : program.exercises && program.exercises.length > 0 ? (
+                                        <Box sx={{ mb: 2 }}>
+                                            <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                                                포함된 운동:
+                                            </Typography>
+                                            <Stack direction="row" spacing={0.5} flexWrap="wrap">
+                                                {program.exercises.slice(0, 3).map((exercise, index) => (
+                                                    <Chip
+                                                        key={index}
+                                                        label={exercise.name}
+                                                        size="small"
+                                                        variant="outlined"
+                                                        sx={{ mb: 0.5 }}
+                                                    />
+                                                ))}
+                                                {program.exercises.length > 3 && (
+                                                    <Chip
+                                                        label={`+${program.exercises.length - 3}개 더`}
+                                                        size="small"
+                                                        variant="outlined"
+                                                        sx={{ mb: 0.5 }}
+                                                    />
+                                                )}
+                                            </Stack>
+                                        </Box>
+                                    ) : null}
 
                                     {program.workout_pattern && (
                                         <Box sx={{ mb: 2 }}>
@@ -535,187 +584,486 @@ const MuiProgramsPage: React.FC = () => {
                 </Box>
             )}
 
-            {/* 상세 모달 */}
+            {/* 프로그램 상세 모달 - Material Design 개선 */}
             <Dialog
                 open={showModal}
                 onClose={closeModal}
-                maxWidth="md"
+                maxWidth="lg"
                 fullWidth
                 PaperProps={{
                     sx: {
-                        borderRadius: 3,
-                        maxHeight: '90vh',
-                    },
+                        borderRadius: 4,
+                        backgroundImage: 'none',
+                        backgroundColor: isDarkMode ? 'background.paper' : 'white',
+                        boxShadow: isDarkMode
+                            ? '0 24px 48px rgba(0, 0, 0, 0.4)'
+                            : '0 24px 48px rgba(0, 0, 0, 0.12)',
+                        minHeight: '80vh',
+                    }
                 }}
             >
                 {selectedProgram && (
                     <>
-                        <DialogTitle sx={{ pb: 1 }}>
-                            <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                <Typography variant="h5" component="div" sx={{ fontWeight: 600 }}>
-                                    {selectedProgram.title}
-                                </Typography>
-                                <IconButton onClick={closeModal} size="small">
+                        {/* 헤더 - 그라데이션 배경 */}
+                        <Box
+                            sx={{
+                                background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
+                                color: 'white',
+                                p: 3,
+                                position: 'relative',
+                                overflow: 'hidden',
+                            }}
+                        >
+                            {/* 배경 장식 */}
+                            <Box
+                                sx={{
+                                    position: 'absolute',
+                                    top: -50,
+                                    right: -50,
+                                    width: 200,
+                                    height: 200,
+                                    borderRadius: '50%',
+                                    background: 'rgba(255, 255, 255, 0.1)',
+                                }}
+                            />
+                            <Box
+                                sx={{
+                                    position: 'absolute',
+                                    bottom: -30,
+                                    left: -30,
+                                    width: 150,
+                                    height: 150,
+                                    borderRadius: '50%',
+                                    background: 'rgba(255, 255, 255, 0.05)',
+                                }}
+                            />
+
+                            <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                                <Box sx={{ position: 'relative', zIndex: 1 }}>
+                                    <Typography variant="h4" component="h1" sx={{ fontWeight: 700, mb: 1 }}>
+                                        {selectedProgram.title}
+                                    </Typography>
+                                    <Typography variant="body1" sx={{ opacity: 0.9, mb: 2 }}>
+                                        {selectedProgram.description}
+                                    </Typography>
+
+                                    {/* 기본 정보 태그들 */}
+                                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                                        <Chip
+                                            label={`🎯 ${selectedProgram.target_value}`}
+                                            size="small"
+                                            sx={{
+                                                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                                color: 'white',
+                                                fontWeight: 600,
+                                            }}
+                                        />
+                                        <Chip
+                                            label={`🏋️ ${getTypeLabel(selectedProgram.workout_type) || '미분류'}`}
+                                            size="small"
+                                            sx={{
+                                                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                                color: 'white',
+                                                fontWeight: 600,
+                                            }}
+                                        />
+                                        <Chip
+                                            label={`📈 ${getDifficultyLabel(selectedProgram.difficulty)}`}
+                                            size="small"
+                                            sx={{
+                                                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                                color: 'white',
+                                                fontWeight: 600,
+                                            }}
+                                        />
+                                        <Chip
+                                            label={`👥 ${selectedProgram.participants}/${selectedProgram.max_participants}명`}
+                                            size="small"
+                                            sx={{
+                                                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                                color: 'white',
+                                                fontWeight: 600,
+                                            }}
+                                        />
+                                    </Stack>
+                                </Box>
+
+                                <IconButton
+                                    onClick={closeModal}
+                                    size="large"
+                                    sx={{
+                                        color: 'white',
+                                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                        '&:hover': {
+                                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                        },
+                                    }}
+                                >
                                     <CancelIcon />
                                 </IconButton>
                             </Stack>
-                        </DialogTitle>
+                        </Box>
 
-                        <DialogContent sx={{ pt: 2 }}>
-                            <Stack spacing={3}>
-                                {/* 설명 */}
-                                <Box>
-                                    <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
-                                        설명
+                        <DialogContent sx={{ p: 0 }}>
+                            <Box sx={{ p: 3 }}>
+                                {/* 운동 목록 */}
+                                <Box sx={{ mb: 4 }}>
+                                    <Typography variant="h6" sx={{ mb: 3, fontWeight: 600, color: 'text.primary' }}>
+                                        🏋️ 포함된 운동
                                     </Typography>
-                                    <Typography variant="body1" color="text.secondary">
-                                        {selectedProgram.description}
-                                    </Typography>
-                                </Box>
 
-                                <Divider />
-
-                                {/* 기본 정보 */}
-                                <Box>
-                                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                                        기본 정보
-                                    </Typography>
-                                    <Box sx={{
-                                        display: 'grid',
-                                        gridTemplateColumns: {
-                                            xs: '1fr',
-                                            sm: 'repeat(2, 1fr)'
-                                        },
-                                        gap: 2
-                                    }}>
-                                        <Paper sx={{ p: 2 }}>
-                                            <Stack direction="row" alignItems="center" spacing={1}>
-                                                <PersonIcon color="primary" />
-                                                <Box>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        작성자
-                                                    </Typography>
-                                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                                        {selectedProgram.creator_name}
-                                                    </Typography>
-                                                </Box>
-                                            </Stack>
-                                        </Paper>
-                                        <Paper sx={{ p: 2 }}>
-                                            <Stack direction="row" alignItems="center" spacing={1}>
-                                                <FitnessCenterIcon color="primary" />
-                                                <Box>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        운동 타입
-                                                    </Typography>
-                                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                                        {getTypeLabel(selectedProgram.workout_type)}
-                                                    </Typography>
-                                                </Box>
-                                            </Stack>
-                                        </Paper>
-                                        <Paper sx={{ p: 2 }}>
-                                            <Stack direction="row" alignItems="center" spacing={1}>
-                                                <TimerIcon color="primary" />
-                                                <Box>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        목표
-                                                    </Typography>
-                                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                                        {selectedProgram.target_value}
-                                                    </Typography>
-                                                </Box>
-                                            </Stack>
-                                        </Paper>
-                                        <Paper sx={{ p: 2 }}>
-                                            <Stack direction="row" alignItems="center" spacing={1}>
-                                                <GroupIcon color="primary" />
-                                                <Box>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        참여자
-                                                    </Typography>
-                                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                                        {selectedProgram.participants}/{selectedProgram.max_participants}명
-                                                    </Typography>
-                                                </Box>
-                                            </Stack>
-                                        </Paper>
-                                    </Box>
-                                </Box>
-
-                                {/* WOD 패턴 */}
-                                {selectedProgram.workout_pattern && (
-                                    <>
-                                        <Divider />
-                                        <Box>
-                                            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                                                WOD 패턴
-                                            </Typography>
-                                            <Paper sx={{ p: 3 }}>
+                                    {/* WOD 패턴 방식 운동 목록 */}
+                                    {selectedProgram.workout_pattern?.exercises && selectedProgram.workout_pattern.exercises.length > 0 && (
+                                        <Card sx={{ mb: 3, overflow: 'hidden' }}>
+                                            <Box sx={{
+                                                p: 2,
+                                                background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
+                                                color: 'white',
+                                            }}>
+                                                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                                    🎯 WOD 패턴 운동
+                                                </Typography>
+                                            </Box>
+                                            <Box sx={{ p: 2 }}>
                                                 <Stack spacing={2}>
-                                                    <Stack direction="row" spacing={2} alignItems="center">
+                                                    {selectedProgram.workout_pattern.exercises.map((exercise, index) => {
+                                                        // 디버깅: 실제 데이터 확인
+                                                        console.log(`=== Exercise ${index + 1} Debug ===`);
+                                                        console.log('Exercise:', exercise);
+                                                        console.log('Name:', exercise.exercise_name);
+                                                        console.log('Base reps:', exercise.base_reps);
+                                                        console.log('Progression type:', exercise.progression_type);
+                                                        console.log('Progression value:', exercise.progression_value);
+                                                        console.log('================================');
+
+                                                        return (
+                                                            <Card key={index} variant="outlined" sx={{
+                                                                p: 2,
+                                                                border: '1px solid',
+                                                                borderColor: 'primary.main',
+                                                                backgroundColor: 'primary.50',
+                                                            }}>
+                                                                <Stack spacing={2}>
+                                                                    {/* 운동명과 기본 횟수 */}
+                                                                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                                                        <Stack direction="row" alignItems="center" spacing={2}>
+                                                                            <Avatar sx={{
+                                                                                bgcolor: 'primary.main',
+                                                                                width: 32,
+                                                                                height: 32,
+                                                                                fontSize: '0.875rem',
+                                                                            }}>
+                                                                                {index + 1}
+                                                                            </Avatar>
+                                                                            <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                                                                                {exercise.exercise_name || exercise.name}
+                                                                            </Typography>
+                                                                        </Stack>
+                                                                        <Chip
+                                                                            label={exercise.base_reps ? `${exercise.base_reps}회` : exercise.target_value}
+                                                                            color="primary"
+                                                                            variant="outlined"
+                                                                            size="small"
+                                                                        />
+                                                                    </Stack>
+
+                                                                    {/* 진행 방식 정보 - 실제 데이터 기반으로 수정 */}
+                                                                    <Box sx={{
+                                                                        pl: 5,
+                                                                        py: 2,
+                                                                        bgcolor: (() => {
+                                                                            const type = exercise.progression_type;
+                                                                            if (type === 'increase') return 'rgba(76, 175, 80, 0.08)';
+                                                                            if (type === 'decrease') return 'rgba(244, 67, 54, 0.08)';
+                                                                            if (type === 'mixed') return 'rgba(255, 152, 0, 0.08)';
+                                                                            if (type === 'fixed') return 'rgba(25, 118, 210, 0.08)';
+                                                                            return 'rgba(158, 158, 158, 0.08)'; // 기본값
+                                                                        })(),
+                                                                        borderRadius: 2,
+                                                                        border: '1px solid',
+                                                                        borderColor: (() => {
+                                                                            const type = exercise.progression_type;
+                                                                            if (type === 'increase') return 'rgba(76, 175, 80, 0.3)';
+                                                                            if (type === 'decrease') return 'rgba(244, 67, 54, 0.3)';
+                                                                            if (type === 'mixed') return 'rgba(255, 152, 0, 0.3)';
+                                                                            if (type === 'fixed') return 'rgba(25, 118, 210, 0.3)';
+                                                                            return 'rgba(158, 158, 158, 0.3)'; // 기본값
+                                                                        })(),
+                                                                    }}>
+                                                                        <Stack spacing={1}>
+                                                                            {/* 진행 방식 헤더 */}
+                                                                            <Stack direction="row" alignItems="center" spacing={1}>
+                                                                                {(() => {
+                                                                                    const type = exercise.progression_type;
+                                                                                    console.log('Progression type for header:', type, typeof type);
+
+                                                                                    if (type === 'increase') {
+                                                                                        return (
+                                                                                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'success.main' }}>
+                                                                                                📈 증가 패턴
+                                                                                            </Typography>
+                                                                                        );
+                                                                                    } else if (type === 'decrease') {
+                                                                                        return (
+                                                                                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'error.main' }}>
+                                                                                                📉 감소 패턴
+                                                                                            </Typography>
+                                                                                        );
+                                                                                    } else if (type === 'mixed') {
+                                                                                        return (
+                                                                                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'warning.main' }}>
+                                                                                                🔄 혼합 패턴
+                                                                                            </Typography>
+                                                                                        );
+                                                                                    } else if (type === 'fixed') {
+                                                                                        return (
+                                                                                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'info.main' }}>
+                                                                                                🔒 고정 패턴
+                                                                                            </Typography>
+                                                                                        );
+                                                                                    } else {
+                                                                                        return (
+                                                                                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                                                                                                ❓ 진행 방식 미정
+                                                                                            </Typography>
+                                                                                        );
+                                                                                    }
+                                                                                })()}
+                                                                            </Stack>
+
+                                                                            {/* 진행 방식 상세 정보 */}
+                                                                            <Stack direction="row" alignItems="center" spacing={2} flexWrap="wrap">
+                                                                                <Chip
+                                                                                    icon={(() => {
+                                                                                        const type = exercise.progression_type;
+                                                                                        if (type === 'increase') return <TrendingUpIcon />;
+                                                                                        if (type === 'decrease') return <TrendingUpIcon sx={{ transform: 'rotate(180deg)' }} />;
+                                                                                        if (type === 'mixed') return <TrendingUpIcon />;
+                                                                                        return <TrendingUpIcon />;
+                                                                                    })()}
+                                                                                    label={(() => {
+                                                                                        const type = exercise.progression_type;
+                                                                                        const value = exercise.progression_value || 1;
+
+                                                                                        if (type === 'increase') return `라운드당 ${value}회씩 증가`;
+                                                                                        if (type === 'decrease') return `라운드당 ${value}회씩 감소`;
+                                                                                        if (type === 'mixed') return `혼합 진행 (${value}회)`;
+                                                                                        if (type === 'fixed') return '횟수 고정';
+                                                                                        return '진행 방식 정보 없음';
+                                                                                    })()}
+                                                                                    size="small"
+                                                                                    color={(() => {
+                                                                                        const type = exercise.progression_type;
+                                                                                        if (type === 'increase') return 'success';
+                                                                                        if (type === 'decrease') return 'error';
+                                                                                        if (type === 'mixed') return 'warning';
+                                                                                        if (type === 'fixed') return 'info';
+                                                                                        return 'default';
+                                                                                    })()}
+                                                                                    variant="filled"
+                                                                                    sx={{
+                                                                                        fontSize: '0.75rem',
+                                                                                        height: 24,
+                                                                                        fontWeight: 600,
+                                                                                    }}
+                                                                                />
+
+                                                                                {/* 예시 표시 - 실제 데이터 기반 */}
+                                                                                <Typography variant="caption" sx={{
+                                                                                    color: 'text.secondary',
+                                                                                    fontStyle: 'italic',
+                                                                                    fontSize: '0.7rem',
+                                                                                    display: 'block',
+                                                                                    mt: 0.5,
+                                                                                    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                                                                                    p: 0.5,
+                                                                                    borderRadius: 1,
+                                                                                    border: '1px solid rgba(0, 0, 0, 0.1)'
+                                                                                }}>
+                                                                                    {(() => {
+                                                                                        const baseReps = exercise.base_reps || 0;
+                                                                                        const progressionValue = exercise.progression_value || 1;
+                                                                                        const type = exercise.progression_type;
+
+                                                                                        console.log('예시 계산:', {
+                                                                                            baseReps,
+                                                                                            progressionValue,
+                                                                                            progressionType: type,
+                                                                                            typeOfType: typeof type
+                                                                                        });
+
+                                                                                        if (type === 'increase') {
+                                                                                            return `예: 1라운드 ${baseReps}회 → 2라운드 ${baseReps + progressionValue}회`;
+                                                                                        } else if (type === 'decrease') {
+                                                                                            return `예: 1라운드 ${baseReps}회 → 2라운드 ${Math.max(0, baseReps - progressionValue)}회`;
+                                                                                        } else if (type === 'mixed') {
+                                                                                            return `예: 혼합 패턴 (라운드별로 다름)`;
+                                                                                        } else if (type === 'fixed') {
+                                                                                            return `예: 모든 라운드 ${baseReps}회 고정`;
+                                                                                        } else {
+                                                                                            return `예: 진행 방식 정보 없음 (타입: ${type})`;
+                                                                                        }
+                                                                                    })()}
+                                                                                </Typography>
+                                                                            </Stack>
+                                                                        </Stack>
+                                                                    </Box>
+                                                                </Stack>
+                                                            </Card>
+                                                        );
+                                                    })}
+                                                </Stack>
+                                            </Box>
+                                        </Card>
+                                    )}
+
+                                    {/* 기존 방식 운동 목록 */}
+                                    {(!selectedProgram.workout_pattern?.exercises || selectedProgram.workout_pattern.exercises.length === 0) &&
+                                        selectedProgram.exercises && selectedProgram.exercises.length > 0 && (
+                                            <Card sx={{ mb: 3, overflow: 'hidden' }}>
+                                                <Box sx={{
+                                                    p: 2,
+                                                    background: 'linear-gradient(135deg, #ff9800 0%, #ffb74d 100%)',
+                                                    color: 'white',
+                                                }}>
+                                                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                                        💪 기본 운동
+                                                    </Typography>
+                                                </Box>
+                                                <Box sx={{ p: 2 }}>
+                                                    <Stack spacing={2}>
+                                                        {selectedProgram.exercises.map((exercise, index) => (
+                                                            <Card key={index} variant="outlined" sx={{
+                                                                p: 2,
+                                                                border: '1px solid',
+                                                                borderColor: 'warning.main',
+                                                                backgroundColor: 'warning.50',
+                                                            }}>
+                                                                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                                                    <Stack direction="row" alignItems="center" spacing={2}>
+                                                                        <Avatar sx={{
+                                                                            bgcolor: 'warning.main',
+                                                                            width: 32,
+                                                                            height: 32,
+                                                                            fontSize: '0.875rem',
+                                                                        }}>
+                                                                            {index + 1}
+                                                                        </Avatar>
+                                                                        <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                                                                            {exercise.name}
+                                                                        </Typography>
+                                                                    </Stack>
+                                                                    <Chip
+                                                                        label={exercise.target_value}
+                                                                        color="warning"
+                                                                        variant="outlined"
+                                                                        size="small"
+                                                                    />
+                                                                </Stack>
+                                                            </Card>
+                                                        ))}
+                                                    </Stack>
+                                                </Box>
+                                            </Card>
+                                        )}
+
+                                    {/* 운동 목록이 없는 경우 */}
+                                    {(!selectedProgram.workout_pattern?.exercises || selectedProgram.workout_pattern.exercises.length === 0) &&
+                                        (!selectedProgram.exercises || selectedProgram.exercises.length === 0) && (
+                                            <Card sx={{ p: 4, textAlign: 'center' }}>
+                                                <Typography variant="h6" color="text.secondary" gutterBottom>
+                                                    🏃‍♂️ 운동 정보 없음
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    이 프로그램에는 포함된 운동이 없습니다.
+                                                </Typography>
+                                            </Card>
+                                        )}
+                                </Box>
+
+                                {/* WOD 패턴 정보 */}
+                                {selectedProgram.workout_pattern && (
+                                    <Box sx={{ mb: 4 }}>
+                                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 600, color: 'text.primary' }}>
+                                            🔄 WOD 패턴
+                                        </Typography>
+                                        <Card sx={{ overflow: 'hidden' }}>
+                                            <Box sx={{
+                                                p: 2,
+                                                background: 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)',
+                                                color: 'white',
+                                            }}>
+                                                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                                    패턴 상세 정보
+                                                </Typography>
+                                            </Box>
+                                            <Box sx={{ p: 3 }}>
+                                                <Stack spacing={3}>
+                                                    {/* 패턴 태그들 */}
+                                                    <Stack direction="row" spacing={2} flexWrap="wrap">
                                                         <Chip
                                                             label={selectedProgram.workout_pattern.type}
                                                             color="primary"
-                                                            variant="outlined"
+                                                            variant="filled"
+                                                            sx={{ fontWeight: 600 }}
                                                         />
                                                         <Chip
                                                             label={`${selectedProgram.workout_pattern.total_rounds}라운드`}
                                                             color="secondary"
-                                                            variant="outlined"
+                                                            variant="filled"
+                                                            sx={{ fontWeight: 600 }}
                                                         />
                                                         {selectedProgram.workout_pattern.time_cap_per_round && (
                                                             <Chip
                                                                 label={`${selectedProgram.workout_pattern.time_cap_per_round}분 제한`}
                                                                 color="warning"
-                                                                variant="outlined"
+                                                                variant="filled"
+                                                                sx={{ fontWeight: 600 }}
                                                             />
                                                         )}
                                                     </Stack>
 
+                                                    {/* 패턴 설명 */}
                                                     {selectedProgram.workout_pattern.description && (
-                                                        <Typography variant="body2" color="text.secondary">
-                                                            {selectedProgram.workout_pattern.description}
-                                                        </Typography>
-                                                    )}
-
-                                                    {selectedProgram.workout_pattern.exercises && selectedProgram.workout_pattern.exercises.length > 0 && (
-                                                        <Box>
-                                                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                                                                포함된 운동
+                                                        <Paper sx={{
+                                                            p: 2,
+                                                            bgcolor: isDarkMode ? 'grey.800' : 'grey.50',
+                                                            border: '1px solid',
+                                                            borderColor: isDarkMode ? 'grey.700' : 'grey.200',
+                                                        }}>
+                                                            <Typography variant="body1" sx={{
+                                                                fontWeight: 500,
+                                                                color: isDarkMode ? 'text.primary' : 'text.primary',
+                                                            }}>
+                                                                {selectedProgram.workout_pattern.description}
                                                             </Typography>
-                                                            <Stack spacing={1}>
-                                                                {selectedProgram.workout_pattern.exercises.map((exercise, index) => (
-                                                                    <Paper key={index} sx={{ p: 2 }}>
-                                                                        <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                                                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                                                                {exercise.exercise_name}
-                                                                            </Typography>
-                                                                            <Typography variant="body2" color="text.secondary">
-                                                                                {exercise.base_reps}회
-                                                                            </Typography>
-                                                                        </Stack>
-                                                                        <Typography variant="caption" color="text.secondary">
-                                                                            {exercise.progression_type === 'fixed' ? '고정' :
-                                                                                exercise.progression_type === 'increase' ? `+${exercise.progression_value}회씩 증가` :
-                                                                                    exercise.progression_type === 'decrease' ? `-${exercise.progression_value}회씩 감소` :
-                                                                                        '혼합'}
-                                                                        </Typography>
-                                                                    </Paper>
-                                                                ))}
-                                                            </Stack>
-                                                        </Box>
+                                                        </Paper>
                                                     )}
                                                 </Stack>
-                                            </Paper>
-                                        </Box>
-                                    </>
+                                            </Box>
+                                        </Card>
+                                    </Box>
                                 )}
-                            </Stack>
+                            </Box>
                         </DialogContent>
 
-                        <DialogActions sx={{ p: 3 }}>
-                            <Button onClick={closeModal} variant="outlined">
+                        <DialogActions sx={{
+                            p: 3,
+                            backgroundColor: isDarkMode ? 'grey.900' : 'grey.50',
+                            borderTop: '1px solid',
+                            borderColor: isDarkMode ? 'grey.700' : 'grey.200',
+                        }}>
+                            <Button
+                                onClick={closeModal}
+                                variant="contained"
+                                size="large"
+                                sx={{
+                                    borderRadius: 2,
+                                    px: 4,
+                                    py: 1.5,
+                                    fontWeight: 600,
+                                }}
+                            >
                                 닫기
                             </Button>
                         </DialogActions>

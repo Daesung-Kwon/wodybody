@@ -89,8 +89,10 @@ export type WorkoutType =
 export interface ExerciseSet {
     exercise_id: number;
     exercise_name: string;
-    base_reps: number;        // 기본 횟수
-    progression_type: 'fixed' | 'increase' | 'decrease' | 'mixed';
+    name?: string;  // 상세 조회 API에서 사용하는 필드 (호환성)
+    base_reps?: number;        // 기본 횟수 (상세 조회 API에서는 없을 수 있음)
+    target_value?: string;    // 상세 조회 API에서 사용하는 필드 (호환성)
+    progression_type?: 'fixed' | 'increase' | 'decrease' | 'mixed';  // 상세 조회 API에서는 없을 수 있음
     progression_value?: number; // 증가/감소 값
     order: number;
 }
@@ -117,7 +119,8 @@ export interface MyProgram {
     participants: number;
     max_participants: number;
     created_at: string;
-    exercises?: ProgramExercise[];  // 운동 정보 추가
+    exercises?: ProgramExercise[];  // 기존 운동 정보 (호환성 유지)
+    workout_pattern?: WorkoutPattern;  // WOD 패턴 정보 추가
 }
 
 // 프로그램 결과 타입

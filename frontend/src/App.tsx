@@ -12,6 +12,7 @@ import MuiNavigation from './components/MuiNavigation';
 import ProgramsPage from './components/ProgramsPage';
 import MuiProgramsPage from './components/MuiProgramsPage';
 import MyProgramsPage from './components/MyProgramsPage';
+import MuiMyProgramsPage from './components/MuiMyProgramsPage';
 import PersonalRecordsPage from './components/PersonalRecordsPage';
 import StepBasedCreateProgramPage from './components/StepBasedCreateProgramPage';
 import NotificationsPage from './components/NotificationsPage';
@@ -103,7 +104,7 @@ const AppWithNotifications: React.FC<{
                     ) : (
                         <>
                             {page === 'programs' && <MuiProgramsPage />}
-                            {page === 'my' && <MyProgramsPage />}
+                            {page === 'my' && <MuiMyProgramsPage />}
                             {page === 'records' && <PersonalRecordsPage />}
                             {page === 'create' && (
                                 <StepBasedCreateProgramPage

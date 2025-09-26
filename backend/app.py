@@ -524,7 +524,7 @@ def my_programs():
             # 새로운 참여 시스템 사용 - pending과 approved 모두 카운트
             cnt = ProgramParticipants.query.filter_by(program_id=p.id).filter(ProgramParticipants.status.in_(['pending', 'approved'])).count()
             
-            # 프로그램에 포함된 운동들 조회
+            # 프로그램에 포함된 운동들 조회 (기존 방식)
             program_exercises = ProgramExercises.query.filter_by(program_id=p.id).order_by(ProgramExercises.order_index).all()
             exercises = []
             for pe in program_exercises:
@@ -535,10 +535,43 @@ def my_programs():
                     'order': pe.order_index
                 })
             
+            # WOD 패턴 조회 (새로운 방식) - 공개 WOD와 동일한 로직 적용
+            workout_pattern = None
+            workout_patterns = WorkoutPatterns.query.filter_by(program_id=p.id).first()
+            if workout_patterns:
+                exercise_sets = ExerciseSets.query.filter_by(pattern_id=workout_patterns.id).order_by(ExerciseSets.order_index).all()
+                pattern_exercises = []
+                for es in exercise_sets:
+                    pattern_exercises.append({
+                        'exercise_id': es.exercise_id,
+                        'exercise_name': es.exercise.name if es.exercise else '',
+                        'base_reps': es.base_reps,
+                        'progression_type': es.progression_type,
+                        'progression_value': es.progression_value,
+                        'order': es.order_index
+                    })
+                
+                workout_pattern = {
+                    'type': workout_patterns.pattern_type,
+                    'total_rounds': workout_patterns.total_rounds,
+                    'time_cap_per_round': workout_patterns.time_cap_per_round,
+                    'description': workout_patterns.description,
+                    'exercises': pattern_exercises
+                }
+            
             out.append({
-                'id':p.id,'title':p.title,'description':p.description,'is_open':p.is_open,
-                'participants':cnt,'max_participants':p.max_participants,'created_at':format_korea_time(p.created_at),
-                'exercises': exercises  # 운동 정보 추가
+                'id': p.id,
+                'title': p.title,
+                'description': p.description,
+                'workout_type': p.workout_type,
+                'target_value': p.target_value,
+                'difficulty': p.difficulty,
+                'is_open': p.is_open,
+                'participants': cnt,
+                'max_participants': p.max_participants,
+                'created_at': format_korea_time(p.created_at),
+                'exercises': exercises,  # 기존 운동 정보 (호환성 유지)
+                'workout_pattern': workout_pattern  # WOD 패턴 정보 추가
             })
         return jsonify({'programs':out}), 200
     except Exception as e:
@@ -1687,10 +1720,23 @@ def get_program_detail(program_id):
             for es in exercise_sets:
                 workout_pattern['exercises'].append({
                     'id': es.exercise_id,
-                    'name': es.exercise.name if es.exercise else '알 수 없는 운동',
-                    'target_value': f"{es.base_reps}회",  # base_reps를 target_value로 변환
+                    'exercise_name': es.exercise.name if es.exercise else '알 수 없는 운동',
+                    'name': es.exercise.name if es.exercise else '알 수 없는 운동',  # 호환성을 위해 유지
+                    'base_reps': es.base_reps,
+                    'progression_type': es.progression_type,
+                    'progression_value': es.progression_value,
+                    'target_value': f"{es.base_reps}회",  # 호환성을 위해 유지
                     'order': es.order_index
                 })
+        
+        # 디버깅을 위한 로그 추가
+        app.logger.info(f"프로그램 {program_id} 상세 조회:")
+        app.logger.info(f"  - ProgramExercises 개수: {len(exercises)}")
+        app.logger.info(f"  - WorkoutPatterns 존재: {workout_patterns is not None}")
+        if workout_pattern:
+            app.logger.info(f"  - WorkoutPattern exercises 개수: {len(workout_pattern['exercises'])}")
+        else:
+            app.logger.info(f"  - WorkoutPattern: None")
         
         # 참여자 수 조회
         participant_count = ProgramParticipants.query.filter_by(program_id=program_id).filter(ProgramParticipants.status.in_(['pending', 'approved'])).count()

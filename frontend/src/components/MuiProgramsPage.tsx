@@ -47,6 +47,7 @@ import { Program, ProgramWithParticipation, CreateWorkoutRecordRequest } from '.
 import { programApi, participationApi, workoutRecordsApi } from '../utils/api';
 import LoadingSpinner from './LoadingSpinner';
 import WorkoutTimer from './WorkoutTimer';
+import MuiWorkoutTimer from './MuiWorkoutTimer';
 import WorkoutRecordModal from './WorkoutRecordModal';
 import { useTheme } from '../theme/ThemeProvider';
 
@@ -724,23 +725,11 @@ const MuiProgramsPage: React.FC = () => {
 
             {/* 운동 타이머 */}
             {showTimer && selectedProgram && (
-                <Dialog
-                    open={showTimer}
-                    onClose={handleWorkoutCancel}
-                    maxWidth="sm"
-                    fullWidth
-                    PaperProps={{
-                        sx: {
-                            borderRadius: 3,
-                        },
-                    }}
-                >
-                    <WorkoutTimer
-                        onComplete={handleWorkoutComplete}
-                        onCancel={handleWorkoutCancel}
-                        programTitle={selectedProgram.title}
-                    />
-                </Dialog>
+                <MuiWorkoutTimer
+                    onComplete={handleWorkoutComplete}
+                    onCancel={handleWorkoutCancel}
+                    programTitle={selectedProgram.title}
+                />
             )}
 
             {/* 운동 기록 저장 모달 */}

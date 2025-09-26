@@ -15,6 +15,7 @@ import MyProgramsPage from './components/MyProgramsPage';
 import PersonalRecordsPage from './components/PersonalRecordsPage';
 import StepBasedCreateProgramPage from './components/StepBasedCreateProgramPage';
 import NotificationsPage from './components/NotificationsPage';
+import MuiNotificationsPage from './components/MuiNotificationsPage';
 import WebSocketDebugger from './components/WebSocketDebugger';
 import MuiWebSocketDebugger from './components/MuiWebSocketDebugger';
 import MuiExample from './components/common/MuiExample';
@@ -98,7 +99,7 @@ const AppWithNotifications: React.FC<{
                     />
 
                     {showNotifications ? (
-                        <NotificationsPage onBack={() => setShowNotifications(false)} />
+                        <MuiNotificationsPage onBack={() => setShowNotifications(false)} />
                     ) : (
                         <>
                             {page === 'programs' && <MuiProgramsPage />}

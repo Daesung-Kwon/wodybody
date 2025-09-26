@@ -75,6 +75,8 @@ import {
     SpeedDialAction,
     SpeedDialIcon,
     Collapse,
+    Fade,
+    Zoom,
 } from '@mui/material';
 import {
     Timeline,
@@ -231,6 +233,8 @@ export {
     SpeedDialAction,
     SpeedDialIcon,
     Collapse,
+    Fade,
+    Zoom,
     Timeline,
     TimelineItem,
     TimelineSeparator,

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import './App.css';
 import { Page } from './types';
 import { setGlobalRedirectToLogin } from './utils/api';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -9,16 +8,11 @@ import { NotificationProvider, useNotifications } from './contexts/NotificationC
 import MuiLoginPage from './components/MuiLoginPage';
 import MuiRegisterPage from './components/MuiRegisterPage';
 import MuiNavigation from './components/MuiNavigation';
-import ProgramsPage from './components/ProgramsPage';
 import MuiProgramsPage from './components/MuiProgramsPage';
-import MyProgramsPage from './components/MyProgramsPage';
 import MuiMyProgramsPage from './components/MuiMyProgramsPage';
-import PersonalRecordsPage from './components/PersonalRecordsPage';
-import StepBasedCreateProgramPage from './components/StepBasedCreateProgramPage';
+import MuiPersonalRecordsPage from './components/MuiPersonalRecordsPage';
 import MuiStepBasedCreateProgramPage from './components/MuiStepBasedCreateProgramPage';
-import NotificationsPage from './components/NotificationsPage';
 import MuiNotificationsPage from './components/MuiNotificationsPage';
-import WebSocketDebugger from './components/WebSocketDebugger';
 import MuiWebSocketDebugger from './components/MuiWebSocketDebugger';
 // import MuiExample from './components/common/MuiExample'; // 임시 숨김
 
@@ -88,7 +82,7 @@ const AppWithNotifications: React.FC<{
     const { unreadCount } = useNotifications();
 
     return (
-        <div className="app">
+        <div>
             {user ? (
                 <>
                     <MuiNavigation
@@ -106,7 +100,7 @@ const AppWithNotifications: React.FC<{
                         <>
                             {page === 'programs' && <MuiProgramsPage />}
                             {page === 'my' && <MuiMyProgramsPage />}
-                            {page === 'records' && <PersonalRecordsPage />}
+                            {page === 'records' && <MuiPersonalRecordsPage />}
                             {page === 'create' && (
                                 <MuiStepBasedCreateProgramPage
                                     goMy={() => setPage('my')}

@@ -6,7 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import secrets, logging, os
 from logging.handlers import RotatingFileHandler
-from utils.timezone import format_korea_time
+from utils.timezone import format_korea_time, get_korea_time
 from models.program import Programs, ProgramParticipants
 from models.exercise import ProgramExercises, WorkoutPatterns, ExerciseSets
 
@@ -300,16 +300,53 @@ def create_program():
         err = validate_program(data)
         if err: return jsonify({'message':err}), 400
         
-        # 프로그램 생성
-        p = Programs(
-            creator_id=session['user_id'],
-            title=data['title'].strip(),
-            description=(data.get('description') or '').strip(),
-            workout_type=data.get('workout_type') or 'time_based',
-            target_value=(data.get('target_value') or '').strip(),  # 기존 호환성을 위해 유지
-            difficulty=data.get('difficulty') or 'beginner',
-            max_participants=int(data.get('max_participants') or 20)
-        )
+        # WOD 개수 제한 확인
+        user_id = session['user_id']
+        total_wods = Programs.query.filter_by(creator_id=user_id).count()
+        if total_wods >= 5:
+            return jsonify({'message':'WOD 개수 제한에 도달했습니다. (최대 5개)'}), 400
+        
+        # 공개 WOD 개수 제한 확인 (만료되지 않은 것만 카운트)
+        if data.get('is_open', False):
+            try:
+                # expires_at 필드가 있는 경우 만료되지 않은 것만 카운트
+                public_wods = Programs.query.filter_by(creator_id=user_id, is_open=True).filter(
+                    (Programs.expires_at.is_(None)) | (Programs.expires_at > get_korea_time())
+                ).count()
+            except AttributeError:
+                # expires_at 필드가 없는 경우 모든 공개 WOD 카운트
+                public_wods = Programs.query.filter_by(creator_id=user_id, is_open=True).count()
+            
+            if public_wods >= 3:
+                return jsonify({'message':'공개 WOD 개수 제한에 도달했습니다. (최대 3개)'}), 400
+        
+        # 공개 WOD인 경우 만료 시간 설정 (expires_at 필드가 있는 경우에만)
+        expires_at = None
+        if data.get('is_open', False):
+            try:
+                # expires_at 필드가 있는지 확인
+                hasattr(Programs, 'expires_at')
+                expires_at = get_korea_time() + timedelta(days=7)  # 7일 후 만료
+            except:
+                expires_at = None
+        
+        # 프로그램 생성 (expires_at 필드가 있는 경우에만)
+        program_data = {
+            'creator_id': session['user_id'],
+            'title': data['title'].strip(),
+            'description': (data.get('description') or '').strip(),
+            'workout_type': data.get('workout_type') or 'time_based',
+            'target_value': (data.get('target_value') or '').strip(),  # 기존 호환성을 위해 유지
+            'difficulty': data.get('difficulty') or 'beginner',
+            'max_participants': int(data.get('max_participants') or 20),
+            'is_open': data.get('is_open', False)
+        }
+        
+        # expires_at 필드가 있는 경우에만 추가
+        if hasattr(Programs, 'expires_at') and expires_at is not None:
+            program_data['expires_at'] = expires_at
+        
+        p = Programs(**program_data)
         db.session.add(p)
         db.session.flush()  # ID를 얻기 위해 flush
         
@@ -321,6 +358,16 @@ def create_program():
             message=f'"{data["title"].strip()}" 프로그램이 성공적으로 등록되었습니다.',
             program_id=p.id
         )
+        
+        # 공개 WOD인 경우 만료 알림 추가
+        if data.get('is_open', False):
+            create_notification(
+                user_id=session['user_id'],
+                notification_type='wod_expiry_warning',
+                title='공개 WOD 만료 안내',
+                message=f'"{data["title"].strip()}" WOD는 7일 후 자동으로 만료됩니다.',
+                program_id=p.id
+            )
         
         # 프로그램 등록 시에는 개인 알림만 전송 (공개 시에만 브로드캐스트)
         
@@ -371,7 +418,14 @@ def create_program():
 @app.route('/api/programs', methods=['GET'])
 def get_programs():
     try:
-        programs = Programs.query.filter_by(is_open=True).order_by(Programs.created_at.desc()).all()
+        # 만료되지 않은 공개 WOD만 조회 (expires_at 필드가 있는 경우에만)
+        try:
+            programs = Programs.query.filter_by(is_open=True).filter(
+                (Programs.expires_at.is_(None)) | (Programs.expires_at > get_korea_time())
+            ).order_by(Programs.created_at.desc()).all()
+        except AttributeError:
+            # expires_at 필드가 없는 경우 기존 로직 사용
+            programs = Programs.query.filter_by(is_open=True).order_by(Programs.created_at.desc()).all()
         current_user_id = session.get('user_id')  # 비로그인 시 None
         result = []
         for p in programs:
@@ -451,7 +505,30 @@ def open_program(program_id):
         if not p: return jsonify({'message':'프로그램을 찾을 수 없습니다'}), 404
         if p.creator_id != session['user_id']:
             return jsonify({'message':'프로그램을 공개할 권한이 없습니다'}), 403
+        
+        # 공개 WOD 개수 제한 확인 (만료되지 않은 것만 카운트)
+        user_id = session['user_id']
+        try:
+            # expires_at 필드가 있는 경우 만료되지 않은 것만 카운트
+            public_wods = Programs.query.filter_by(creator_id=user_id, is_open=True).filter(
+                (Programs.expires_at.is_(None)) | (Programs.expires_at > get_korea_time())
+            ).count()
+        except AttributeError:
+            # expires_at 필드가 없는 경우 모든 공개 WOD 카운트
+            public_wods = Programs.query.filter_by(creator_id=user_id, is_open=True).count()
+        
+        if public_wods >= 3:
+            return jsonify({'message':'공개 WOD 개수 제한에 도달했습니다. (최대 3개)'}), 400
+        
         p.is_open = True
+        
+        # 공개 WOD인 경우 만료 시간 설정 (expires_at 필드가 있는 경우에만)
+        try:
+            if hasattr(Programs, 'expires_at'):
+                p.expires_at = get_korea_time() + timedelta(days=7)  # 7일 후 만료
+        except:
+            pass
+        
         db.session.commit()
         
         # 프로그램 공개 시 모든 사용자에게 브로드캐스트 알림
@@ -1761,6 +1838,62 @@ def get_program_detail(program_id):
     except Exception as e:
         app.logger.exception('프로그램 상세 조회 중 오류: %s', str(e))
         return jsonify({'message': '프로그램 상세 조회 중 오류가 발생했습니다'}), 500
+
+@app.route('/api/user/wod-status', methods=['GET'])
+def get_user_wod_status():
+    """사용자의 WOD 현황 조회"""
+    try:
+        if 'user_id' not in session:
+            return jsonify({'message': '로그인이 필요합니다'}), 401
+        
+        user_id = session['user_id']
+        
+        # 전체 WOD 개수
+        total_wods = Programs.query.filter_by(creator_id=user_id).count()
+        
+        # 공개 WOD 개수 (만료되지 않은 것만 카운트)
+        try:
+            public_wods = Programs.query.filter_by(creator_id=user_id, is_open=True).filter(
+                (Programs.expires_at.is_(None)) | (Programs.expires_at > get_korea_time())
+            ).count()
+        except AttributeError:
+            # expires_at 필드가 없는 경우 모든 공개 WOD 카운트
+            public_wods = Programs.query.filter_by(creator_id=user_id, is_open=True).count()
+        
+        # 만료 예정인 공개 WOD (3일 이내) - expires_at 필드가 있는 경우에만
+        try:
+            expiring_soon = Programs.query.filter_by(creator_id=user_id, is_open=True).filter(
+                Programs.expires_at.isnot(None),
+                Programs.expires_at <= get_korea_time() + timedelta(days=3),
+                Programs.expires_at > get_korea_time()
+            ).count()
+            
+            # 만료된 WOD 개수
+            expired_wods = Programs.query.filter_by(creator_id=user_id, is_open=True).filter(
+                Programs.expires_at.isnot(None),
+                Programs.expires_at <= get_korea_time()
+            ).count()
+        except AttributeError:
+            # expires_at 필드가 없는 경우 0으로 설정
+            expiring_soon = 0
+            expired_wods = 0
+        
+        result = {
+            'total_wods': total_wods,
+            'max_total_wods': 5,
+            'public_wods': public_wods,
+            'max_public_wods': 3,
+            'expiring_soon': expiring_soon,
+            'expired_wods': expired_wods,
+            'can_create_wod': total_wods < 5,
+            'can_create_public_wod': public_wods < 3
+        }
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        app.logger.exception('WOD 현황 조회 중 오류: %s', str(e))
+        return jsonify({'message': 'WOD 현황 조회 중 오류가 발생했습니다'}), 500
 
 # 라우트 등록
 from routes import auth, programs

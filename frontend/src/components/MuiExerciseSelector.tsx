@@ -22,7 +22,8 @@ import {
 } from '@mui/icons-material';
 import { ExerciseCategory, Exercise, SelectedExercise } from '../types';
 import { exerciseApi } from '../utils/api';
-import LoadingSpinner from './LoadingSpinner';
+import MuiLoadingSpinner from './MuiLoadingSpinner';
+import MuiAlertDialog from './MuiAlertDialog';
 import { useTheme } from '../theme/ThemeProvider';
 
 interface MuiExerciseSelectorProps {
@@ -41,6 +42,15 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
     const [loading, setLoading] = useState<boolean>(false);
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [showSelectedExercises, setShowSelectedExercises] = useState<boolean>(true); // 모바일에서 기본으로 펼침
+    const [alertDialog, setAlertDialog] = useState<{
+        open: boolean;
+        title?: string;
+        message: string;
+        type?: 'success' | 'error' | 'warning' | 'info';
+    }>({
+        open: false,
+        message: ''
+    });
 
     // 카테고리 로드
     useEffect(() => {
@@ -80,7 +90,12 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
     const addExercise = (exercise: Exercise) => {
         const isAlreadyAdded = selectedExercises.some(ex => ex.exercise_id === exercise.id);
         if (isAlreadyAdded) {
-            alert('이미 추가된 운동입니다.');
+            setAlertDialog({
+                open: true,
+                title: '중복 추가',
+                message: '이미 추가된 운동입니다.',
+                type: 'warning'
+            });
             return;
         }
 
@@ -136,385 +151,396 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
         return categories.find(cat => cat.id === categoryId)?.name || '알 수 없는 카테고리';
     };
 
-    if (loading) return <LoadingSpinner label="운동 로딩 중..." />;
+    if (loading) return <MuiLoadingSpinner label="운동 로딩 중..." />;
 
     return (
-        <Box>
-            {/* 카테고리 선택 */}
-            <Paper sx={{
-                p: { xs: 2, sm: 3 },
-                mb: { xs: 2, sm: 3 },
-                borderRadius: 2
-            }}>
-                <Typography variant="h6" sx={{
-                    mb: { xs: 1.5, sm: 2 },
-                    fontWeight: 600,
-                    fontSize: { xs: '1.1rem', sm: '1.25rem' }
+        <>
+            <Box>
+                {/* 카테고리 선택 */}
+                <Paper sx={{
+                    p: { xs: 2, sm: 3 },
+                    mb: { xs: 2, sm: 3 },
+                    borderRadius: 2
                 }}>
-                    📂 카테고리 선택
-                </Typography>
-                <FormControl fullWidth>
-                    <InputLabel>운동 카테고리</InputLabel>
-                    <Select
-                        value={selectedCategoryId || ''}
-                        label="운동 카테고리"
-                        onChange={(e) => setSelectedCategoryId(Number(e.target.value))}
-                        startAdornment={<CategoryIcon sx={{ mr: 1, color: 'text.secondary' }} />}
+                    <Typography variant="h6" sx={{
+                        mb: { xs: 1.5, sm: 2 },
+                        fontWeight: 600,
+                        fontSize: { xs: '1.1rem', sm: '1.25rem' }
+                    }}>
+                        📂 카테고리 선택
+                    </Typography>
+                    <FormControl fullWidth>
+                        <InputLabel>운동 카테고리</InputLabel>
+                        <Select
+                            value={selectedCategoryId || ''}
+                            label="운동 카테고리"
+                            onChange={(e) => setSelectedCategoryId(Number(e.target.value))}
+                            startAdornment={<CategoryIcon sx={{ mr: 1, color: 'text.secondary' }} />}
+                            sx={{
+                                borderRadius: 2,
+                                '& .MuiSelect-select': {
+                                    minHeight: { xs: '48px', sm: 'auto' }
+                                }
+                            }}
+                        >
+                            {categories.map(category => (
+                                <MenuItem key={category.id} value={category.id}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <FitnessCenterIcon sx={{ fontSize: 20 }} />
+                                        {category.name}
+                                    </Box>
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </Paper>
+
+                {/* 운동 검색 및 선택 */}
+                <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                        🏋️‍♂️ 운동 선택
+                    </Typography>
+
+                    {/* 운동 검색 */}
+                    <TextField
+                        fullWidth
+                        placeholder="운동명 또는 설명으로 검색..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        InputProps={{
+                            startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                            endAdornment: searchTerm && (
+                                <IconButton
+                                    onClick={() => setSearchTerm('')}
+                                    size="small"
+                                    sx={{ mr: -1 }}
+                                >
+                                    <ClearIcon />
+                                </IconButton>
+                            ),
+                        }}
                         sx={{
-                            borderRadius: 2,
-                            '& .MuiSelect-select': {
-                                minHeight: { xs: '48px', sm: 'auto' }
+                            mb: 2,
+                            '& .MuiOutlinedInput-root': {
+                                borderRadius: 2,
                             }
                         }}
-                    >
-                        {categories.map(category => (
-                            <MenuItem key={category.id} value={category.id}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <FitnessCenterIcon sx={{ fontSize: 20 }} />
-                                    {category.name}
-                                </Box>
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-            </Paper>
+                    />
 
-            {/* 운동 검색 및 선택 */}
-            <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
-                <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                    🏋️‍♂️ 운동 선택
-                </Typography>
+                    {/* 운동 그리드 */}
+                    {filteredExercises.length > 0 ? (
+                        <Box>
+                            {/* 운동 수 표시 */}
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                총 {filteredExercises.length}개의 운동이 있습니다.
+                            </Typography>
 
-                {/* 운동 검색 */}
-                <TextField
-                    fullWidth
-                    placeholder="운동명 또는 설명으로 검색..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    InputProps={{
-                        startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
-                        endAdornment: searchTerm && (
-                            <IconButton
-                                onClick={() => setSearchTerm('')}
-                                size="small"
-                                sx={{ mr: -1 }}
-                            >
-                                <ClearIcon />
-                            </IconButton>
-                        ),
-                    }}
-                    sx={{
-                        mb: 2,
-                        '& .MuiOutlinedInput-root': {
-                            borderRadius: 2,
-                        }
-                    }}
-                />
-
-                {/* 운동 그리드 */}
-                {filteredExercises.length > 0 ? (
-                    <Box>
-                        {/* 운동 수 표시 */}
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                            총 {filteredExercises.length}개의 운동이 있습니다.
-                        </Typography>
-
-                        {/* 운동 목록 - 스크롤 최적화 */}
-                        <Box sx={{
-                            display: 'grid',
-                            gridTemplateColumns: {
-                                xs: '1fr',
-                                sm: 'repeat(2, 1fr)',
-                                lg: 'repeat(3, 1fr)'
-                            },
-                            gap: 2,
-                            maxHeight: '400px',
-                            overflowY: 'auto',
-                            '&::-webkit-scrollbar': {
-                                width: '6px',
-                            },
-                            '&::-webkit-scrollbar-track': {
-                                backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-                                borderRadius: '3px',
-                            },
-                            '&::-webkit-scrollbar-thumb': {
-                                backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)',
-                                borderRadius: '3px',
-                                '&:hover': {
-                                    backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)',
+                            {/* 운동 목록 - 스크롤 최적화 */}
+                            <Box sx={{
+                                display: 'grid',
+                                gridTemplateColumns: {
+                                    xs: '1fr',
+                                    sm: 'repeat(2, 1fr)',
+                                    lg: 'repeat(3, 1fr)'
+                                },
+                                gap: 2,
+                                maxHeight: '400px',
+                                overflowY: 'auto',
+                                '&::-webkit-scrollbar': {
+                                    width: '6px',
+                                },
+                                '&::-webkit-scrollbar-track': {
+                                    backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                                    borderRadius: '3px',
+                                },
+                                '&::-webkit-scrollbar-thumb': {
+                                    backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)',
+                                    borderRadius: '3px',
+                                    '&:hover': {
+                                        backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)',
+                                    }
                                 }
-                            }
-                        }}>
-                            {filteredExercises.map(exercise => {
-                                const isAlreadyAdded = selectedExercises.some(ex => ex.exercise_id === exercise.id);
-                                return (
-                                    <Card
-                                        key={exercise.id}
-                                        sx={{
-                                            cursor: isAlreadyAdded ? 'default' : 'pointer',
-                                            transition: 'all 0.2s ease-in-out',
-                                            border: isAlreadyAdded ? '2px solid' : '1px solid',
-                                            borderColor: isAlreadyAdded ? 'success.main' : 'divider',
-                                            backgroundColor: isAlreadyAdded ? 'success.50' : 'background.paper',
-                                            position: 'relative',
-                                            '&:hover': !isAlreadyAdded ? {
-                                                transform: 'translateY(-2px)',
-                                                boxShadow: isDarkMode ? '0 4px 16px rgba(0, 0, 0, 0.2)' : '0 4px 16px rgba(0, 0, 0, 0.1)',
-                                            } : {}
-                                        }}
-                                        onClick={() => !isAlreadyAdded && addExercise(exercise)}
-                                    >
-                                        {/* 추가 버튼 - 우측 상단 */}
-                                        <IconButton
-                                            size="small"
-                                            disabled={isAlreadyAdded}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                addExercise(exercise);
-                                            }}
-                                            sx={{
-                                                position: 'absolute',
-                                                top: 8,
-                                                right: 8,
-                                                zIndex: 1,
-                                                borderRadius: 1,
-                                                backgroundColor: isAlreadyAdded ? 'success.50' : 'primary.50',
-                                                color: isAlreadyAdded ? 'success.main' : 'primary.main',
-                                                '&:hover': {
-                                                    backgroundColor: isAlreadyAdded ? 'success.100' : 'primary.100',
-                                                },
-                                                '&:disabled': {
-                                                    backgroundColor: 'success.50',
-                                                    color: 'success.main'
-                                                }
-                                            }}
-                                        >
-                                            {isAlreadyAdded ? <CheckIcon /> : <AddIcon />}
-                                        </IconButton>
-
-                                        <CardContent sx={{ p: 2, pr: 5 }}>
-                                            <Stack spacing={1}>
-                                                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                                                    {exercise.name}
-                                                </Typography>
-                                                <Typography variant="body2" color="text.secondary" sx={{
-                                                    display: '-webkit-box',
-                                                    WebkitLineClamp: 2,
-                                                    WebkitBoxOrient: 'vertical',
-                                                    overflow: 'hidden',
-                                                }}>
-                                                    {exercise.description}
-                                                </Typography>
-                                                {isAlreadyAdded && (
-                                                    <Chip
-                                                        label="추가됨"
-                                                        color="success"
-                                                        size="small"
-                                                        icon={<CheckCircleIcon />}
-                                                        sx={{ alignSelf: 'flex-start' }}
-                                                    />
-                                                )}
-                                            </Stack>
-                                        </CardContent>
-                                    </Card>
-                                );
-                            })}
-                        </Box>
-                    </Box>
-                ) : (
-                    <Alert
-                        severity="info"
-                        action={
-                            <Button
-                                size="small"
-                                onClick={() => setSearchTerm('')}
-                                sx={{ borderRadius: 1 }}
-                            >
-                                검색 초기화
-                            </Button>
-                        }
-                        sx={{ borderRadius: 2 }}
-                    >
-                        검색 결과가 없습니다. 다른 검색어를 시도해보세요.
-                    </Alert>
-                )}
-            </Paper>
-
-            {/* 선택된 운동 관리 */}
-            {selectedExercises.length > 0 && (
-                <Paper sx={{ p: 3, borderRadius: 2 }}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                            ✅ 선택된 운동 ({selectedExercises.length}개)
-                        </Typography>
-                        <Button
-                            variant="outlined"
-                            startIcon={<ExpandMoreIcon />}
-                            onClick={() => setShowSelectedExercises(!showSelectedExercises)}
-                            sx={{ borderRadius: 2 }}
-                        >
-                            {showSelectedExercises ? '숨기기' : '보기'}
-                        </Button>
-                    </Stack>
-
-                    <Collapse in={showSelectedExercises}>
-                        <Fade in={showSelectedExercises} timeout={500}>
-                            <Stack spacing={2}>
-                                {selectedExercises.map((selectedEx, index) => {
-                                    const exercise = exercises.find(ex => ex.id === selectedEx.exercise_id);
+                            }}>
+                                {filteredExercises.map(exercise => {
+                                    const isAlreadyAdded = selectedExercises.some(ex => ex.exercise_id === exercise.id);
                                     return (
-                                        <Accordion
-                                            key={`${selectedEx.exercise_id}-${index}`}
+                                        <Card
+                                            key={exercise.id}
                                             sx={{
-                                                borderRadius: 2,
-                                                '&:before': { display: 'none' },
-                                                boxShadow: isDarkMode ? '0 2px 8px rgba(0, 0, 0, 0.2)' : '0 2px 8px rgba(0, 0, 0, 0.1)',
+                                                cursor: isAlreadyAdded ? 'default' : 'pointer',
+                                                transition: 'all 0.2s ease-in-out',
+                                                border: isAlreadyAdded ? '2px solid' : '1px solid',
+                                                borderColor: isAlreadyAdded ? 'success.main' : 'divider',
+                                                backgroundColor: isAlreadyAdded ? 'success.50' : 'background.paper',
+                                                position: 'relative',
+                                                '&:hover': !isAlreadyAdded ? {
+                                                    transform: 'translateY(-2px)',
+                                                    boxShadow: isDarkMode ? '0 4px 16px rgba(0, 0, 0, 0.2)' : '0 4px 16px rgba(0, 0, 0, 0.1)',
+                                                } : {}
                                             }}
+                                            onClick={() => !isAlreadyAdded && addExercise(exercise)}
                                         >
-                                            <AccordionSummary
-                                                expandIcon={<ExpandMoreIcon />}
+                                            {/* 추가 버튼 - 우측 상단 */}
+                                            <IconButton
+                                                size="small"
+                                                disabled={isAlreadyAdded}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    addExercise(exercise);
+                                                }}
                                                 sx={{
-                                                    backgroundColor: isDarkMode ? 'grey.800' : 'grey.50',
-                                                    borderRadius: '8px 8px 0 0',
-                                                    '& .MuiAccordionSummary-content': {
-                                                        alignItems: 'center',
-                                                        gap: 2
+                                                    position: 'absolute',
+                                                    top: 8,
+                                                    right: 8,
+                                                    zIndex: 1,
+                                                    borderRadius: 1,
+                                                    backgroundColor: isAlreadyAdded ? 'success.50' : 'primary.50',
+                                                    color: isAlreadyAdded ? 'success.main' : 'primary.main',
+                                                    '&:hover': {
+                                                        backgroundColor: isAlreadyAdded ? 'success.100' : 'primary.100',
+                                                    },
+                                                    '&:disabled': {
+                                                        backgroundColor: 'success.50',
+                                                        color: 'success.main'
                                                     }
                                                 }}
                                             >
-                                                <Avatar sx={{
-                                                    bgcolor: 'primary.main',
-                                                    width: 32,
-                                                    height: 32,
-                                                    fontSize: '0.875rem',
-                                                    fontWeight: 600
-                                                }}>
-                                                    {index + 1}
-                                                </Avatar>
+                                                {isAlreadyAdded ? <CheckIcon /> : <AddIcon />}
+                                            </IconButton>
 
-                                                <Box sx={{ flex: 1 }}>
+                                            <CardContent sx={{ p: 2, pr: 5 }}>
+                                                <Stack spacing={1}>
                                                     <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                                                        {exercise?.name || '알 수 없는 운동'}
+                                                        {exercise.name}
                                                     </Typography>
-                                                    <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
-                                                        <Chip
-                                                            label={getCategoryName(selectedCategoryId || 0)}
-                                                            size="small"
-                                                            color="info"
-                                                            variant="outlined"
-                                                            icon={<CategoryIcon />}
-                                                        />
-                                                        {selectedEx.target_value && (
-                                                            <Chip
-                                                                label={selectedEx.target_value.length > 15
-                                                                    ? `${selectedEx.target_value.substring(0, 15)}...`
-                                                                    : selectedEx.target_value}
-                                                                size="small"
-                                                                color="primary"
-                                                                variant="filled"
-                                                                icon={<TimerIcon />}
-                                                                sx={{
-                                                                    maxWidth: '120px',
-                                                                    '& .MuiChip-label': {
-                                                                        overflow: 'hidden',
-                                                                        textOverflow: 'ellipsis',
-                                                                        whiteSpace: 'nowrap'
-                                                                    }
-                                                                }}
-                                                            />
-                                                        )}
-                                                    </Stack>
-                                                </Box>
-
-                                                <Stack direction="row" spacing={1}>
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            moveExercise(index, 'up');
-                                                        }}
-                                                        disabled={index === 0}
-                                                        sx={{ borderRadius: 1 }}
-                                                    >
-                                                        <ArrowUpIcon />
-                                                    </IconButton>
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            moveExercise(index, 'down');
-                                                        }}
-                                                        disabled={index === selectedExercises.length - 1}
-                                                        sx={{ borderRadius: 1 }}
-                                                    >
-                                                        <ArrowDownIcon />
-                                                    </IconButton>
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            removeExercise(index);
-                                                        }}
-                                                        color="error"
-                                                        sx={{ borderRadius: 1 }}
-                                                    >
-                                                        <DeleteIcon />
-                                                    </IconButton>
-                                                </Stack>
-                                            </AccordionSummary>
-
-                                            <AccordionDetails sx={{ p: 3 }}>
-                                                <Stack spacing={2}>
-                                                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                                                        목표값 설정
-                                                    </Typography>
-
-                                                    <TextField
-                                                        label="목표값"
-                                                        placeholder="예: 20분, 100회, 3세트, 5km"
-                                                        value={selectedEx.target_value}
-                                                        onChange={(e) => updateTargetValue(index, e.target.value)}
-                                                        fullWidth
-                                                        variant="outlined"
-                                                        size="small"
-                                                        inputProps={{ maxLength: 30 }}
-                                                        helperText={`${selectedEx.target_value.length}/30자`}
-                                                        InputProps={{
-                                                            startAdornment: <EditIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                                                        }}
-                                                        sx={{
-                                                            '& .MuiOutlinedInput-root': {
-                                                                borderRadius: 2,
-                                                            }
-                                                        }}
-                                                    />
-
-                                                    <Paper sx={{
-                                                        p: 2,
-                                                        backgroundColor: isDarkMode ? 'grey.800' : 'grey.50',
-                                                        borderRadius: 2
+                                                    <Typography variant="body2" color="text.secondary" sx={{
+                                                        display: '-webkit-box',
+                                                        WebkitLineClamp: 2,
+                                                        WebkitBoxOrient: 'vertical',
+                                                        overflow: 'hidden',
                                                     }}>
-                                                        <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 1 }}>
-                                                            💡 목표값 예시
-                                                        </Typography>
-                                                        <Typography variant="caption" color="text.secondary">
-                                                            시간: "20분", "30분", "45분"<br />
-                                                            횟수: "100회", "50회", "3세트 10회"<br />
-                                                            거리: "5km", "10km", "1마일"<br />
-                                                            기타: "최대한 많이", "완주까지"
-                                                        </Typography>
-                                                    </Paper>
+                                                        {exercise.description}
+                                                    </Typography>
+                                                    {isAlreadyAdded && (
+                                                        <Chip
+                                                            label="추가됨"
+                                                            color="success"
+                                                            size="small"
+                                                            icon={<CheckCircleIcon />}
+                                                            sx={{ alignSelf: 'flex-start' }}
+                                                        />
+                                                    )}
                                                 </Stack>
-                                            </AccordionDetails>
-                                        </Accordion>
+                                            </CardContent>
+                                        </Card>
                                     );
                                 })}
-                            </Stack>
-                        </Fade>
-                    </Collapse>
+                            </Box>
+                        </Box>
+                    ) : (
+                        <Alert
+                            severity="info"
+                            action={
+                                <Button
+                                    size="small"
+                                    onClick={() => setSearchTerm('')}
+                                    sx={{ borderRadius: 1 }}
+                                >
+                                    검색 초기화
+                                </Button>
+                            }
+                            sx={{ borderRadius: 2 }}
+                        >
+                            검색 결과가 없습니다. 다른 검색어를 시도해보세요.
+                        </Alert>
+                    )}
                 </Paper>
-            )}
-        </Box>
+
+                {/* 선택된 운동 관리 */}
+                {selectedExercises.length > 0 && (
+                    <Paper sx={{ p: 3, borderRadius: 2 }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                ✅ 선택된 운동 ({selectedExercises.length}개)
+                            </Typography>
+                            <Button
+                                variant="outlined"
+                                startIcon={<ExpandMoreIcon />}
+                                onClick={() => setShowSelectedExercises(!showSelectedExercises)}
+                                sx={{ borderRadius: 2 }}
+                            >
+                                {showSelectedExercises ? '숨기기' : '보기'}
+                            </Button>
+                        </Stack>
+
+                        <Collapse in={showSelectedExercises}>
+                            <Fade in={showSelectedExercises} timeout={500}>
+                                <Stack spacing={2}>
+                                    {selectedExercises.map((selectedEx, index) => {
+                                        const exercise = exercises.find(ex => ex.id === selectedEx.exercise_id);
+                                        return (
+                                            <Accordion
+                                                key={`${selectedEx.exercise_id}-${index}`}
+                                                sx={{
+                                                    borderRadius: 2,
+                                                    '&:before': { display: 'none' },
+                                                    boxShadow: isDarkMode ? '0 2px 8px rgba(0, 0, 0, 0.2)' : '0 2px 8px rgba(0, 0, 0, 0.1)',
+                                                }}
+                                            >
+                                                <AccordionSummary
+                                                    expandIcon={<ExpandMoreIcon />}
+                                                    sx={{
+                                                        backgroundColor: isDarkMode ? 'grey.800' : 'grey.50',
+                                                        borderRadius: '8px 8px 0 0',
+                                                        '& .MuiAccordionSummary-content': {
+                                                            alignItems: 'center',
+                                                            gap: 2
+                                                        }
+                                                    }}
+                                                >
+                                                    <Avatar sx={{
+                                                        bgcolor: 'primary.main',
+                                                        width: 32,
+                                                        height: 32,
+                                                        fontSize: '0.875rem',
+                                                        fontWeight: 600
+                                                    }}>
+                                                        {index + 1}
+                                                    </Avatar>
+
+                                                    <Box sx={{ flex: 1 }}>
+                                                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                                                            {exercise?.name || '알 수 없는 운동'}
+                                                        </Typography>
+                                                        <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
+                                                            <Chip
+                                                                label={getCategoryName(selectedCategoryId || 0)}
+                                                                size="small"
+                                                                color="info"
+                                                                variant="outlined"
+                                                                icon={<CategoryIcon />}
+                                                            />
+                                                            {selectedEx.target_value && (
+                                                                <Chip
+                                                                    label={selectedEx.target_value.length > 15
+                                                                        ? `${selectedEx.target_value.substring(0, 15)}...`
+                                                                        : selectedEx.target_value}
+                                                                    size="small"
+                                                                    color="primary"
+                                                                    variant="filled"
+                                                                    icon={<TimerIcon />}
+                                                                    sx={{
+                                                                        maxWidth: '120px',
+                                                                        '& .MuiChip-label': {
+                                                                            overflow: 'hidden',
+                                                                            textOverflow: 'ellipsis',
+                                                                            whiteSpace: 'nowrap'
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            )}
+                                                        </Stack>
+                                                    </Box>
+
+                                                    <Stack direction="row" spacing={1}>
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                moveExercise(index, 'up');
+                                                            }}
+                                                            disabled={index === 0}
+                                                            sx={{ borderRadius: 1 }}
+                                                        >
+                                                            <ArrowUpIcon />
+                                                        </IconButton>
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                moveExercise(index, 'down');
+                                                            }}
+                                                            disabled={index === selectedExercises.length - 1}
+                                                            sx={{ borderRadius: 1 }}
+                                                        >
+                                                            <ArrowDownIcon />
+                                                        </IconButton>
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                removeExercise(index);
+                                                            }}
+                                                            color="error"
+                                                            sx={{ borderRadius: 1 }}
+                                                        >
+                                                            <DeleteIcon />
+                                                        </IconButton>
+                                                    </Stack>
+                                                </AccordionSummary>
+
+                                                <AccordionDetails sx={{ p: 3 }}>
+                                                    <Stack spacing={2}>
+                                                        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                                                            목표값 설정
+                                                        </Typography>
+
+                                                        <TextField
+                                                            label="목표값"
+                                                            placeholder="예: 20분, 100회, 3세트, 5km"
+                                                            value={selectedEx.target_value}
+                                                            onChange={(e) => updateTargetValue(index, e.target.value)}
+                                                            fullWidth
+                                                            variant="outlined"
+                                                            size="small"
+                                                            inputProps={{ maxLength: 30 }}
+                                                            helperText={`${selectedEx.target_value.length}/30자`}
+                                                            InputProps={{
+                                                                startAdornment: <EditIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                                                            }}
+                                                            sx={{
+                                                                '& .MuiOutlinedInput-root': {
+                                                                    borderRadius: 2,
+                                                                }
+                                                            }}
+                                                        />
+
+                                                        <Paper sx={{
+                                                            p: 2,
+                                                            backgroundColor: isDarkMode ? 'grey.800' : 'grey.50',
+                                                            borderRadius: 2
+                                                        }}>
+                                                            <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 1 }}>
+                                                                💡 목표값 예시
+                                                            </Typography>
+                                                            <Typography variant="caption" color="text.secondary">
+                                                                시간: "20분", "30분", "45분"<br />
+                                                                횟수: "100회", "50회", "3세트 10회"<br />
+                                                                거리: "5km", "10km", "1마일"<br />
+                                                                기타: "최대한 많이", "완주까지"
+                                                            </Typography>
+                                                        </Paper>
+                                                    </Stack>
+                                                </AccordionDetails>
+                                            </Accordion>
+                                        );
+                                    })}
+                                </Stack>
+                            </Fade>
+                        </Collapse>
+                    </Paper>
+                )}
+            </Box>
+
+            {/* 알림 다이얼로그 */}
+            <MuiAlertDialog
+                open={alertDialog.open}
+                onClose={() => setAlertDialog({ open: false, message: '' })}
+                title={alertDialog.title}
+                message={alertDialog.message}
+                type={alertDialog.type}
+            />
+        </>
     );
 };
 

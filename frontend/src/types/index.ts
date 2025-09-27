@@ -340,3 +340,15 @@ export interface ProgramRecordGroup {
     };
     goal?: PersonalGoal;
 }
+
+// WOD 현황 타입
+export interface WodStatus {
+    total_wods: number;
+    max_total_wods: number;
+    public_wods: number;
+    max_public_wods: number;
+    expiring_soon: number;
+    expired_wods: number;
+    can_create_wod: boolean;
+    can_create_public_wod: boolean;
+}

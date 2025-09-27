@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from config.database import db
 from utils.timezone import get_korea_time
 
@@ -16,6 +16,7 @@ class Programs(db.Model):
     max_participants = db.Column(db.Integer, default=20)
     is_open = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=get_korea_time)
+    expires_at = db.Column(db.DateTime)  # 공개 WOD 만료 시간
     
     # 관계 설정
     creator = db.relationship('Users', backref='created_programs')
@@ -32,8 +33,22 @@ class Programs(db.Model):
             'difficulty': self.difficulty,
             'max_participants': self.max_participants,
             'is_open': self.is_open,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'expires_at': self.expires_at.isoformat() if self.expires_at else None
         }
+    
+    def is_expired(self):
+        """WOD가 만료되었는지 확인"""
+        if not self.expires_at:
+            return False
+        return get_korea_time() > self.expires_at
+    
+    def days_until_expiry(self):
+        """만료까지 남은 일수 계산"""
+        if not self.expires_at:
+            return None
+        delta = self.expires_at - get_korea_time()
+        return max(0, delta.days)
     
     def __repr__(self):
         return f'<Program {self.title}>'

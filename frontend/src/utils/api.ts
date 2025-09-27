@@ -19,7 +19,8 @@ import {
     PersonalStats,
     PersonalGoalsResponse,
     CreateGoalRequest,
-    ProgramDetail
+    ProgramDetail,
+    WodStatus
 } from '../types';
 
 // API 기본 설정
@@ -272,6 +273,13 @@ export const personalGoalsApi = {
     // 개인 목표 삭제
     deleteGoal: (goalId: number): Promise<{ message: string }> =>
         apiRequest<{ message: string }>(`/api/users/goals/${goalId}`, { method: 'DELETE' }),
+};
+
+// WOD 현황 API
+export const wodStatusApi = {
+    // WOD 현황 조회
+    getStatus: (): Promise<WodStatus> =>
+        apiRequest<WodStatus>('/api/user/wod-status'),
 };
 
 // 서버 연결 테스트

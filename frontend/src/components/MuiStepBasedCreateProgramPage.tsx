@@ -18,7 +18,9 @@ import { CreateProgramPageProps, CreateProgramForm, SelectedExercise, WorkoutPat
 import { programApi } from '../utils/api';
 import MuiExerciseSelector from './MuiExerciseSelector';
 import MuiWODBuilder from './MuiWODBuilder';
-import LoadingSpinner from './LoadingSpinner';
+import MuiLoadingSpinner from './MuiLoadingSpinner';
+import MuiWodStatusCard from './MuiWodStatusCard';
+import MuiAlertDialog from './MuiAlertDialog';
 import { useTheme } from '../theme/ThemeProvider';
 
 type ExerciseMode = 'simple' | 'wod' | null;
@@ -43,6 +45,15 @@ const MuiStepBasedCreateProgramPage: React.FC<CreateProgramPageProps> = ({ goMy,
     const { isDarkMode } = useTheme();
     const [currentStep, setCurrentStep] = useState<number>(0);
     const [busy, setBusy] = useState<boolean>(false);
+    const [alertDialog, setAlertDialog] = useState<{
+        open: boolean;
+        title?: string;
+        message: string;
+        type?: 'success' | 'error' | 'warning' | 'info';
+    }>({
+        open: false,
+        message: ''
+    });
     const [stepData, setStepData] = useState<StepData>({
         title: '',
         description: '',
@@ -112,11 +123,24 @@ const MuiStepBasedCreateProgramPage: React.FC<CreateProgramPageProps> = ({ goMy,
             };
 
             await programApi.createProgram(formData);
-            window.alert('WOD가 등록되었습니다');
-            goMy();
+            setAlertDialog({
+                open: true,
+                title: '등록 완료',
+                message: 'WOD가 등록되었습니다',
+                type: 'success'
+            });
+            setTimeout(() => {
+                setAlertDialog({ open: false, message: '' });
+                goMy();
+            }, 1500);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : '등록 실패';
-            window.alert(errorMessage);
+            setAlertDialog({
+                open: true,
+                title: '등록 실패',
+                message: errorMessage,
+                type: 'error'
+            });
         } finally {
             setBusy(false);
         }
@@ -604,7 +628,7 @@ const MuiStepBasedCreateProgramPage: React.FC<CreateProgramPageProps> = ({ goMy,
         }
     };
 
-    if (busy) return <LoadingSpinner label="WOD 등록 중..." />;
+    if (busy) return <MuiLoadingSpinner label="WOD 등록 중..." />;
 
     return (
         <Container
@@ -614,6 +638,9 @@ const MuiStepBasedCreateProgramPage: React.FC<CreateProgramPageProps> = ({ goMy,
                 px: 3
             }}
         >
+            {/* WOD 현황 카드 */}
+            <MuiWodStatusCard />
+
             {/* 헤더 */}
             <Box sx={{ mb: 4, textAlign: 'center' }}>
                 <Typography
@@ -765,6 +792,15 @@ const MuiStepBasedCreateProgramPage: React.FC<CreateProgramPageProps> = ({ goMy,
                     </Stack>
                 </Stack>
             </Paper>
+
+            {/* 알림 다이얼로그 */}
+            <MuiAlertDialog
+                open={alertDialog.open}
+                onClose={() => setAlertDialog({ open: false, message: '' })}
+                title={alertDialog.title}
+                message={alertDialog.message}
+                type={alertDialog.type}
+            />
         </Container>
     );
 };

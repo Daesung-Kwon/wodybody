@@ -27,13 +27,23 @@ import {
 } from '@mui/icons-material';
 import { MyProgram, ModalState, ProgramParticipant, CreateProgramForm } from '../types';
 import { programApi, participationApi } from '../utils/api';
-import LoadingSpinner from './LoadingSpinner';
+import MuiLoadingSpinner from './MuiLoadingSpinner';
+import MuiAlertDialog from './MuiAlertDialog';
 import { useTheme } from '../theme/ThemeProvider';
 
 const MuiMyProgramsPage: React.FC = () => {
     const { isDarkMode } = useTheme();
     const [mine, setMine] = useState<MyProgram[]>([]);
     const [busy, setBusy] = useState<boolean>(false);
+    const [alertDialog, setAlertDialog] = useState<{
+        open: boolean;
+        title?: string;
+        message: string;
+        type?: 'success' | 'error' | 'warning' | 'info';
+    }>({
+        open: false,
+        message: ''
+    });
     const [modal, setModal] = useState<ModalState>({
         open: false,
         title: '',
@@ -177,7 +187,12 @@ const MuiMyProgramsPage: React.FC = () => {
             await load();
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : '프로그램 공개 실패';
-            window.alert(errorMessage);
+            setAlertDialog({
+                open: true,
+                title: '공개 실패',
+                message: errorMessage,
+                type: 'error'
+            });
         }
     };
 
@@ -330,7 +345,7 @@ const MuiMyProgramsPage: React.FC = () => {
         }
     };
 
-    if (busy) return <LoadingSpinner label="내 프로그램 로딩 중..." />;
+    if (busy) return <MuiLoadingSpinner label="내 프로그램 로딩 중..." />;
 
     return (
         <Box sx={{ p: 3 }}>
@@ -851,6 +866,15 @@ const MuiMyProgramsPage: React.FC = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* 알림 다이얼로그 */}
+            <MuiAlertDialog
+                open={alertDialog.open}
+                onClose={() => setAlertDialog({ open: false, message: '' })}
+                title={alertDialog.title}
+                message={alertDialog.message}
+                type={alertDialog.type}
+            />
         </Box>
     );
 };

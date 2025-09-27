@@ -46,10 +46,10 @@ import {
 } from '@mui/icons-material';
 import { Program, ProgramWithParticipation, CreateWorkoutRecordRequest, ProgramDetail } from '../types';
 import { programApi, participationApi, workoutRecordsApi } from '../utils/api';
-import LoadingSpinner from './LoadingSpinner';
+import MuiLoadingSpinner from './MuiLoadingSpinner';
 import WorkoutTimer from './WorkoutTimer';
 import MuiWorkoutTimer from './MuiWorkoutTimer';
-import WorkoutRecordModal from './WorkoutRecordModal';
+import MuiWorkoutRecordModal from './MuiWorkoutRecordModal';
 import { useTheme } from '../theme/ThemeProvider';
 
 const MuiProgramsPage: React.FC = () => {
@@ -336,7 +336,7 @@ const MuiProgramsPage: React.FC = () => {
         }
     };
 
-    if (busy) return <LoadingSpinner label="프로그램 로딩 중..." />;
+    if (busy) return <MuiLoadingSpinner label="프로그램 로딩 중..." />;
 
     return (
         <Box sx={{ p: 3 }}>
@@ -1083,7 +1083,7 @@ const MuiProgramsPage: React.FC = () => {
 
             {/* 운동 기록 저장 모달 */}
             {showRecordModal && selectedProgram && (
-                <WorkoutRecordModal
+                <MuiWorkoutRecordModal
                     isOpen={showRecordModal}
                     onClose={closeRecordModal}
                     onSave={handleSaveRecord}

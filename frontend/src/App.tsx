@@ -15,11 +15,12 @@ import MyProgramsPage from './components/MyProgramsPage';
 import MuiMyProgramsPage from './components/MuiMyProgramsPage';
 import PersonalRecordsPage from './components/PersonalRecordsPage';
 import StepBasedCreateProgramPage from './components/StepBasedCreateProgramPage';
+import MuiStepBasedCreateProgramPage from './components/MuiStepBasedCreateProgramPage';
 import NotificationsPage from './components/NotificationsPage';
 import MuiNotificationsPage from './components/MuiNotificationsPage';
 import WebSocketDebugger from './components/WebSocketDebugger';
 import MuiWebSocketDebugger from './components/MuiWebSocketDebugger';
-import MuiExample from './components/common/MuiExample';
+// import MuiExample from './components/common/MuiExample'; // 임시 숨김
 
 // 알림 아이콘 컴포넌트 (MUI Navigation에서 처리하므로 주석 처리)
 // const NotificationIcon: React.FC<{ onClick: () => void }> = ({ onClick }) => {
@@ -107,12 +108,12 @@ const AppWithNotifications: React.FC<{
                             {page === 'my' && <MuiMyProgramsPage />}
                             {page === 'records' && <PersonalRecordsPage />}
                             {page === 'create' && (
-                                <StepBasedCreateProgramPage
+                                <MuiStepBasedCreateProgramPage
                                     goMy={() => setPage('my')}
                                     goPrograms={() => setPage('programs')}
                                 />
                             )}
-                            {page === 'mui-example' && <MuiExample />}
+                            {/* {page === 'mui-example' && <MuiExample />} */}
                         </>
                     )}
                 </>

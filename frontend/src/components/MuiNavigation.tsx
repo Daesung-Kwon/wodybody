@@ -58,9 +58,9 @@ const MuiNavigation: React.FC<MuiNavigationProps> = ({
     const menuItems = [
         { id: 'programs', label: '공개 WOD', icon: <HomeIcon /> },
         { id: 'my', label: '내 WOD', icon: <FitnessCenterIcon /> },
-        { id: 'records', label: '내 기록', icon: <TrendingUpIcon /> },
         { id: 'create', label: 'WOD 등록', icon: <TimerIcon /> },
-        { id: 'mui-example', label: 'MUI 예제', icon: <FitnessCenterIcon /> },
+        { id: 'records', label: '내 기록', icon: <TrendingUpIcon /> },
+        // { id: 'mui-example', label: 'MUI 예제', icon: <FitnessCenterIcon /> }, // 임시 숨김
     ];
 
     const drawerItems = [

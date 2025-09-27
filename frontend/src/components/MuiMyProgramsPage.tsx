@@ -564,7 +564,7 @@ const MuiMyProgramsPage: React.FC = () => {
                 fullWidth
                 PaperProps={{
                     sx: {
-                        borderRadius: 3,
+                        borderRadius: 2,
                         backgroundImage: 'none',
                         backgroundColor: isDarkMode ? 'background.paper' : 'white',
                     }
@@ -660,7 +660,7 @@ const MuiMyProgramsPage: React.FC = () => {
                 fullWidth
                 PaperProps={{
                     sx: {
-                        borderRadius: 3,
+                        borderRadius: 2,
                         backgroundImage: 'none',
                         backgroundColor: isDarkMode ? 'background.paper' : 'white',
                     }
@@ -796,7 +796,7 @@ const MuiMyProgramsPage: React.FC = () => {
                 onClose={cancelDelete}
                 PaperProps={{
                     sx: {
-                        borderRadius: 3,
+                        borderRadius: 2,
                         backgroundImage: 'none',
                         backgroundColor: isDarkMode ? 'background.paper' : 'white',
                     }
@@ -831,7 +831,7 @@ const MuiMyProgramsPage: React.FC = () => {
                 onClose={closeModal}
                 PaperProps={{
                     sx: {
-                        borderRadius: 3,
+                        borderRadius: 2,
                         backgroundImage: 'none',
                         backgroundColor: isDarkMode ? 'background.paper' : 'white',
                     }

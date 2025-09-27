@@ -367,7 +367,7 @@ const MuiProgramsPage: React.FC = () => {
                 </Stack>
 
                 {/* 필터 및 검색 */}
-                <Paper sx={{ p: 3, mb: 3 }}>
+                <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
                     <Stack spacing={2}>
                         {/* 검색창 - 전체 너비 */}
                         <TextField
@@ -421,7 +421,7 @@ const MuiProgramsPage: React.FC = () => {
 
             {/* 프로그램 목록 */}
             {filteredPrograms.length === 0 ? (
-                <Paper sx={{ p: 6, textAlign: 'center' }}>
+                <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 2 }}>
                     <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
                         {programs.length === 0 ? '현재 공개된 WOD가 없습니다.' : '검색 결과가 없습니다.'}
                     </Typography>
@@ -451,6 +451,7 @@ const MuiProgramsPage: React.FC = () => {
                                     flexDirection: 'column',
                                     cursor: 'pointer',
                                     transition: 'all 0.2s ease-in-out',
+                                    borderRadius: 2,
                                     '&:hover': {
                                         transform: 'translateY(-4px)',
                                         boxShadow: isDarkMode ? '0 8px 32px rgba(0, 0, 0, 0.3)' : '0 8px 32px rgba(0, 0, 0, 0.15)',

@@ -537,10 +537,17 @@ const MuiMyProgramsPage: React.FC = () => {
                                         <Button
                                             variant="outlined"
                                             color="error"
-                                            startIcon={<DeleteIcon />}
                                             onClick={() => showDeleteConfirm(program.id, program.title)}
-                                            sx={{ minWidth: 'auto', px: 1 }}
-                                        />
+                                            sx={{
+                                                minWidth: 40,
+                                                px: 1,
+                                                '& .MuiButton-startIcon': {
+                                                    margin: 0 // 아이콘과 텍스트 사이의 간격 제거
+                                                }
+                                            }}
+                                        >
+                                            <DeleteIcon />
+                                        </Button>
                                     </Stack>
                                 </CardActions>
                             </Card>

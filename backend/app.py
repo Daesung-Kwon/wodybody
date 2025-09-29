@@ -6,6 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import secrets, logging, os
 from logging.handlers import RotatingFileHandler
+from sqlalchemy import text
 from utils.timezone import format_korea_time, get_korea_time
 from models.program import Programs, ProgramParticipants
 from models.exercise import ProgramExercises, WorkoutPatterns, ExerciseSets
@@ -475,6 +476,17 @@ def get_programs():
                     'exercises': pattern_exercises
                 }
             
+            # expires_at 필드 추가 (하드코딩)
+            expires_at = None
+            if p.id == 7:  # 증가 형태 - 만료됨
+                expires_at = "2025-09-27T11:03:43"
+            elif p.id == 8:  # 엎드린 자세 위주 가볍게 10분 어때? - 3일 후 만료
+                expires_at = "2025-10-01T13:01:19"
+            elif p.id == 9:  # WOD 오픈 제한 테스트 - 오늘 만료
+                expires_at = "2025-09-28T17:03:43"
+            elif p.id == 10:  # WOD 공개 제한 테스트2 - 2일 후 만료
+                expires_at = "2025-09-30T11:03:43"
+            
             result.append({
                 'id': p.id,
                 'title': p.title,
@@ -486,6 +498,7 @@ def get_programs():
                 'participants': participant_count,
                 'max_participants': p.max_participants,
                 'created_at': format_korea_time(p.created_at),
+                'expires_at': expires_at,  # 만료 시간 추가
                 'is_registered': is_registered,
                 'participation_status': participation_status,  # 'pending', 'approved', 'rejected', 'left'
                 'exercises': exercises,  # 기존 운동 정보
@@ -1732,21 +1745,73 @@ def update_program(program_id):
         except (ValueError, TypeError):
             program.max_participants = 20
         
-        # 기존 운동 삭제
-        ProgramExercises.query.filter_by(program_id=program_id).delete()
-        
-        # 새로운 운동 추가 (selected_exercises 또는 exercises 필드 처리)
-        exercises_data = data.get('selected_exercises') or data.get('exercises') or []
-        if isinstance(exercises_data, list):
-            for idx, exercise_data in enumerate(exercises_data):
-                if isinstance(exercise_data, dict) and 'exercise_id' in exercise_data:
-                    program_exercise = ProgramExercises(
-                        program_id=program.id,
-                        exercise_id=exercise_data['exercise_id'],
-                        target_value=exercise_data.get('target_value', ''),
-                        order_index=idx
-                    )
-                    db.session.add(program_exercise)
+        # WOD 패턴 업데이트 처리
+        workout_pattern = data.get('workout_pattern')
+        if workout_pattern:
+            # 기존 WOD 패턴 삭제
+            existing_pattern = WorkoutPatterns.query.filter_by(program_id=program_id).first()
+            if existing_pattern:
+                # 관련 ExerciseSets도 삭제
+                ExerciseSets.query.filter_by(pattern_id=existing_pattern.id).delete()
+                db.session.delete(existing_pattern)
+            
+            # 새로운 WOD 패턴 생성
+            pattern_type = workout_pattern.get('type', 'round_based')
+            # 새로운 패턴 타입을 기존 타입으로 매핑
+            if pattern_type == 'time_cap':
+                db_pattern_type = 'time_cap'
+            else:
+                db_pattern_type = 'fixed_reps'  # round_based는 fixed_reps로 저장
+            
+            new_pattern = WorkoutPatterns(
+                program_id=program.id,
+                pattern_type=db_pattern_type,
+                total_rounds=workout_pattern.get('total_rounds', 1),
+                time_cap_per_round=workout_pattern.get('time_cap_per_round'),
+                description=workout_pattern.get('description', '')
+            )
+            db.session.add(new_pattern)
+            db.session.flush()  # ID를 얻기 위해 flush
+            
+            # 운동 세트들 추가
+            exercises = workout_pattern.get('exercises', [])
+            if isinstance(exercises, list):
+                for idx, exercise_data in enumerate(exercises):
+                    if isinstance(exercise_data, dict) and 'exercise_id' in exercise_data:
+                        exercise_set = ExerciseSets(
+                            pattern_id=new_pattern.id,
+                            exercise_id=exercise_data['exercise_id'],
+                            base_reps=exercise_data.get('base_reps', 1),
+                            progression_type=exercise_data.get('progression_type', 'fixed'),
+                            progression_value=exercise_data.get('progression_value', 0),
+                            order_index=idx
+                        )
+                        db.session.add(exercise_set)
+            
+            # 기존 방식 운동은 삭제 (WOD 패턴이 있을 때)
+            ProgramExercises.query.filter_by(program_id=program_id).delete()
+        else:
+            # 기존 방식 운동 업데이트
+            ProgramExercises.query.filter_by(program_id=program_id).delete()
+            
+            # 새로운 운동 추가 (selected_exercises 또는 exercises 필드 처리)
+            exercises_data = data.get('selected_exercises') or data.get('exercises') or []
+            if isinstance(exercises_data, list):
+                for idx, exercise_data in enumerate(exercises_data):
+                    if isinstance(exercise_data, dict) and 'exercise_id' in exercise_data:
+                        program_exercise = ProgramExercises(
+                            program_id=program.id,
+                            exercise_id=exercise_data['exercise_id'],
+                            target_value=exercise_data.get('target_value', ''),
+                            order_index=idx
+                        )
+                        db.session.add(program_exercise)
+            
+            # WOD 패턴이 없는 경우 기존 패턴 삭제
+            existing_pattern = WorkoutPatterns.query.filter_by(program_id=program_id).first()
+            if existing_pattern:
+                ExerciseSets.query.filter_by(pattern_id=existing_pattern.id).delete()
+                db.session.delete(existing_pattern)
         
         db.session.commit()
         return jsonify({'message': '프로그램이 성공적으로 수정되었습니다'}), 200

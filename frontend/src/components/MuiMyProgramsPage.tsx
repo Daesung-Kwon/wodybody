@@ -3,8 +3,8 @@ import {
     Box, Typography, Button, Stack, Paper, Card, CardContent, CardActions,
     Chip, IconButton, Dialog, DialogTitle, DialogContent, DialogActions,
     TextField, FormControl, InputLabel, Select, MenuItem, Alert,
-    List, ListItem, ListItemText, Switch,
-    Badge, Avatar, Tooltip, Fade, Divider, Grid,
+    List, ListItem, ListItemText,
+    Avatar, Tooltip, Fade,
 } from './common/MuiComponents';
 import {
     Refresh as RefreshIcon,
@@ -19,10 +19,7 @@ import {
     Cancel as CancelIcon,
     Close as CloseIcon,
     FitnessCenter as FitnessCenterIcon,
-    Schedule as ScheduleIcon,
-    Person as PersonIcon,
     CalendarToday as CalendarTodayIcon,
-    AccessTime as AccessTimeIcon,
     Save as SaveIcon,
 } from '@mui/icons-material';
 import { MyProgram, ModalState, ProgramParticipant, CreateProgramForm } from '../types';
@@ -721,28 +718,48 @@ const MuiMyProgramsPage: React.FC = () => {
                         />
 
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                            <TextField
-                                fullWidth
-                                label="목표 값"
-                                value={editModal.formData.target_value}
-                                onChange={(e) => setEditModal({
-                                    ...editModal,
-                                    formData: { ...editModal.formData, target_value: e.target.value }
-                                })}
-                                variant="outlined"
-                                placeholder="예: 20분, 100회, 3라운드"
-                            />
+                            {/* WOD 패턴이 아닐 때만 목표값 입력 필드 표시 */}
+                            {!editModal.formData.workout_pattern && (
+                                <TextField
+                                    fullWidth
+                                    label="목표 값"
+                                    value={editModal.formData.target_value}
+                                    onChange={(e) => setEditModal({
+                                        ...editModal,
+                                        formData: { ...editModal.formData, target_value: e.target.value }
+                                    })}
+                                    variant="outlined"
+                                    placeholder="예: 20분, 100회, 3라운드"
+                                />
+                            )}
                             <TextField
                                 fullWidth
                                 label="최대 참여자 수"
                                 type="number"
-                                value={editModal.formData.max_participants}
+                                value={editModal.formData.max_participants === 0 ? '' : editModal.formData.max_participants}
                                 onChange={(e) => {
-                                    const value = parseInt(e.target.value);
-                                    if (value >= 1 && value <= 100) {
+                                    const value = e.target.value;
+                                    if (value === '') {
                                         setEditModal({
                                             ...editModal,
-                                            formData: { ...editModal.formData, max_participants: value }
+                                            formData: { ...editModal.formData, max_participants: 0 }
+                                        });
+                                    } else {
+                                        const numValue = parseInt(value);
+                                        if (!isNaN(numValue) && numValue >= 1 && numValue <= 100) {
+                                            setEditModal({
+                                                ...editModal,
+                                                formData: { ...editModal.formData, max_participants: numValue }
+                                            });
+                                        }
+                                    }
+                                }}
+                                onBlur={(e) => {
+                                    const value = e.target.value;
+                                    if (value === '' || parseInt(value) < 1) {
+                                        setEditModal({
+                                            ...editModal,
+                                            formData: { ...editModal.formData, max_participants: 1 }
                                         });
                                     }
                                 }}
@@ -752,40 +769,223 @@ const MuiMyProgramsPage: React.FC = () => {
                         </Stack>
 
                         {/* 운동 정보 */}
-                        {editModal.formData.selected_exercises.length > 0 && (
+                        {/* WOD 패턴 운동 구성 */}
+                        {editModal.formData.workout_pattern?.exercises && editModal.formData.workout_pattern.exercises.length > 0 && (
                             <Box>
                                 <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                                    운동 구성
+                                    WOD 패턴 운동 구성
                                 </Typography>
                                 <Stack spacing={2}>
-                                    {editModal.formData.selected_exercises.map((exercise, index) => (
-                                        <Paper key={index} variant="outlined" sx={{ p: 2 }}>
-                                            <Stack direction="row" alignItems="center" spacing={2}>
-                                                <Typography variant="subtitle1" sx={{ fontWeight: 600, minWidth: 120 }}>
-                                                    {exercise.name || `운동 ${index + 1}`}
-                                                </Typography>
-                                                <TextField
-                                                    label="목표값"
-                                                    value={exercise.target_value}
-                                                    onChange={(e) => {
-                                                        const newExercises = [...editModal.formData.selected_exercises];
-                                                        newExercises[index].target_value = e.target.value;
-                                                        setEditModal({
-                                                            ...editModal,
-                                                            formData: { ...editModal.formData, selected_exercises: newExercises }
-                                                        });
-                                                    }}
-                                                    variant="outlined"
-                                                    size="small"
-                                                    placeholder="예: 10회, 20분"
-                                                />
+                                    {editModal.formData.workout_pattern.exercises.map((exercise, index) => (
+                                        <Paper key={index} variant="outlined" sx={{ p: 2, border: '2px solid', borderColor: 'primary.main' }}>
+                                            <Stack spacing={2}>
+                                                {/* 운동명과 기본 횟수 */}
+                                                <Stack direction="row" alignItems="center" spacing={2}>
+                                                    <Typography variant="subtitle1" sx={{ fontWeight: 600, minWidth: 120 }}>
+                                                        {exercise.exercise_name || exercise.name || `운동 ${index + 1}`}
+                                                    </Typography>
+                                                    <TextField
+                                                        label="기본 횟수"
+                                                        type="number"
+                                                        value={exercise.base_reps || ''}
+                                                        onChange={(e) => {
+                                                            const newPattern = { ...editModal.formData.workout_pattern! };
+                                                            newPattern.exercises = [...newPattern.exercises];
+                                                            newPattern.exercises[index] = {
+                                                                ...newPattern.exercises[index],
+                                                                base_reps: parseInt(e.target.value) || 0
+                                                            };
+                                                            setEditModal({
+                                                                ...editModal,
+                                                                formData: { ...editModal.formData, workout_pattern: newPattern }
+                                                            });
+                                                        }}
+                                                        variant="outlined"
+                                                        size="small"
+                                                        placeholder="예: 10"
+                                                        sx={{ minWidth: 120 }}
+                                                    />
+                                                </Stack>
+
+                                                {/* 진행 방식 설정 */}
+                                                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                                                    <FormControl size="small" sx={{ minWidth: 120 }}>
+                                                        <InputLabel>진행 방식</InputLabel>
+                                                        <Select
+                                                            value={exercise.progression_type || 'fixed'}
+                                                            label="진행 방식"
+                                                            onChange={(e) => {
+                                                                const newPattern = { ...editModal.formData.workout_pattern! };
+                                                                newPattern.exercises = [...newPattern.exercises];
+                                                                newPattern.exercises[index] = {
+                                                                    ...newPattern.exercises[index],
+                                                                    progression_type: e.target.value as 'fixed' | 'increase' | 'decrease' | 'mixed'
+                                                                };
+                                                                setEditModal({
+                                                                    ...editModal,
+                                                                    formData: { ...editModal.formData, workout_pattern: newPattern }
+                                                                });
+                                                            }}
+                                                        >
+                                                            <MenuItem value="fixed">고정</MenuItem>
+                                                            <MenuItem value="increase">증가</MenuItem>
+                                                            <MenuItem value="decrease">감소</MenuItem>
+                                                            <MenuItem value="mixed">혼합</MenuItem>
+                                                        </Select>
+                                                    </FormControl>
+                                                    <TextField
+                                                        label="진행 값"
+                                                        type="number"
+                                                        value={exercise.progression_value || ''}
+                                                        onChange={(e) => {
+                                                            const newPattern = { ...editModal.formData.workout_pattern! };
+                                                            newPattern.exercises = [...newPattern.exercises];
+                                                            newPattern.exercises[index] = {
+                                                                ...newPattern.exercises[index],
+                                                                progression_value: parseInt(e.target.value) || 0
+                                                            };
+                                                            setEditModal({
+                                                                ...editModal,
+                                                                formData: { ...editModal.formData, workout_pattern: newPattern }
+                                                            });
+                                                        }}
+                                                        variant="outlined"
+                                                        size="small"
+                                                        placeholder="예: 2"
+                                                        sx={{ minWidth: 120 }}
+                                                        disabled={exercise.progression_type === 'fixed'}
+                                                    />
+                                                </Stack>
+
+                                                {/* 진행 방식 설명 */}
+                                                <Box sx={{
+                                                    p: 1,
+                                                    bgcolor: isDarkMode ? 'grey.800' : 'grey.50',
+                                                    borderRadius: 1,
+                                                    border: '1px solid',
+                                                    borderColor: isDarkMode ? 'grey.700' : 'grey.200'
+                                                }}>
+                                                    <Typography variant="caption" color={isDarkMode ? 'text.primary' : 'text.secondary'}>
+                                                        {exercise.progression_type === 'fixed' && '모든 라운드에서 동일한 횟수'}
+                                                        {exercise.progression_type === 'increase' && `라운드당 ${exercise.progression_value || 1}회씩 증가`}
+                                                        {exercise.progression_type === 'decrease' && `라운드당 ${exercise.progression_value || 1}회씩 감소`}
+                                                        {exercise.progression_type === 'mixed' && '혼합 패턴 (라운드별로 다름)'}
+                                                    </Typography>
+                                                </Box>
                                             </Stack>
                                         </Paper>
                                     ))}
                                 </Stack>
                                 <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                                    운동의 목표 값만 수정할 수 있습니다
+                                    운동의 기본 횟수와 진행 방식을 수정할 수 있습니다
                                 </Typography>
+                            </Box>
+                        )}
+
+                        {/* 기존 방식 운동 구성 */}
+                        {(!editModal.formData.workout_pattern?.exercises || editModal.formData.workout_pattern.exercises.length === 0) &&
+                            editModal.formData.selected_exercises.length > 0 && (
+                                <Box>
+                                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                                        기본 운동 구성
+                                    </Typography>
+                                    <Stack spacing={2}>
+                                        {editModal.formData.selected_exercises.map((exercise, index) => (
+                                            <Paper key={index} variant="outlined" sx={{ p: 2 }}>
+                                                <Stack direction="row" alignItems="center" spacing={2}>
+                                                    <Typography variant="subtitle1" sx={{ fontWeight: 600, minWidth: 120 }}>
+                                                        {exercise.name || `운동 ${index + 1}`}
+                                                    </Typography>
+                                                    <TextField
+                                                        label="목표값"
+                                                        value={exercise.target_value}
+                                                        onChange={(e) => {
+                                                            const newExercises = [...editModal.formData.selected_exercises];
+                                                            newExercises[index].target_value = e.target.value;
+                                                            setEditModal({
+                                                                ...editModal,
+                                                                formData: { ...editModal.formData, selected_exercises: newExercises }
+                                                            });
+                                                        }}
+                                                        variant="outlined"
+                                                        size="small"
+                                                        placeholder="예: 10회, 20분"
+                                                    />
+                                                </Stack>
+                                            </Paper>
+                                        ))}
+                                    </Stack>
+                                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                                        운동의 목표 값만 수정할 수 있습니다
+                                    </Typography>
+                                </Box>
+                            )}
+
+                        {/* WOD 패턴 설정 정보 */}
+                        {editModal.formData.workout_pattern && (
+                            <Box>
+                                <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                                    WOD 패턴 설정
+                                </Typography>
+                                <Paper variant="outlined" sx={{ p: 2, bgcolor: 'primary.50', border: '1px solid', borderColor: 'primary.main' }}>
+                                    <Stack spacing={2}>
+                                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                                            <TextField
+                                                label="총 라운드 수"
+                                                type="number"
+                                                value={editModal.formData.workout_pattern.total_rounds}
+                                                onChange={(e) => {
+                                                    const newPattern = { ...editModal.formData.workout_pattern! };
+                                                    newPattern.total_rounds = parseInt(e.target.value) || 1;
+                                                    setEditModal({
+                                                        ...editModal,
+                                                        formData: { ...editModal.formData, workout_pattern: newPattern }
+                                                    });
+                                                }}
+                                                variant="outlined"
+                                                size="small"
+                                                sx={{ minWidth: 120 }}
+                                                inputProps={{ min: 1, max: 20 }}
+                                            />
+                                            {editModal.formData.workout_pattern.type === 'time_cap' && (
+                                                <TextField
+                                                    label="라운드당 시간 제한 (분)"
+                                                    type="number"
+                                                    value={editModal.formData.workout_pattern.time_cap_per_round || ''}
+                                                    onChange={(e) => {
+                                                        const newPattern = { ...editModal.formData.workout_pattern! };
+                                                        newPattern.time_cap_per_round = parseInt(e.target.value) || undefined;
+                                                        setEditModal({
+                                                            ...editModal,
+                                                            formData: { ...editModal.formData, workout_pattern: newPattern }
+                                                        });
+                                                    }}
+                                                    variant="outlined"
+                                                    size="small"
+                                                    sx={{ minWidth: 150 }}
+                                                    inputProps={{ min: 1, max: 60 }}
+                                                />
+                                            )}
+                                        </Stack>
+                                        <TextField
+                                            label="패턴 설명"
+                                            value={editModal.formData.workout_pattern.description}
+                                            onChange={(e) => {
+                                                const newPattern = { ...editModal.formData.workout_pattern! };
+                                                newPattern.description = e.target.value;
+                                                setEditModal({
+                                                    ...editModal,
+                                                    formData: { ...editModal.formData, workout_pattern: newPattern }
+                                                });
+                                            }}
+                                            multiline
+                                            rows={2}
+                                            variant="outlined"
+                                            size="small"
+                                            placeholder="WOD 패턴에 대한 설명을 입력하세요"
+                                        />
+                                    </Stack>
+                                </Paper>
                             </Box>
                         )}
                     </Stack>

@@ -43,6 +43,8 @@ import {
     CheckCircle as CheckCircleIcon,
     Schedule as ScheduleIcon,
     TrendingUp as TrendingUpIcon,
+    AccessTime as AccessTimeIcon,
+    Warning as WarningIcon,
 } from '@mui/icons-material';
 import { Program, ProgramWithParticipation, CreateWorkoutRecordRequest, ProgramDetail } from '../types';
 import { programApi, participationApi, workoutRecordsApi } from '../utils/api';
@@ -51,6 +53,26 @@ import WorkoutTimer from './WorkoutTimer';
 import MuiWorkoutTimer from './MuiWorkoutTimer';
 import MuiWorkoutRecordModal from './MuiWorkoutRecordModal';
 import { useTheme } from '../theme/ThemeProvider';
+
+// 만료 기한 관련 유틸리티 함수
+const getExpiryInfo = (expiresAt?: string) => {
+    if (!expiresAt) return null;
+
+    const now = new Date();
+    const expiry = new Date(expiresAt);
+    const diffMs = expiry.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMs <= 0) {
+        return { status: 'expired', days: 0, text: '만료됨' };
+    } else if (diffDays <= 1) {
+        return { status: 'urgent', days: diffDays, text: '오늘 만료' };
+    } else if (diffDays <= 3) {
+        return { status: 'warning', days: diffDays, text: `${diffDays}일 후 만료` };
+    } else {
+        return { status: 'normal', days: diffDays, text: `${diffDays}일 후 만료` };
+    }
+};
 
 const MuiProgramsPage: React.FC = () => {
     const { isDarkMode } = useTheme();
@@ -510,6 +532,48 @@ const MuiProgramsPage: React.FC = () => {
                                             </Typography>
                                         </Box>
                                     </Stack>
+
+                                    {/* 만료 기한 정보 */}
+                                    {program.expires_at && (() => {
+                                        const expiryInfo = getExpiryInfo(program.expires_at);
+                                        if (!expiryInfo) return null;
+
+                                        const getChipColor = () => {
+                                            switch (expiryInfo.status) {
+                                                case 'expired': return 'error';
+                                                case 'urgent': return 'error';
+                                                case 'warning': return 'warning';
+                                                default: return 'default';
+                                            }
+                                        };
+
+                                        const getIcon = () => {
+                                            switch (expiryInfo.status) {
+                                                case 'expired': return <WarningIcon fontSize="small" />;
+                                                case 'urgent': return <AccessTimeIcon fontSize="small" />;
+                                                case 'warning': return <ScheduleIcon fontSize="small" />;
+                                                default: return <CalendarIcon fontSize="small" />;
+                                            }
+                                        };
+
+                                        return (
+                                            <Box sx={{ mb: 2 }}>
+                                                <Chip
+                                                    icon={getIcon()}
+                                                    label={expiryInfo.text}
+                                                    size="small"
+                                                    color={getChipColor()}
+                                                    variant={expiryInfo.status === 'expired' ? 'filled' : 'outlined'}
+                                                    sx={{
+                                                        fontWeight: expiryInfo.status === 'urgent' || expiryInfo.status === 'expired' ? 600 : 400,
+                                                        '& .MuiChip-icon': {
+                                                            fontSize: '16px'
+                                                        }
+                                                    }}
+                                                />
+                                            </Box>
+                                        );
+                                    })()}
 
                                     {/* 운동 미리보기 - workout_pattern 우선, exercises fallback */}
                                     {program.workout_pattern?.exercises && program.workout_pattern.exercises.length > 0 ? (

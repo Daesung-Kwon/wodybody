@@ -4,8 +4,10 @@ import { programApi, participationApi } from '../utils/api';
 import LoadingSpinner from './LoadingSpinner';
 import CustomModal from './CustomModal';
 import ConfirmAlert from './ConfirmAlert';
+import { useTheme } from '../theme/ThemeProvider';
 
 const MyProgramsPage: React.FC = () => {
+    const { isDarkMode } = useTheme();
     const [mine, setMine] = useState<MyProgram[]>([]);
     const [busy, setBusy] = useState<boolean>(false);
     const [modal, setModal] = useState<ModalState>({
@@ -257,7 +259,7 @@ const MyProgramsPage: React.FC = () => {
     if (busy) return <LoadingSpinner label="내 프로그램 로딩 중..." />;
 
     return (
-        <div className="programs-container">
+        <div className={`programs-container ${isDarkMode ? 'dark-mode' : ''}`} data-theme={isDarkMode ? 'dark' : 'light'}>
             <div className="page-header">
                 <h2>내가 등록한 WOD</h2>
                 <button
@@ -453,22 +455,25 @@ const MyProgramsPage: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <div className="info-item">
-                                        <div className="info-icon">⏱️</div>
-                                        <div className="info-content">
-                                            <div className="info-label">목표 값</div>
-                                            <input
-                                                type="text"
-                                                value={editModal.formData.target_value}
-                                                onChange={(e) => setEditModal({
-                                                    ...editModal,
-                                                    formData: { ...editModal.formData, target_value: e.target.value }
-                                                })}
-                                                className="info-input"
-                                                placeholder="예: 20분, 100회, 3라운드"
-                                            />
+                                    {/* WOD 패턴이 아닐 때만 목표값 입력 필드 표시 */}
+                                    {!editModal.formData.workout_pattern && (
+                                        <div className="info-item">
+                                            <div className="info-icon">⏱️</div>
+                                            <div className="info-content">
+                                                <div className="info-label">목표 값</div>
+                                                <input
+                                                    type="text"
+                                                    value={editModal.formData.target_value}
+                                                    onChange={(e) => setEditModal({
+                                                        ...editModal,
+                                                        formData: { ...editModal.formData, target_value: e.target.value }
+                                                    })}
+                                                    className="info-input"
+                                                    placeholder="예: 20분, 100회, 3라운드"
+                                                />
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
 
                                     <div className="info-item">
                                         <div className="info-icon">🏃</div>
@@ -498,18 +503,31 @@ const MyProgramsPage: React.FC = () => {
                                             <div className="info-label">최대 참여자 수</div>
                                             <input
                                                 type="text"
-                                                value={editModal.formData.max_participants}
+                                                value={editModal.formData.max_participants === 0 ? '' : editModal.formData.max_participants}
                                                 onChange={(e) => {
                                                     const value = e.target.value;
-                                                    // 숫자만 입력 허용
-                                                    if (value === '' || /^\d+$/.test(value)) {
-                                                        const numValue = value === '' ? 1 : parseInt(value);
+                                                    if (value === '') {
+                                                        setEditModal({
+                                                            ...editModal,
+                                                            formData: { ...editModal.formData, max_participants: 0 }
+                                                        });
+                                                    } else if (/^\d+$/.test(value)) {
+                                                        const numValue = parseInt(value);
                                                         if (numValue >= 1 && numValue <= 100) {
                                                             setEditModal({
                                                                 ...editModal,
                                                                 formData: { ...editModal.formData, max_participants: numValue }
                                                             });
                                                         }
+                                                    }
+                                                }}
+                                                onBlur={(e) => {
+                                                    const value = e.target.value;
+                                                    if (value === '' || parseInt(value) < 1) {
+                                                        setEditModal({
+                                                            ...editModal,
+                                                            formData: { ...editModal.formData, max_participants: 1 }
+                                                        });
                                                     }
                                                 }}
                                                 className="info-input"
@@ -520,84 +538,193 @@ const MyProgramsPage: React.FC = () => {
                                 </div>
 
                                 {/* 운동 정보를 공개 WOD 상세 보기와 동일한 형태로 표시 */}
-                                {/* WOD 패턴이 없을 때만 기존 방식 운동 표시 */}
-                                {!editModal.formData.workout_pattern && editModal.formData.selected_exercises.length > 0 && (
+                                {/* WOD 패턴 운동 구성 */}
+                                {editModal.formData.workout_pattern?.exercises && editModal.formData.workout_pattern.exercises.length > 0 && (
                                     <div className="exercises-section">
-                                        <h3>운동 구성</h3>
+                                        <h3>WOD 패턴 운동 구성</h3>
                                         <div className="wod-exercise-list">
-                                            {editModal.formData.selected_exercises.map((exercise, index) => (
-                                                <div key={index} className="wod-exercise-item">
+                                            {editModal.formData.workout_pattern.exercises.map((exercise, index) => (
+                                                <div key={index} className="wod-exercise-item edit-mode">
                                                     <div className="wod-exercise-info">
-                                                        <span className="wod-exercise-name">{exercise.name || `운동 ${index + 1}`}</span>
+                                                        <span className="wod-exercise-name">{exercise.exercise_name || exercise.name || `운동 ${index + 1}`}</span>
                                                         <div className="wod-exercise-target-edit">
-                                                            <label>목표값:</label>
+                                                            <label>기본 횟수:</label>
                                                             <input
-                                                                type="text"
-                                                                value={exercise.target_value}
+                                                                type="number"
+                                                                value={exercise.base_reps || ''}
                                                                 onChange={(e) => {
-                                                                    const newExercises = [...editModal.formData.selected_exercises];
-                                                                    newExercises[index].target_value = e.target.value;
+                                                                    const newPattern = { ...editModal.formData.workout_pattern! };
+                                                                    newPattern.exercises = [...newPattern.exercises];
+                                                                    newPattern.exercises[index] = {
+                                                                        ...newPattern.exercises[index],
+                                                                        base_reps: parseInt(e.target.value) || 0
+                                                                    };
                                                                     setEditModal({
                                                                         ...editModal,
-                                                                        formData: { ...editModal.formData, selected_exercises: newExercises }
+                                                                        formData: { ...editModal.formData, workout_pattern: newPattern }
                                                                     });
                                                                 }}
                                                                 className="wod-exercise-input"
-                                                                placeholder="예: 10회, 20분"
+                                                                placeholder="예: 10"
                                                             />
+                                                        </div>
+                                                        <div className="wod-exercise-target-edit">
+                                                            <label>진행 방식:</label>
+                                                            <select
+                                                                value={exercise.progression_type || 'fixed'}
+                                                                onChange={(e) => {
+                                                                    const newPattern = { ...editModal.formData.workout_pattern! };
+                                                                    newPattern.exercises = [...newPattern.exercises];
+                                                                    newPattern.exercises[index] = {
+                                                                        ...newPattern.exercises[index],
+                                                                        progression_type: e.target.value as 'fixed' | 'increase' | 'decrease' | 'mixed'
+                                                                    };
+                                                                    setEditModal({
+                                                                        ...editModal,
+                                                                        formData: { ...editModal.formData, workout_pattern: newPattern }
+                                                                    });
+                                                                }}
+                                                                className="wod-exercise-input"
+                                                            >
+                                                                <option value="fixed">고정</option>
+                                                                <option value="increase">증가</option>
+                                                                <option value="decrease">감소</option>
+                                                                <option value="mixed">혼합</option>
+                                                            </select>
+                                                        </div>
+                                                        <div className="wod-exercise-target-edit">
+                                                            <label>진행 값:</label>
+                                                            <input
+                                                                type="number"
+                                                                value={exercise.progression_value || ''}
+                                                                onChange={(e) => {
+                                                                    const newPattern = { ...editModal.formData.workout_pattern! };
+                                                                    newPattern.exercises = [...newPattern.exercises];
+                                                                    newPattern.exercises[index] = {
+                                                                        ...newPattern.exercises[index],
+                                                                        progression_value: parseInt(e.target.value) || 0
+                                                                    };
+                                                                    setEditModal({
+                                                                        ...editModal,
+                                                                        formData: { ...editModal.formData, workout_pattern: newPattern }
+                                                                    });
+                                                                }}
+                                                                className="wod-exercise-input"
+                                                                placeholder="예: 2"
+                                                                disabled={exercise.progression_type === 'fixed'}
+                                                            />
+                                                        </div>
+                                                        <div className="wod-exercise-progression">
+                                                            {exercise.progression_type === 'fixed' && '모든 라운드에서 동일한 횟수'}
+                                                            {exercise.progression_type === 'increase' && `라운드당 ${exercise.progression_value || 1}회씩 증가`}
+                                                            {exercise.progression_type === 'decrease' && `라운드당 ${exercise.progression_value || 1}회씩 감소`}
+                                                            {exercise.progression_type === 'mixed' && '혼합 패턴 (라운드별로 다름)'}
                                                         </div>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
-                                        <small className="form-hint">운동의 목표 값만 수정할 수 있습니다</small>
+                                        <small className="form-hint">운동의 기본 횟수와 진행 방식을 수정할 수 있습니다</small>
                                     </div>
                                 )}
 
-                                {/* WOD 패턴을 시각적으로 개선 */}
+                                {/* 기존 방식 운동 구성 */}
+                                {(!editModal.formData.workout_pattern?.exercises || editModal.formData.workout_pattern.exercises.length === 0) &&
+                                    editModal.formData.selected_exercises.length > 0 && (
+                                        <div className="exercises-section">
+                                            <h3>기본 운동 구성</h3>
+                                            <div className="wod-exercise-list">
+                                                {editModal.formData.selected_exercises.map((exercise, index) => (
+                                                    <div key={index} className="wod-exercise-item">
+                                                        <div className="wod-exercise-info">
+                                                            <span className="wod-exercise-name">{exercise.name || `운동 ${index + 1}`}</span>
+                                                            <div className="wod-exercise-target-edit">
+                                                                <label>목표값:</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={exercise.target_value}
+                                                                    onChange={(e) => {
+                                                                        const newExercises = [...editModal.formData.selected_exercises];
+                                                                        newExercises[index].target_value = e.target.value;
+                                                                        setEditModal({
+                                                                            ...editModal,
+                                                                            formData: { ...editModal.formData, selected_exercises: newExercises }
+                                                                        });
+                                                                    }}
+                                                                    className="wod-exercise-input"
+                                                                    placeholder="예: 10회, 20분"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <small className="form-hint">운동의 목표 값만 수정할 수 있습니다</small>
+                                        </div>
+                                    )}
+
+                                {/* WOD 패턴 설정 정보 */}
                                 {editModal.formData.workout_pattern && (
                                     <div className="wod-section">
-                                        <h3>WOD 패턴</h3>
-                                        <div className="wod-pattern-card">
-                                            <div className="wod-pattern-header">
-                                                <span className="wod-pattern-type">
-                                                    {editModal.formData.workout_pattern.type === 'time_cap' ? '시간 제한' : '라운드 제한'}
-                                                </span>
-                                                <span className="wod-pattern-rounds">
-                                                    {editModal.formData.workout_pattern.total_rounds}라운드
-                                                </span>
-                                                {editModal.formData.workout_pattern.time_cap_per_round && (
-                                                    <span className="wod-pattern-time">
-                                                        {editModal.formData.workout_pattern.time_cap_per_round}분/라운드
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="wod-pattern-description">
-                                                {editModal.formData.workout_pattern.description}
-                                            </div>
-
-                                            {/* WOD 패턴 운동 구성 표시 */}
-                                            {editModal.formData.workout_pattern.exercises && editModal.formData.workout_pattern.exercises.length > 0 && (
-                                                <div className="wod-pattern-exercises">
-                                                    <h4>포함된 운동</h4>
-                                                    <div className="wod-exercise-list">
-                                                        {editModal.formData.workout_pattern.exercises.map((exercise, index) => (
-                                                            <div key={index} className="wod-exercise-item">
-                                                                <div className="wod-exercise-info">
-                                                                    <span className="wod-exercise-name">{exercise.exercise_name}</span>
-                                                                    <span className="wod-exercise-reps">{exercise.base_reps}회</span>
-                                                                </div>
-                                                                <div className="wod-exercise-progression">
-                                                                    {exercise.progression_type === 'fixed' ? '고정' :
-                                                                        exercise.progression_type === 'increase' ? `+${exercise.progression_value}회씩 증가` :
-                                                                            exercise.progression_type === 'decrease' ? `-${exercise.progression_value}회씩 감소` :
-                                                                                '혼합'}
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
+                                        <h3>WOD 패턴 설정</h3>
+                                        <div className="wod-pattern-card edit-mode">
+                                            <div className="wod-pattern-settings">
+                                                <div className="wod-pattern-setting">
+                                                    <label>총 라운드 수:</label>
+                                                    <input
+                                                        type="number"
+                                                        value={editModal.formData.workout_pattern.total_rounds}
+                                                        onChange={(e) => {
+                                                            const newPattern = { ...editModal.formData.workout_pattern! };
+                                                            newPattern.total_rounds = parseInt(e.target.value) || 1;
+                                                            setEditModal({
+                                                                ...editModal,
+                                                                formData: { ...editModal.formData, workout_pattern: newPattern }
+                                                            });
+                                                        }}
+                                                        className="wod-exercise-input"
+                                                        min="1"
+                                                        max="20"
+                                                    />
                                                 </div>
-                                            )}
+                                                {editModal.formData.workout_pattern.type === 'time_cap' && (
+                                                    <div className="wod-pattern-setting">
+                                                        <label>라운드당 시간 제한 (분):</label>
+                                                        <input
+                                                            type="number"
+                                                            value={editModal.formData.workout_pattern.time_cap_per_round || ''}
+                                                            onChange={(e) => {
+                                                                const newPattern = { ...editModal.formData.workout_pattern! };
+                                                                newPattern.time_cap_per_round = parseInt(e.target.value) || undefined;
+                                                                setEditModal({
+                                                                    ...editModal,
+                                                                    formData: { ...editModal.formData, workout_pattern: newPattern }
+                                                                });
+                                                            }}
+                                                            className="wod-exercise-input"
+                                                            min="1"
+                                                            max="60"
+                                                        />
+                                                    </div>
+                                                )}
+                                                <div className="wod-pattern-setting">
+                                                    <label>패턴 설명:</label>
+                                                    <textarea
+                                                        value={editModal.formData.workout_pattern.description}
+                                                        onChange={(e) => {
+                                                            const newPattern = { ...editModal.formData.workout_pattern! };
+                                                            newPattern.description = e.target.value;
+                                                            setEditModal({
+                                                                ...editModal,
+                                                                formData: { ...editModal.formData, workout_pattern: newPattern }
+                                                            });
+                                                        }}
+                                                        className="description-textarea"
+                                                        placeholder="WOD 패턴에 대한 설명을 입력하세요"
+                                                        rows={2}
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 )}

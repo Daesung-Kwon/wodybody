@@ -155,8 +155,24 @@ const StepBasedCreateProgramPage: React.FC<CreateProgramPageProps> = ({ goMy, go
                         type="number"
                         min="1"
                         max="200"
-                        value={stepData.max_participants}
-                        onChange={(e) => updateStepData({ max_participants: parseInt(e.target.value) || 20 })}
+                        value={stepData.max_participants === 0 ? '' : stepData.max_participants}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '') {
+                                updateStepData({ max_participants: 0 });
+                            } else {
+                                const numValue = parseInt(value);
+                                if (!isNaN(numValue) && numValue >= 1 && numValue <= 200) {
+                                    updateStepData({ max_participants: numValue });
+                                }
+                            }
+                        }}
+                        onBlur={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || parseInt(value) < 1) {
+                                updateStepData({ max_participants: 20 });
+                            }
+                        }}
                     />
                 </div>
             </div>

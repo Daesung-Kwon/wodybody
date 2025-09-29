@@ -40,6 +40,7 @@ export interface Program {
     participants: number;
     max_participants: number;
     created_at: string;
+    expires_at?: string;  // 공개 WOD 만료 시간
     is_registered: boolean;
     exercises: ProgramExercise[];  // 기존 운동 정보
     workout_pattern?: WorkoutPattern;  // WOD 패턴 정보
@@ -57,6 +58,7 @@ export interface ProgramDetail {
     max_participants: number;
     is_open: boolean;
     created_at: string;
+    expires_at?: string;  // 공개 WOD 만료 시간
     exercises: ProgramExercise[];
     workout_pattern?: WorkoutPattern;
 }

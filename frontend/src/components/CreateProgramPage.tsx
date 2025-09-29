@@ -101,8 +101,24 @@ const CreateProgramPage: React.FC<CreateProgramPageProps> = ({ goMy, goPrograms 
                     name="max_participants"
                     min="1"
                     max="200"
-                    value={form.max_participants}
-                    onChange={onChange}
+                    value={form.max_participants === 0 ? '' : form.max_participants}
+                    onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '') {
+                            setForm(prev => ({ ...prev, max_participants: 0 }));
+                        } else {
+                            const numValue = parseInt(value);
+                            if (!isNaN(numValue) && numValue >= 1 && numValue <= 200) {
+                                setForm(prev => ({ ...prev, max_participants: numValue }));
+                            }
+                        }
+                    }}
+                    onBlur={(e) => {
+                        const value = e.target.value;
+                        if (value === '' || parseInt(value) < 1) {
+                            setForm(prev => ({ ...prev, max_participants: 20 }));
+                        }
+                    }}
                 />
 
                 {/* 운동 선택기 (기존 방식) */}

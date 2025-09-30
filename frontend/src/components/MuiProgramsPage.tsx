@@ -49,7 +49,6 @@ import {
 import { Program, ProgramWithParticipation, CreateWorkoutRecordRequest, ProgramDetail } from '../types';
 import { programApi, participationApi, workoutRecordsApi } from '../utils/api';
 import MuiLoadingSpinner from './MuiLoadingSpinner';
-import WorkoutTimer from './WorkoutTimer';
 import MuiWorkoutTimer from './MuiWorkoutTimer';
 import MuiWorkoutRecordModal from './MuiWorkoutRecordModal';
 import { useTheme } from '../theme/ThemeProvider';

@@ -1968,9 +1968,26 @@ app.register_blueprint(auth.bp)
 app.register_blueprint(programs.bp)
 
 if __name__ == '__main__':
-    with app.app_context(): 
-        db.create_all()
-        seed_exercise_data()
-    port = int(os.environ.get('PORT', 5001))
-    print(f"🚀 Server starting on port {port}")
-    socketio.run(app, debug=False, port=port, host='0.0.0.0', allow_unsafe_werkzeug=True)
+    try:
+        print("=" * 50)
+        print("Starting CrossFit WOD System")
+        print(f"DATABASE_URL: {os.environ.get('DATABASE_URL', 'Not set')[:50]}...")
+        print(f"FLASK_ENV: {os.environ.get('FLASK_ENV', 'Not set')}")
+        print(f"PORT: {os.environ.get('PORT', '5001')}")
+        print("=" * 50)
+        
+        with app.app_context(): 
+            print("Creating database tables...")
+            db.create_all()
+            print("Seeding exercise data...")
+            seed_exercise_data()
+            print("Database initialization complete!")
+        
+        port = int(os.environ.get('PORT', 5001))
+        print(f"🚀 Server starting on port {port}")
+        socketio.run(app, debug=False, port=port, host='0.0.0.0', allow_unsafe_werkzeug=True)
+    except Exception as e:
+        print(f"❌ ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        raise

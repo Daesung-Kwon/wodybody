@@ -14,8 +14,9 @@ from models.exercise import ProgramExercises, WorkoutPatterns, ExerciseSets
 app = Flask(__name__)
 
 # SocketIO 초기화
+socketio_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000').split(',')
 socketio = SocketIO(app, 
-    cors_allowed_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    cors_allowed_origins=socketio_origins,
     cors_credentials=True,
     logger=True,
     engineio_logger=True
@@ -30,19 +31,20 @@ app.logger.addHandler(fh)
 app.logger.setLevel(logging.INFO)
 
 # Config
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///crossfit.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///crossfit.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = secrets.token_hex(32)
-# 개발 환경 쿠키
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+# 쿠키 설정
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # 동일 출처 탭 내 요청에는 쿠키 허용[16]
-app.config['SESSION_COOKIE_SECURE'] = False     # localhost 개발환경은 False[6]
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
-# CORS (정확한 Origin 지정 + Credentials 허용)[6]
+# CORS 설정
+cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:3000').split(',')
 CORS(app,
      resources={r"/api/*": {
-         "origins": ["http://localhost:3000"],
+         "origins": cors_origins,
          "supports_credentials": True,
          "allow_headers": ["Content-Type", "Authorization"],
          "methods": ["GET","POST","PUT","DELETE","OPTIONS"]
@@ -1969,4 +1971,6 @@ if __name__ == '__main__':
     with app.app_context(): 
         db.create_all()
         seed_exercise_data()
-    print("🚀 http://localhost:5001"); socketio.run(app, debug=True, port=5001, host='0.0.0.0', allow_unsafe_werkzeug=True)
+    port = int(os.environ.get('PORT', 5001))
+    print(f"🚀 Server starting on port {port}")
+    socketio.run(app, debug=False, port=port, host='0.0.0.0', allow_unsafe_werkzeug=True)

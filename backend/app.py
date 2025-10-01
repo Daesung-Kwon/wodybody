@@ -61,6 +61,26 @@ def _after(resp):
     app.logger.info('Response: %s %s', resp.status_code, resp.status)
     return resp
 
+# 헬스체크 엔드포인트
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """서비스 상태 확인"""
+    try:
+        # 데이터베이스 연결 확인
+        db.session.execute(text('SELECT 1'))
+        return jsonify({
+            'status': 'healthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'database': 'connected',
+            'version': '1.0.0'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'error': str(e)
+        }), 500
+
 # Models
 class Users(db.Model):
     id = db.Column(db.Integer, primary_key=True)

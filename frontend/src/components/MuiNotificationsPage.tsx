@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     Box, Typography, Button, Stack, Paper, Card, CardContent,
-    Chip, IconButton, Dialog, DialogContent, DialogActions,
+    Chip, IconButton, Dialog, DialogTitle, DialogContent, DialogActions,
     Badge, Avatar, Fade,
 } from './common/MuiComponents';
 import {

@@ -34,12 +34,18 @@ app.logger.setLevel(logging.INFO)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///crossfit.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
-# 쿠키 설정
+
+# Railway 환경 감지
+IS_RAILWAY = os.environ.get('RAILWAY_ENVIRONMENT') is not None
+if IS_RAILWAY:
+    app.logger.info("Railway 환경에서 실행 중 - 세션 쿠키 설정 최적화")
+# 쿠키 설정 - Railway 환경 최적화
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # 브라우저 호환성을 위해 Lax로 변경
-app.config['SESSION_COOKIE_SECURE'] = False  # 개발 단계에서는 False로 설정
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Cross-origin 요청을 위해 None으로 설정
+app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS 환경에서 True로 설정
 app.config['SESSION_COOKIE_DOMAIN'] = None  # 모든 도메인에서 쿠키 허용
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
+app.config['SESSION_COOKIE_PATH'] = '/'  # 명시적으로 경로 설정
 
 # CORS 설정
 cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:3000').split(',')
@@ -351,7 +357,18 @@ def login():
             session['user_id'] = u.id
             session.permanent = True  # 세션을 영구적으로 설정
             app.logger.info(f'로그인 성공: user_id={u.id}, session_id={session.get("user_id")}, session={dict(session)}')
+            
+            # 명시적으로 쿠키 설정
             response = jsonify({'message':'로그인 성공','user_id':u.id,'name':u.name})
+            response.set_cookie(
+                'session',
+                value=session.sid if hasattr(session, 'sid') else 'session_set',
+                max_age=86400,  # 24시간
+                secure=True,
+                httponly=True,
+                samesite='None',
+                path='/'
+            )
             return response, 200
         return jsonify({'message':'잘못된 인증정보입니다'}), 401
     except Exception as e:

@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import {
-    Box, Typography, Button, Stack, Paper, Card, CardContent, CardActions,
-    Chip, IconButton, Dialog, DialogTitle, DialogContent, DialogActions,
-    List, ListItem, ListItemButton, ListItemIcon, ListItemText, Divider,
-    Badge, Avatar, Tooltip, Fade,
+    Box, Typography, Button, Stack, Paper, Card, CardContent,
+    Chip, IconButton, Dialog, DialogContent, DialogActions,
+    Badge, Avatar, Fade,
 } from './common/MuiComponents';
 import {
     ArrowBack as ArrowBackIcon,
@@ -14,9 +13,7 @@ import {
     Group as GroupIcon,
     Public as PublicIcon,
     Delete as DeleteIcon,
-    Schedule as ScheduleIcon,
     Person as PersonIcon,
-    Star as StarIcon,
     Close as CloseIcon,
     AccessTime as AccessTimeIcon,
     CalendarToday as CalendarTodayIcon,

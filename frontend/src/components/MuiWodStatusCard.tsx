@@ -16,7 +16,6 @@ import {
     FitnessCenter as FitnessCenterIcon,
     Public as PublicIcon,
     Schedule as ScheduleIcon,
-    Warning as WarningIcon,
     Refresh as RefreshIcon,
     Diamond as DiamondIcon
 } from '@mui/icons-material';

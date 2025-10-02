@@ -23,8 +23,6 @@ import {
     WifiOff as WifiOffIcon,
     Refresh as RefreshIcon,
     BugReport as BugReportIcon,
-    Close as CloseIcon,
-    Visibility as VisibilityIcon,
     VisibilityOff as VisibilityOffIcon,
 } from '@mui/icons-material';
 import { useTheme } from '../theme/ThemeProvider';

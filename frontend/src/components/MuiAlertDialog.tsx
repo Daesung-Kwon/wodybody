@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-    Dialog, DialogTitle, DialogContent, DialogActions,
+    Dialog, DialogContent, DialogActions,
     Button, Typography, Box, Stack, Alert
 } from './common/MuiComponents';
 import {

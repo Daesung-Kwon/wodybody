@@ -1,7 +1,7 @@
 import React from 'react';
 import {
     Box, Typography, Card, CardContent, Stack, Chip, Avatar,
-    LinearProgress, Divider, Paper
+    Paper
 } from './common/MuiComponents';
 import {
     TrendingUp as TrendingUpIcon,

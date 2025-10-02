@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography, CircularProgress, Stack } from './common/MuiComponents';
+import { Box, Typography, CircularProgress } from './common/MuiComponents';
 import { LoadingSpinnerProps } from '../types';
 
 const MuiLoadingSpinner: React.FC<LoadingSpinnerProps> = ({ label = '로딩 중...' }) => {

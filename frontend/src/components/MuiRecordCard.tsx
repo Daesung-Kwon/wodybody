@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     Box, Typography, Button, Stack, Paper, TextField, Switch, FormControlLabel,
-    IconButton, Tooltip, Chip, Avatar, Alert, Divider
+    IconButton, Tooltip, Chip, Avatar, Alert
 } from './common/MuiComponents';
 import {
     Edit as EditIcon,
@@ -11,7 +11,6 @@ import {
     Public as PublicIcon,
     Lock as LockIcon,
     CheckCircle as CheckCircleIcon,
-    Close as CloseIcon,
     AccessTime as AccessTimeIcon,
     CalendarToday as CalendarTodayIcon,
     TrendingUp as TrendingUpIcon,

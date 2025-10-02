@@ -6,9 +6,7 @@ import {
     Paper,
     Stack,
     Chip,
-    CircularProgress,
     LinearProgress,
-    IconButton,
     Dialog,
     DialogTitle,
     DialogContent,
@@ -19,7 +17,6 @@ import {
 import {
     PlayArrow as PlayArrowIcon,
     Pause as PauseIcon,
-    Stop as StopIcon,
     Refresh as RefreshIcon,
     Close as CloseIcon,
     CheckCircle as CheckCircleIcon,

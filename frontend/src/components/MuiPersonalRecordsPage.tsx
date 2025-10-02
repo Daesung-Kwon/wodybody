@@ -2,19 +2,14 @@ import React, { useState, useEffect } from 'react';
 import {
     Box, Typography, Button, Stack, Paper, Card, CardContent,
     FormControl, InputLabel, Select, MenuItem, IconButton, Tooltip,
-    Alert, Chip, Avatar, Divider
+    Chip, Avatar
 } from './common/MuiComponents';
 import {
     Refresh as RefreshIcon,
     TrendingUp as TrendingUpIcon,
-    SportsHandball as SportsHandballIcon,
-    Schedule as ScheduleIcon,
-    EmojiEvents as EmojiEventsIcon,
-    AccessTime as AccessTimeIcon,
     BarChart as BarChartIcon,
     Flag as TargetIcon,
-    FitnessCenter as FitnessCenterIcon,
-    Timer as TimerIcon,
+    FitnessCenter as FitnessCenterIcon
 } from '@mui/icons-material';
 import { WorkoutRecord, PersonalStats, PersonalGoal, ProgramRecordGroup } from '../types';
 import { workoutRecordsApi, personalStatsApi, personalGoalsApi } from '../utils/api';

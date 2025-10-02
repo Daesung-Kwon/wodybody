@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import {
-    Dialog, DialogTitle, DialogContent, DialogActions,
-    TextField, Button, Typography, Box, Stack, Alert, Chip, Avatar, Divider,
+    Dialog, DialogContent, DialogActions,
+    TextField, Button, Typography, Box, Stack, Alert, Avatar,
     FormControlLabel, Switch
 } from './common/MuiComponents';
 import {
     Save as SaveIcon,
     Cancel as CancelIcon,
     Timer as TimerIcon,
-    FitnessCenter as FitnessCenterIcon,
     Public as PublicIcon,
     Lock as LockIcon,
     CheckCircle as CheckCircleIcon,

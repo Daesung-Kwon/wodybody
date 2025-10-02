@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Dialog, DialogTitle, DialogContent, DialogActions,
-    TextField, Button, Typography, Box, Stack, Alert, Chip, Avatar, Divider
+    Dialog, DialogContent, DialogActions,
+    TextField, Button, Typography, Box, Stack, Alert, Avatar
 } from './common/MuiComponents';
 import {
     Flag as TargetIcon,
     Save as SaveIcon,
-    Cancel as CancelIcon,
     Timer as TimerIcon,
     TrendingUp as TrendingUpIcon,
-    CheckCircle as CheckCircleIcon,
-    Info as InfoIcon
+    CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
 import { CreateGoalRequest } from '../types';
 import { personalGoalsApi } from '../utils/api';

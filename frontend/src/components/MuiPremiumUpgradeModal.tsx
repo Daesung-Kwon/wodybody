@@ -2,7 +2,6 @@ import React from 'react';
 import {
     Box,
     Dialog,
-    DialogTitle,
     DialogContent,
     DialogActions,
     Typography,
@@ -19,7 +18,6 @@ import {
 } from './common/MuiComponents';
 import {
     Diamond as DiamondIcon,
-    Check as CheckIcon,
     Close as CloseIcon,
     FitnessCenter as FitnessCenterIcon,
     Public as PublicIcon,

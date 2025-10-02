@@ -36,8 +36,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 # 쿠키 설정
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Cross-origin 요청을 위해 None으로 변경
-app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS 환경에서 True로 설정
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Lax로 변경하여 브라우저 호환성 향상
+app.config['SESSION_COOKIE_SECURE'] = False  # 개발 단계에서는 False로 설정
 app.config['SESSION_COOKIE_DOMAIN'] = None  # 모든 도메인에서 쿠키 허용
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
@@ -264,6 +264,16 @@ def validate_program(data):
 def test():
     return jsonify({'message':'서버 연결 정상','timestamp':datetime.utcnow().isoformat()}), 200
 
+@app.route('/api/debug/session', methods=['GET'])
+def debug_session():
+    """세션 디버깅용 엔드포인트"""
+    app.logger.info(f'세션 디버그: session={dict(session)}, cookies={dict(request.cookies)}')
+    return jsonify({
+        'session': dict(session),
+        'cookies': dict(request.cookies),
+        'user_id': session.get('user_id')
+    }), 200
+
 @app.route('/api/user/profile', methods=['GET'])
 def profile():
     if 'user_id' not in session:
@@ -300,6 +310,7 @@ def login():
         u = Users.query.filter_by(email=email).first()
         if u and u.check_password(pw):
             session['user_id'] = u.id
+            app.logger.info(f'로그인 성공: user_id={u.id}, session_id={session.get("user_id")}')
             return jsonify({'message':'로그인 성공','user_id':u.id,'name':u.name}), 200
         return jsonify({'message':'잘못된 인증정보입니다'}), 401
     except Exception as e:

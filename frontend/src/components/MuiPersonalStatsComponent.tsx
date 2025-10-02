@@ -21,7 +21,6 @@ interface MuiPersonalStatsComponentProps {
 }
 
 const MuiPersonalStatsComponent: React.FC<MuiPersonalStatsComponentProps> = ({ stats, onSetGoal }) => {
-    const { isDarkMode } = useTheme();
 
     const formatTime = (seconds: number): string => {
         const minutes = Math.floor(seconds / 60);

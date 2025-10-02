@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import {
     Dialog, DialogContent, DialogActions,
     TextField, Button, Typography, Box, Stack, Alert, Avatar,
-    FormControlLabel, Switch
+    Switch
 } from './common/MuiComponents';
 import {
     Save as SaveIcon,
-    Cancel as CancelIcon,
     Timer as TimerIcon,
     Public as PublicIcon,
     Lock as LockIcon,

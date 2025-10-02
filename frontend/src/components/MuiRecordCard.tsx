@@ -13,8 +13,6 @@ import {
     CheckCircle as CheckCircleIcon,
     AccessTime as AccessTimeIcon,
     CalendarToday as CalendarTodayIcon,
-    TrendingUp as TrendingUpIcon,
-    TrendingDown as TrendingDownIcon,
     Flag as TargetIcon
 } from '@mui/icons-material';
 import { WorkoutRecord, PersonalGoal, UpdateWorkoutRecordRequest } from '../types';

@@ -31,13 +31,14 @@ app.logger.addHandler(fh)
 app.logger.setLevel(logging.INFO)
 
 # Config
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///crossfit.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('{"message":"CrossFit WOD System is running!","port":"8080","status":"healthy"}DATABASE_URL', 'sqlite:///crossfit.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 # 쿠키 설정
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Cross-origin 요청을 위해 None으로 변경
+app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS 환경에서 True로 설정
+app.config['SESSION_COOKIE_DOMAIN'] = None  # 모든 도메인에서 쿠키 허용
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
 # CORS 설정

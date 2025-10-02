@@ -271,8 +271,45 @@ def debug_session():
     return jsonify({
         'session': dict(session),
         'cookies': dict(request.cookies),
-        'user_id': session.get('user_id')
+        'user_id': session.get('user_id'),
+        'headers': dict(request.headers),
+        'origin': request.headers.get('Origin'),
+        'referer': request.headers.get('Referer')
     }), 200
+
+@app.route('/api/debug/test-login', methods=['POST'])
+def debug_test_login():
+    """디버깅용 테스트 로그인"""
+    try:
+        app.logger.info(f'테스트 로그인 요청: cookies={dict(request.cookies)}, headers={dict(request.headers)}')
+        data = request.get_json(silent=True) or {}
+        email = (data.get('email') or '').strip()
+        pw = data.get('password') or ''
+        
+        if not email or not pw:
+            return jsonify({'message':'이메일과 비밀번호가 필요합니다'}), 400
+            
+        u = Users.query.filter_by(email=email).first()
+        if u and u.check_password(pw):
+            session['user_id'] = u.id
+            session.permanent = True
+            app.logger.info(f'테스트 로그인 성공: user_id={u.id}, session={dict(session)}')
+            response = jsonify({
+                'message':'테스트 로그인 성공',
+                'user_id':u.id,
+                'name':u.name,
+                'session_cookie_set': True,
+                'debug_info': {
+                    'session': dict(session),
+                    'cookies_received': dict(request.cookies),
+                    'headers': dict(request.headers)
+                }
+            })
+            return response, 200
+        return jsonify({'message':'잘못된 인증정보입니다'}), 401
+    except Exception as e:
+        app.logger.exception('test login error: %s', str(e))
+        return jsonify({'message':'테스트 로그인 처리 중 오류가 발생했습니다'}), 500
 
 @app.route('/api/user/profile', methods=['GET'])
 def profile():

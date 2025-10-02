@@ -45,7 +45,7 @@ const MuiWebSocketDebugger: React.FC = () => {
 
         addLog('WebSocket 디버거 시작');
 
-        const newSocket = io('http://localhost:5001', {
+        const newSocket = io(process.env.REACT_APP_API_URL || 'https://wodybody-production.up.railway.app', {
             transports: ['websocket', 'polling'],
             autoConnect: true,
             reconnection: true,

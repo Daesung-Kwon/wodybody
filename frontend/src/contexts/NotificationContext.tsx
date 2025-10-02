@@ -27,7 +27,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     useEffect(() => {
         if (userId) {
             console.log('WebSocket 연결 시도 중...', userId);
-            const newSocket = io('http://localhost:5001', {
+            const newSocket = io(process.env.REACT_APP_API_URL || 'https://wodybody-production.up.railway.app', {
                 transports: ['websocket', 'polling'],
                 autoConnect: true,
                 reconnection: true,

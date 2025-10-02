@@ -36,8 +36,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 # 쿠키 설정
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Cross-origin 요청을 위해 None으로 설정
-app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS 환경에서 True로 설정
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # 브라우저 호환성을 위해 Lax로 변경
+app.config['SESSION_COOKIE_SECURE'] = False  # 개발 단계에서는 False로 설정
 app.config['SESSION_COOKIE_DOMAIN'] = None  # 모든 도메인에서 쿠키 허용
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
@@ -303,6 +303,7 @@ def register():
 @app.route('/api/login', methods=['POST'])
 def login():
     try:
+        app.logger.info(f'로그인 요청: cookies={dict(request.cookies)}')
         data = request.get_json(silent=True) or {}
         email = (data.get('email') or '').strip()
         pw = data.get('password') or ''
@@ -312,8 +313,9 @@ def login():
         if u and u.check_password(pw):
             session['user_id'] = u.id
             session.permanent = True  # 세션을 영구적으로 설정
-            app.logger.info(f'로그인 성공: user_id={u.id}, session_id={session.get("user_id")}')
-            return jsonify({'message':'로그인 성공','user_id':u.id,'name':u.name}), 200
+            app.logger.info(f'로그인 성공: user_id={u.id}, session_id={session.get("user_id")}, session={dict(session)}')
+            response = jsonify({'message':'로그인 성공','user_id':u.id,'name':u.name})
+            return response, 200
         return jsonify({'message':'잘못된 인증정보입니다'}), 401
     except Exception as e:
         app.logger.exception('login error: %s', str(e))

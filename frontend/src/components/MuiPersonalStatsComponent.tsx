@@ -13,7 +13,6 @@ import {
     BarChart as BarChartIcon,
 } from '@mui/icons-material';
 import { PersonalStats } from '../types';
-import { useTheme } from '../theme/ThemeProvider';
 
 interface MuiPersonalStatsComponentProps {
     stats: PersonalStats;

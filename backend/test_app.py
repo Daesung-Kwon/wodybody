@@ -22,4 +22,6 @@ def health():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
     print(f"🚀 Test app starting on port {port}")
-    app.run(host='0.0.0.0', port=port, debug=False)
+    print(f"Environment PORT: {os.environ.get('PORT')}")
+    print(f"Binding to 0.0.0.0:{port}")
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)

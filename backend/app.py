@@ -31,7 +31,7 @@ app.logger.addHandler(fh)
 app.logger.setLevel(logging.INFO)
 
 # Config
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('{"message":"CrossFit WOD System is running!","port":"8080","status":"healthy"}DATABASE_URL', 'sqlite:///crossfit.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///crossfit.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 # 쿠키 설정
@@ -2009,11 +2009,16 @@ if __name__ == '__main__':
         print("=" * 50)
         
         with app.app_context(): 
-            print("Creating database tables...")
-            db.create_all()
-            print("Seeding exercise data...")
-            seed_exercise_data()
-            print("Database initialization complete!")
+            print("Checking database tables...")
+            # 테이블이 존재하지 않을 때만 생성
+            if not db.engine.dialect.has_table(db.engine, 'users'):
+                print("Creating database tables...")
+                db.create_all()
+                print("Seeding exercise data...")
+                seed_exercise_data()
+                print("Database initialization complete!")
+            else:
+                print("Database tables already exist, skipping initialization.")
         
         port = int(os.environ.get('PORT', 5001))
         print(f"🚀 Server starting on port {port}")

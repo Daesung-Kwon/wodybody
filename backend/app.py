@@ -2011,14 +2011,16 @@ if __name__ == '__main__':
         with app.app_context(): 
             print("Checking database tables...")
             # 테이블이 존재하지 않을 때만 생성
-            if not db.engine.dialect.has_table(db.engine, 'users'):
+            try:
+                # 간단한 쿼리로 테이블 존재 여부 확인
+                db.session.execute(text("SELECT 1 FROM users LIMIT 1"))
+                print("Database tables already exist, skipping initialization.")
+            except Exception:
                 print("Creating database tables...")
                 db.create_all()
                 print("Seeding exercise data...")
                 seed_exercise_data()
                 print("Database initialization complete!")
-            else:
-                print("Database tables already exist, skipping initialization.")
         
         port = int(os.environ.get('PORT', 5001))
         print(f"🚀 Server starting on port {port}")

@@ -39,10 +39,10 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 IS_RAILWAY = os.environ.get('RAILWAY_ENVIRONMENT') is not None
 if IS_RAILWAY:
     app.logger.info("Railway 환경에서 실행 중 - 세션 쿠키 설정 최적화")
-# 쿠키 설정 - Railway 환경 최적화
+# 쿠키 설정 - Railway 환경 최적화 (브라우저 호환성 개선)
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Cross-origin 요청을 위해 None으로 설정
-app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS 환경에서 True로 설정
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # 브라우저 호환성을 위해 Lax로 변경
+app.config['SESSION_COOKIE_SECURE'] = False  # 개발/테스트 환경에서 False로 설정
 app.config['SESSION_COOKIE_DOMAIN'] = None  # 모든 도메인에서 쿠키 허용
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 app.config['SESSION_COOKIE_PATH'] = '/'  # 명시적으로 경로 설정
@@ -358,17 +358,22 @@ def login():
             session.permanent = True  # 세션을 영구적으로 설정
             app.logger.info(f'로그인 성공: user_id={u.id}, session_id={session.get("user_id")}, session={dict(session)}')
             
-            # 명시적으로 쿠키 설정
+            # 명시적으로 쿠키 설정 (Railway 환경 최적화)
             response = jsonify({'message':'로그인 성공','user_id':u.id,'name':u.name})
+            
+            # 세션 쿠키를 명시적으로 설정
+            session_cookie_value = session.sid if hasattr(session, 'sid') else f'session_{u.id}_{int(time.time())}'
             response.set_cookie(
                 'session',
-                value=session.sid if hasattr(session, 'sid') else 'session_set',
-                max_age=86400,  # 24시간
-                secure=True,
+                value=session_cookie_value,
+                max_age=24*60*60,  # 24시간
+                secure=False,  # Railway 환경에서 False
                 httponly=True,
-                samesite='None',
+                samesite='Lax',  # 브라우저 호환성을 위해 Lax로 설정
                 path='/'
             )
+            
+            app.logger.info(f'세션 쿠키 설정됨: {session_cookie_value}')
             return response, 200
         return jsonify({'message':'잘못된 인증정보입니다'}), 401
     except Exception as e:

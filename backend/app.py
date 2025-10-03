@@ -17,7 +17,7 @@ def get_user_id_from_session_or_cookies():
     user_id = session.get('user_id')
     if user_id:
         return user_id
-    
+
     # Safari 쿠키에서 확인
     safari_auth = request.cookies.get('safari_auth')
     if safari_auth and safari_auth.startswith('auth_'):
@@ -33,13 +33,45 @@ def get_user_id_from_session_or_cookies():
                 return user_id
         except (ValueError, IndexError):
             pass
-    
+
+    # 일반 세션 쿠키에서도 확인 (Safari 호환성)
+    session_cookie = request.cookies.get('session')
+    if session_cookie and session_cookie.startswith('safari_session_'):
+        try:
+            # safari_session_1_1759453712 형식에서 사용자 ID 추출
+            parts = session_cookie.split('_')
+            if len(parts) >= 3:
+                user_id = int(parts[2])
+                # 세션에도 저장
+                session['user_id'] = user_id
+                session.permanent = True
+                app.logger.info(f'Safari 세션 쿠키에서 사용자 ID 복구: {user_id}')
+                return user_id
+        except (ValueError, IndexError):
+            pass
+
+    # Safari 백업 쿠키에서도 확인
+    safari_backup = request.cookies.get('safari_session_backup')
+    if safari_backup and safari_backup.startswith('backup_'):
+        try:
+            # backup_1_1759453712 형식에서 사용자 ID 추출
+            parts = safari_backup.split('_')
+            if len(parts) >= 2:
+                user_id = int(parts[1])
+                # 세션에도 저장
+                session['user_id'] = user_id
+                session.permanent = True
+                app.logger.info(f'Safari 백업 쿠키에서 사용자 ID 복구: {user_id}')
+                return user_id
+        except (ValueError, IndexError):
+            pass
+
     # Safari 브라우저인 경우 추가 로깅
     user_agent = request.headers.get('User-Agent', '').lower()
     is_safari = 'safari' in user_agent and 'chrome' not in user_agent
     if is_safari:
         app.logger.warning(f'Safari 브라우저에서 인증 실패: cookies={dict(request.cookies)}, headers={dict(request.headers)}')
-    
+
     return None
 
 app = Flask(__name__)
@@ -405,29 +437,39 @@ def login():
             user_agent = request.headers.get('User-Agent', '').lower()
             is_safari = 'safari' in user_agent and 'chrome' not in user_agent
             
-            if is_safari:
-                app.logger.info(f'사파리 브라우저 감지: {user_agent}')
-                # 사파리 전용 쿠키 설정 - 여러 쿠키로 시도
-                response.set_cookie(
-                    'session',
-                    value=f'safari_session_{u.id}_{int(time.time())}',
-                    max_age=24*60*60,  # 24시간
-                    secure=True,  # HTTPS 필수
-                    httponly=True,
-                    samesite='None',  # 사파리 호환성
-                    path='/'
-                )
-                # 추가 쿠키 설정 (사파리 호환성)
-                response.set_cookie(
-                    'safari_auth',
-                    value=f'auth_{u.id}_{int(time.time())}',
-                    max_age=24*60*60,
-                    secure=True,
-                    httponly=False,  # JavaScript에서 접근 가능
-                    samesite='None',
-                    path='/'
-                )
-                app.logger.info(f'사파리 전용 세션 쿠키 설정 완료')
+                    if is_safari:
+                        app.logger.info(f'사파리 브라우저 감지: {user_agent}')
+                        # 사파리 전용 쿠키 설정 - 여러 쿠키로 시도
+                        response.set_cookie(
+                            'session',
+                            value=f'safari_session_{u.id}_{int(time.time())}',
+                            max_age=24*60*60,  # 24시간
+                            secure=True,  # HTTPS 필수
+                            httponly=True,
+                            samesite='None',  # 사파리 호환성
+                            path='/'
+                        )
+                        # 추가 쿠키 설정 (사파리 호환성)
+                        response.set_cookie(
+                            'safari_auth',
+                            value=f'auth_{u.id}_{int(time.time())}',
+                            max_age=24*60*60,
+                            secure=True,
+                            httponly=False,  # JavaScript에서 접근 가능
+                            samesite='None',
+                            path='/'
+                        )
+                        # Safari를 위한 추가 쿠키 (다양한 옵션)
+                        response.set_cookie(
+                            'safari_session_backup',
+                            value=f'backup_{u.id}_{int(time.time())}',
+                            max_age=24*60*60,
+                            secure=True,
+                            httponly=False,
+                            samesite='Lax',  # 다른 SameSite 옵션
+                            path='/'
+                        )
+                        app.logger.info(f'사파리 전용 세션 쿠키 설정 완료')
             
             app.logger.info(f'로그인 성공: user_id={u.id}, session={dict(session)}, origin={request.headers.get("Origin")}, safari={is_safari}')
             return response, 200

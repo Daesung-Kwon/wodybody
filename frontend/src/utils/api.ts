@@ -33,17 +33,31 @@ export const setGlobalRedirectToLogin = (redirectFn: () => void): void => {
     globalRedirectToLogin = redirectFn;
 };
 
+// Safari 브라우저 감지
+const isSafari = (): boolean => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    return userAgent.includes('safari') && !userAgent.includes('chrome');
+};
+
 // 공통 fetch 함수
 async function apiRequest<T>(
     endpoint: string,
     options: RequestInit = {}
 ): Promise<T> {
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...options.headers,
+    };
+
+    // Safari 브라우저를 위한 추가 헤더 설정
+    if (isSafari()) {
+        headers['X-Requested-With'] = 'XMLHttpRequest';
+        headers['Cache-Control'] = 'no-cache';
+    }
+
     const response = await fetch(`${API_BASE}${endpoint}`, {
         credentials: 'include',
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers,
-        },
+        headers,
         ...options,
     });
 

@@ -29,9 +29,16 @@ def get_user_id_from_session_or_cookies():
                 # 세션에도 저장
                 session['user_id'] = user_id
                 session.permanent = True
+                app.logger.info(f'Safari 쿠키에서 사용자 ID 복구: {user_id}')
                 return user_id
         except (ValueError, IndexError):
             pass
+    
+    # Safari 브라우저인 경우 추가 로깅
+    user_agent = request.headers.get('User-Agent', '').lower()
+    is_safari = 'safari' in user_agent and 'chrome' not in user_agent
+    if is_safari:
+        app.logger.warning(f'Safari 브라우저에서 인증 실패: cookies={dict(request.cookies)}, headers={dict(request.headers)}')
     
     return None
 

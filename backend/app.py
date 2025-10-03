@@ -358,22 +358,7 @@ def login():
             session.permanent = True  # 세션을 영구적으로 설정
             app.logger.info(f'로그인 성공: user_id={u.id}, session_id={session.get("user_id")}, session={dict(session)}')
             
-            # 명시적으로 쿠키 설정 (Railway 환경 최적화)
             response = jsonify({'message':'로그인 성공','user_id':u.id,'name':u.name})
-            
-            # 세션 쿠키를 명시적으로 설정
-            session_cookie_value = session.sid if hasattr(session, 'sid') else f'session_{u.id}_{int(time.time())}'
-            response.set_cookie(
-                'session',
-                value=session_cookie_value,
-                max_age=24*60*60,  # 24시간
-                secure=False,  # Railway 환경에서 False
-                httponly=True,
-                samesite='Lax',  # 브라우저 호환성을 위해 Lax로 설정
-                path='/'
-            )
-            
-            app.logger.info(f'세션 쿠키 설정됨: {session_cookie_value}')
             return response, 200
         return jsonify({'message':'잘못된 인증정보입니다'}), 401
     except Exception as e:

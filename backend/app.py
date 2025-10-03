@@ -4,7 +4,7 @@ from flask_cors import CORS
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
-import secrets, logging, os
+import secrets, logging, os, time
 from logging.handlers import RotatingFileHandler
 from sqlalchemy import text
 from utils.timezone import format_korea_time, get_korea_time

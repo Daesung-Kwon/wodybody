@@ -66,6 +66,22 @@ def get_user_id_from_session_or_cookies():
         except (ValueError, IndexError):
             pass
 
+    # 모바일 Safari 쿠키에서도 확인
+    mobile_safari_auth = request.cookies.get('mobile_safari_auth')
+    if mobile_safari_auth and mobile_safari_auth.startswith('mobile_'):
+        try:
+            # mobile_1_1759453712 형식에서 사용자 ID 추출
+            parts = mobile_safari_auth.split('_')
+            if len(parts) >= 2:
+                user_id = int(parts[1])
+                # 세션에도 저장
+                session['user_id'] = user_id
+                session.permanent = True
+                app.logger.info(f'모바일 Safari 쿠키에서 사용자 ID 복구: {user_id}')
+                return user_id
+        except (ValueError, IndexError):
+            pass
+
     # Safari 브라우저인 경우 추가 로깅
     user_agent = request.headers.get('User-Agent', '').lower()
     is_safari = 'safari' in user_agent and 'chrome' not in user_agent
@@ -436,6 +452,7 @@ def login():
             # 사파리 브라우저를 위한 명시적 세션 쿠키 설정
             user_agent = request.headers.get('User-Agent', '').lower()
             is_safari = 'safari' in user_agent and 'chrome' not in user_agent
+            is_mobile_safari = is_safari and ('iphone' in user_agent or 'ipad' in user_agent or 'mobile' in user_agent)
             
             if is_safari:
                 app.logger.info(f'사파리 브라우저 감지: {user_agent}')
@@ -470,8 +487,26 @@ def login():
                     path='/'
                 )
                 app.logger.info(f'사파리 전용 세션 쿠키 설정 완료')
+                
+                # 모바일 Safari를 위한 추가 쿠키 설정
+                if is_mobile_safari:
+                    app.logger.info(f'모바일 사파리 감지: {user_agent}')
+                    # 모바일 Safari를 위한 추가 쿠키 (더 관대한 설정)
+                    response.set_cookie(
+                        'mobile_safari_auth',
+                        value=f'mobile_{u.id}_{int(time.time())}',
+                        max_age=24*60*60,
+                        secure=True,
+                        httponly=False,
+                        samesite='Lax',  # 모바일에서는 Lax가 더 안정적
+                        path='/'
+                    )
+                    # 모바일 Safari를 위한 추가 헤더
+                    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Cache-Control, Accept, Accept-Language, Sec-Fetch-Site, Sec-Fetch-Mode, Sec-Fetch-Dest'
+                    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+                    app.logger.info(f'모바일 사파리 전용 쿠키 설정 완료')
             
-            app.logger.info(f'로그인 성공: user_id={u.id}, session={dict(session)}, origin={request.headers.get("Origin")}, safari={is_safari}')
+            app.logger.info(f'로그인 성공: user_id={u.id}, session={dict(session)}, origin={request.headers.get("Origin")}, safari={is_safari}, mobile_safari={is_mobile_safari}')
             return response, 200
         else:
             app.logger.warning(f'로그인 실패: 잘못된 인증정보 - email={email}')

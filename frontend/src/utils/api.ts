@@ -39,6 +39,14 @@ const isSafari = (): boolean => {
     return userAgent.includes('safari') && !userAgent.includes('chrome');
 };
 
+// 모바일 Safari 감지
+const isMobileSafari = (): boolean => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    return userAgent.includes('safari') && 
+           !userAgent.includes('chrome') && 
+           (userAgent.includes('iphone') || userAgent.includes('ipad') || userAgent.includes('mobile'));
+};
+
 // 공통 fetch 함수
 async function apiRequest<T>(
     endpoint: string,
@@ -55,11 +63,34 @@ async function apiRequest<T>(
         headers['Cache-Control'] = 'no-cache';
     }
 
-    const response = await fetch(`${API_BASE}${endpoint}`, {
+    // 모바일 Safari를 위한 추가 헤더 설정
+    if (isMobileSafari()) {
+        headers['X-Requested-With'] = 'XMLHttpRequest';
+        headers['Cache-Control'] = 'no-cache';
+        headers['Accept'] = 'application/json, text/plain, */*';
+        headers['Accept-Language'] = 'ko-KR,ko;q=0.9,en;q=0.8';
+        // 모바일 Safari를 위한 추가 보안 헤더
+        headers['Sec-Fetch-Site'] = 'cross-site';
+        headers['Sec-Fetch-Mode'] = 'cors';
+        headers['Sec-Fetch-Dest'] = 'empty';
+    }
+
+    // 모바일 Safari를 위한 특별한 fetch 옵션
+    const fetchOptions: RequestInit = {
         credentials: 'include',
         headers,
         ...options,
-    });
+    };
+
+    // 모바일 Safari를 위한 추가 옵션
+    if (isMobileSafari()) {
+        fetchOptions.mode = 'cors';
+        fetchOptions.cache = 'no-cache';
+        fetchOptions.redirect = 'follow';
+        fetchOptions.referrerPolicy = 'strict-origin-when-cross-origin';
+    }
+
+    const response = await fetch(`${API_BASE}${endpoint}`, fetchOptions);
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

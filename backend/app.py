@@ -39,10 +39,10 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 IS_RAILWAY = os.environ.get('RAILWAY_ENVIRONMENT') is not None
 if IS_RAILWAY:
     app.logger.info("Railway 환경에서 실행 중 - 세션 쿠키 설정 최적화")
-# 쿠키 설정 - Railway 환경 최적화 (브라우저 호환성 개선)
+# 쿠키 설정 - 사파리 브라우저 호환성 최적화
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # 브라우저 호환성을 위해 Lax로 변경
-app.config['SESSION_COOKIE_SECURE'] = False  # 개발/테스트 환경에서 False로 설정
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # 사파리 호환성을 위해 None으로 설정
+app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS 환경에서 True로 설정
 app.config['SESSION_COOKIE_DOMAIN'] = None  # 모든 도메인에서 쿠키 허용
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 app.config['SESSION_COOKIE_PATH'] = '/'  # 명시적으로 경로 설정
@@ -346,21 +346,35 @@ def register():
 @app.route('/api/login', methods=['POST'])
 def login():
     try:
-        app.logger.info(f'로그인 요청: cookies={dict(request.cookies)}')
+        # 사파리 브라우저 호환성을 위한 상세 로깅
+        app.logger.info(f'로그인 요청: cookies={dict(request.cookies)}, headers={dict(request.headers)}')
+        app.logger.info(f'User-Agent: {request.headers.get("User-Agent", "Unknown")}')
+        
         data = request.get_json(silent=True) or {}
         email = (data.get('email') or '').strip()
         pw = data.get('password') or ''
+        
         if not email or not pw:
+            app.logger.warning(f'로그인 실패: 이메일 또는 비밀번호 누락 - email={email}, pw_length={len(pw)}')
             return jsonify({'message':'이메일과 비밀번호가 필요합니다'}), 400
+            
         u = Users.query.filter_by(email=email).first()
         if u and u.check_password(pw):
             session['user_id'] = u.id
             session.permanent = True  # 세션을 영구적으로 설정
-            app.logger.info(f'로그인 성공: user_id={u.id}, session_id={session.get("user_id")}, session={dict(session)}')
             
+            # 사파리 브라우저를 위한 명시적 쿠키 설정
             response = jsonify({'message':'로그인 성공','user_id':u.id,'name':u.name})
+            
+            # 사파리 호환성을 위한 추가 헤더 설정
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Allow-Origin'] = request.headers.get('Origin', '*')
+            
+            app.logger.info(f'로그인 성공: user_id={u.id}, session={dict(session)}, origin={request.headers.get("Origin")}')
             return response, 200
-        return jsonify({'message':'잘못된 인증정보입니다'}), 401
+        else:
+            app.logger.warning(f'로그인 실패: 잘못된 인증정보 - email={email}')
+            return jsonify({'message':'잘못된 인증정보입니다'}), 401
     except Exception as e:
         app.logger.exception('login error: %s', str(e))
         return jsonify({'message':'로그인 처리 중 오류가 발생했습니다'}), 500

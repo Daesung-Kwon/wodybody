@@ -11,6 +11,30 @@ from utils.timezone import format_korea_time, get_korea_time
 from models.program import Programs, ProgramParticipants
 from models.exercise import ProgramExercises, WorkoutPatterns, ExerciseSets
 
+def get_user_id_from_session_or_cookies():
+    """세션 또는 쿠키에서 사용자 ID를 가져오는 함수 (Safari 호환)"""
+    # 먼저 세션에서 확인
+    user_id = session.get('user_id')
+    if user_id:
+        return user_id
+    
+    # Safari 쿠키에서 확인
+    safari_auth = request.cookies.get('safari_auth')
+    if safari_auth and safari_auth.startswith('auth_'):
+        try:
+            # auth_1_1759453712 형식에서 사용자 ID 추출
+            parts = safari_auth.split('_')
+            if len(parts) >= 2:
+                user_id = int(parts[1])
+                # 세션에도 저장
+                session['user_id'] = user_id
+                session.permanent = True
+                return user_id
+        except (ValueError, IndexError):
+            pass
+    
+    return None
+
 app = Flask(__name__)
 
 # SocketIO 초기화
@@ -277,7 +301,7 @@ def debug_session():
     return jsonify({
         'session': dict(session),
         'cookies': dict(request.cookies),
-        'user_id': session.get('user_id'),
+        'user_id': get_user_id_from_session_or_cookies(),
         'headers': dict(request.headers),
         'origin': request.headers.get('Origin'),
         'referer': request.headers.get('Referer')
@@ -376,7 +400,7 @@ def login():
             
             if is_safari:
                 app.logger.info(f'사파리 브라우저 감지: {user_agent}')
-                # 사파리 전용 쿠키 설정
+                # 사파리 전용 쿠키 설정 - 여러 쿠키로 시도
                 response.set_cookie(
                     'session',
                     value=f'safari_session_{u.id}_{int(time.time())}',
@@ -384,6 +408,16 @@ def login():
                     secure=True,  # HTTPS 필수
                     httponly=True,
                     samesite='None',  # 사파리 호환성
+                    path='/'
+                )
+                # 추가 쿠키 설정 (사파리 호환성)
+                response.set_cookie(
+                    'safari_auth',
+                    value=f'auth_{u.id}_{int(time.time())}',
+                    max_age=24*60*60,
+                    secure=True,
+                    httponly=False,  # JavaScript에서 접근 가능
+                    samesite='None',
                     path='/'
                 )
                 app.logger.info(f'사파리 전용 세션 쿠키 설정 완료')
@@ -541,7 +575,7 @@ def get_programs():
         except AttributeError:
             # expires_at 필드가 없는 경우 기존 로직 사용
             programs = Programs.query.filter_by(is_open=True).order_by(Programs.created_at.desc()).all()
-        current_user_id = session.get('user_id')  # 비로그인 시 None
+        current_user_id = get_user_id_from_session_or_cookies()  # 비로그인 시 None
         result = []
         for p in programs:
             creator = Users.query.get(p.creator_id)
@@ -785,11 +819,12 @@ def my_programs():
 @app.route('/api/programs/<int:program_id>/results', methods=['GET'])
 def program_results(program_id):
     try:
-        if 'user_id' not in session:
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id:
             return jsonify({'message': '로그인이 필요합니다'}), 401
 
         program = Programs.query.get(program_id)
-        if not program or program.creator_id != session['user_id']:  # 소유자만 조회
+        if not program or program.creator_id != user_id:  # 소유자만 조회
             return jsonify({'message': '권한이 없습니다'}), 403
 
         # 새로운 참여 시스템 사용: ProgramParticipants 테이블
@@ -819,9 +854,11 @@ def program_results(program_id):
 @app.route('/api/registrations/<int:registration_id>/result', methods=['POST'])
 def record_result(registration_id):
     try:
-        if 'user_id' not in session: return jsonify({'message':'로그인이 필요합니다'}), 401
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id: 
+            return jsonify({'message':'로그인이 필요합니다'}), 401
         reg = Registrations.query.get(registration_id)
-        if not reg or reg.user_id != session['user_id']:
+        if not reg or reg.user_id != user_id:
             return jsonify({'message':'권한이 없거나 등록을 찾을 수 없습니다'}), 404
         data = request.get_json(silent=True) or {}
         result = (data.get('result') or '').strip()
@@ -2022,10 +2059,9 @@ def get_program_detail(program_id):
 def get_user_wod_status():
     """사용자의 WOD 현황 조회"""
     try:
-        if 'user_id' not in session:
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id:
             return jsonify({'message': '로그인이 필요합니다'}), 401
-        
-        user_id = session['user_id']
         
         # 전체 WOD 개수
         total_wods = Programs.query.filter_by(creator_id=user_id).count()

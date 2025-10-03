@@ -370,7 +370,25 @@ def login():
             response.headers['Access-Control-Allow-Credentials'] = 'true'
             response.headers['Access-Control-Allow-Origin'] = request.headers.get('Origin', '*')
             
-            app.logger.info(f'로그인 성공: user_id={u.id}, session={dict(session)}, origin={request.headers.get("Origin")}')
+            # 사파리 브라우저를 위한 명시적 세션 쿠키 설정
+            user_agent = request.headers.get('User-Agent', '').lower()
+            is_safari = 'safari' in user_agent and 'chrome' not in user_agent
+            
+            if is_safari:
+                app.logger.info(f'사파리 브라우저 감지: {user_agent}')
+                # 사파리 전용 쿠키 설정
+                response.set_cookie(
+                    'session',
+                    value=f'safari_session_{u.id}_{int(time.time())}',
+                    max_age=24*60*60,  # 24시간
+                    secure=True,  # HTTPS 필수
+                    httponly=True,
+                    samesite='None',  # 사파리 호환성
+                    path='/'
+                )
+                app.logger.info(f'사파리 전용 세션 쿠키 설정 완료')
+            
+            app.logger.info(f'로그인 성공: user_id={u.id}, session={dict(session)}, origin={request.headers.get("Origin")}, safari={is_safari}')
             return response, 200
         else:
             app.logger.warning(f'로그인 실패: 잘못된 인증정보 - email={email}')

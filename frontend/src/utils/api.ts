@@ -202,7 +202,7 @@ export const userApi = {
             console.log('Safari 대안 인증 토큰 저장:', token);
             console.log('원본 이메일:', data.email);
             console.log('인코딩된 이메일:', emailEncoded);
-            
+
             // Safari 전용 세션 설정 API 호출
             try {
                 const safariAuthResponse = await fetch(`${API_BASE}/api/safari-auth?user_id=${response.user_id}`, {

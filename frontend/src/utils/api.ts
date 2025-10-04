@@ -121,7 +121,7 @@ async function apiRequest<T>(
 
     // Safari 브라우저를 위한 특별한 fetch 옵션
     const safariOptions = getSafariFetchOptions();
-    
+
     // Safari 대안: localStorage에서 사용자 ID 가져와서 URL에 추가
     let finalEndpoint = endpoint;
     if (isSafari() || isMobileSafari()) {
@@ -144,7 +144,7 @@ async function apiRequest<T>(
             }
         }
     }
-    
+
     const fetchOptions: RequestInit = {
         credentials: 'include',
         headers,

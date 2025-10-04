@@ -14,6 +14,12 @@ from models.exercise import ProgramExercises, WorkoutPatterns, ExerciseSets
 def get_user_id_from_session_or_cookies():
     """세션 또는 쿠키에서 사용자 ID를 가져오는 함수 (Safari 호환)"""
     
+    # 먼저 세션에서 확인
+    user_id = session.get('user_id')
+    if user_id:
+        app.logger.info(f'세션에서 사용자 ID 확인: {user_id}')
+        return user_id
+    
     # Safari 대안: URL 파라미터에서 사용자 ID 확인
     user_id_param = request.args.get('user_id')
     if user_id_param:
@@ -23,10 +29,6 @@ def get_user_id_from_session_or_cookies():
             return user_id
         except (ValueError, TypeError):
             pass
-    # 먼저 세션에서 확인
-    user_id = session.get('user_id')
-    if user_id:
-        return user_id
 
     # Safari 대안 인증 헤더에서 확인 (localStorage 토큰)
     # Flask에서는 헤더 이름이 변환될 수 있으므로 여러 형태로 시도

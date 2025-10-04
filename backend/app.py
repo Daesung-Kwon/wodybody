@@ -1610,7 +1610,8 @@ def leave_program(program_id):
 @app.route('/api/programs/<int:program_id>/participants', methods=['GET'])
 def get_program_participants(program_id):
     """프로그램 참여자 목록 조회"""
-    if 'user_id' not in session:
+    user_id = get_user_id_from_session_or_cookies()
+    if not user_id:
         return jsonify({'error': '로그인이 필요합니다'}), 401
     
     try:
@@ -1648,7 +1649,8 @@ def get_program_participants(program_id):
 @app.route('/api/programs/<int:program_id>/participants/<int:user_id>/approve', methods=['PUT'])
 def approve_participant(program_id, user_id):
     """참여자 승인/거부"""
-    if 'user_id' not in session:
+    current_user_id = get_user_id_from_session_or_cookies()
+    if not current_user_id:
         return jsonify({'error': '로그인이 필요합니다'}), 401
     
     try:
@@ -1658,7 +1660,7 @@ def approve_participant(program_id, user_id):
             return jsonify({'error': '프로그램을 찾을 수 없습니다'}), 404
         
         # 프로그램 생성자인지 확인
-        if program.creator_id != session['user_id']:
+        if program.creator_id != current_user_id:
             return jsonify({'error': '프로그램 생성자만 승인할 수 있습니다'}), 403
         
         # 참여 기록 찾기

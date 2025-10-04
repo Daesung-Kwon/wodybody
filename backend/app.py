@@ -98,7 +98,12 @@ socketio = SocketIO(app,
     cors_allowed_origins=socketio_origins,
     cors_credentials=True,
     logger=True,
-    engineio_logger=True
+    engineio_logger=True,
+    # 모바일 Safari 호환성을 위한 추가 설정
+    allow_unsafe_werkzeug=True,
+    ping_interval=25,
+    ping_timeout=60,
+    max_http_buffer_size=1000000
 )
 
 # Logs
@@ -1513,8 +1518,19 @@ def approve_participant(program_id, user_id):
 @socketio.on('connect')
 def handle_connect():
     """클라이언트 연결 시 호출"""
-    app.logger.info(f'클라이언트 연결됨: {request.sid}')
-    print(f'🔌 WebSocket 클라이언트 연결됨: {request.sid}')
+    user_agent = request.headers.get('User-Agent', '').lower()
+    is_mobile_safari = 'safari' in user_agent and 'chrome' not in user_agent and ('iphone' in user_agent or 'ipad' in user_agent or 'mobile' in user_agent)
+    
+    app.logger.info(f'클라이언트 연결됨: {request.sid} | User-Agent: {user_agent[:100]} | Mobile Safari: {is_mobile_safari}')
+    print(f'🔌 WebSocket 클라이언트 연결됨: {request.sid} {"(모바일 Safari)" if is_mobile_safari else ""}')
+    
+    # 모바일 Safari를 위한 추가 정보 응답
+    if is_mobile_safari:
+        emit('mobile_safari_info', {
+            'message': '모바일 Safari에서 연결됨',
+            'transport': request.transport,
+            'recommended_transport': 'polling'
+        })
 
 @socketio.on('disconnect')
 def handle_disconnect():

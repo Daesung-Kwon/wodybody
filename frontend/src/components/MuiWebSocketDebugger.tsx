@@ -45,14 +45,27 @@ const MuiWebSocketDebugger: React.FC = () => {
 
         addLog('WebSocket 디버거 시작');
 
+        // 모바일 Safari 감지
+        const userAgent = navigator.userAgent.toLowerCase();
+        const isMobileSafari = userAgent.includes('safari') && 
+                                  !userAgent.includes('chrome') && 
+                                  (userAgent.includes('iphone') || userAgent.includes('ipad') || userAgent.includes('mobile'));
+
+        if (isMobileSafari) {
+            console.log('모바일 Safari 감지됨, polling 우선 연결 시도');
+        }
+        
         const newSocket = io(process.env.REACT_APP_API_URL || 'https://wodybody-production.up.railway.app', {
-            transports: ['websocket', 'polling'],
+            transports: isMobileSafari ? ['polling', 'websocket'] : ['websocket', 'polling'],
             autoConnect: true,
             reconnection: true,
-            reconnectionDelay: 1000,
-            reconnectionAttempts: 5,
+            reconnectionDelay: isMobileSafari ? 2000 : 1000,
+            reconnectionAttempts: 10,
             withCredentials: true,
-            forceNew: true
+            forceNew: true,
+            // 모바일 Safari를 위한 추가 설정
+            upgrade: !isMobileSafari,
+            timeout: isMobileSafari ? 20000 : 10000
         });
 
         newSocket.on('connect', () => {

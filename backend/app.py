@@ -405,6 +405,24 @@ def validate_program(data):
 def test():
     return jsonify({'message':'서버 연결 정상','timestamp':datetime.utcnow().isoformat()}), 200
 
+@app.route('/api/test-headers', methods=['GET'])
+def test_headers():
+    """헤더 테스트 엔드포인트"""
+    safari_headers = {}
+    for key, value in request.headers:
+        if 'safari' in key.lower():
+            safari_headers[key] = value
+    
+    all_headers = dict(request.headers)
+    
+    return jsonify({
+        'safari_headers': safari_headers,
+        'all_headers': all_headers,
+        'x_safari_auth_token_exact': request.headers.get('X-Safari-Auth-Token'),
+        'x_safari_auth_token_upper': request.headers.get('X-SAFARI-AUTH-TOKEN'),
+        'x_safari_auth_token_lower': request.headers.get('x-safari-auth-token')
+    }), 200
+
 @app.route('/api/test-safari-auth', methods=['GET'])
 def test_safari_auth():
     """Safari 인증 테스트 엔드포인트"""

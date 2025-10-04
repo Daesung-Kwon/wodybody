@@ -20,17 +20,27 @@ def get_user_id_from_session_or_cookies():
         app.logger.info(f'세션에서 사용자 ID 확인: {user_id}')
         return user_id
     
-    # Safari 대안: URL 파라미터에서 사용자 ID 확인
+    # Safari 대안: URL 파라미터에서 사용자 ID 확인 (여러 방법으로 시도)
     user_id_param = request.args.get('user_id')
+    if not user_id_param:
+        # 쿼리 스트링에서 직접 파싱 시도
+        query_string = request.query_string.decode('utf-8')
+        if 'user_id=' in query_string:
+            try:
+                user_id_param = query_string.split('user_id=')[1].split('&')[0]
+            except:
+                pass
+    
     if user_id_param:
         try:
             user_id = int(user_id_param)
-            app.logger.info(f'URL 파라미터에서 사용자 ID 확인: {user_id}')
+            app.logger.info(f'URL 파라미터에서 사용자 ID 확인: {user_id} (param: {user_id_param})')
             # 세션에도 저장
             session['user_id'] = user_id
             session.permanent = True
             return user_id
         except (ValueError, TypeError):
+            app.logger.warning(f'URL 파라미터 파싱 실패: {user_id_param}')
             pass
 
     # Safari 대안 인증 헤더에서 확인 (localStorage 토큰)

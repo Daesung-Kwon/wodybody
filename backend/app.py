@@ -13,6 +13,16 @@ from models.exercise import ProgramExercises, WorkoutPatterns, ExerciseSets
 
 def get_user_id_from_session_or_cookies():
     """세션 또는 쿠키에서 사용자 ID를 가져오는 함수 (Safari 호환)"""
+    
+    # Safari 대안: URL 파라미터에서 사용자 ID 확인
+    user_id_param = request.args.get('user_id')
+    if user_id_param:
+        try:
+            user_id = int(user_id_param)
+            app.logger.info(f'URL 파라미터에서 사용자 ID 확인: {user_id}')
+            return user_id
+        except (ValueError, TypeError):
+            pass
     # 먼저 세션에서 확인
     user_id = session.get('user_id')
     if user_id:

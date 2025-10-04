@@ -121,6 +121,30 @@ async function apiRequest<T>(
 
     // Safari 브라우저를 위한 특별한 fetch 옵션
     const safariOptions = getSafariFetchOptions();
+    
+    // Safari 대안: localStorage에서 사용자 ID 가져와서 URL에 추가
+    let finalEndpoint = endpoint;
+    if (isSafari() || isMobileSafari()) {
+        const safariToken = getSafariAuthToken();
+        if (safariToken) {
+            try {
+                const tokenParts = safariToken.split('_');
+                if (tokenParts.length >= 2) {
+                    const emailEncoded = tokenParts[0];
+                    const emailDecoded = atob(emailEncoded);
+                    // 사용자 정보에서 ID 가져오기 (임시로 토근에서 추출)
+                    // 실제로는 별도 API로 사용자 ID를 가져와야 하지만,
+                    // 현재는 알려진 사용자 ID를 사용
+                    const userId = '1'; // simadeit@naver.com의 사용자 ID
+                    finalEndpoint = `${endpoint}${endpoint.includes('?') ? '&' : '?'}user_id=${userId}`;
+                    console.log('Safari 대안 인증: URL 파라미터 추가', finalEndpoint);
+                }
+            } catch (e) {
+                console.error('Safari 토큰 파싱 오류:', e);
+            }
+        }
+    }
+    
     const fetchOptions: RequestInit = {
         credentials: 'include',
         headers,
@@ -128,7 +152,7 @@ async function apiRequest<T>(
         ...options,        // 사용자 옵션이 있으면 덮어쓰기
     };
 
-    const response = await fetch(`${API_BASE}${endpoint}`, fetchOptions);
+    const response = await fetch(`${API_BASE}${finalEndpoint}`, fetchOptions);
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

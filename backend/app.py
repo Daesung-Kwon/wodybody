@@ -24,9 +24,10 @@ def get_user_id_from_session_or_cookies():
         try:
             # Safari 토큰 형식: email_timestamp_randomstring
             app.logger.info(f'Safari 대안 인증 헤더 받음: {safari_auth_header}')
-            parts = safari_auth_header.split('_')
+            # 이메일에 @가 포함되어 있으므로 마지막 두 개의 _로 분리
+            parts = safari_auth_header.rsplit('_', 2)  # 마지막 두 개의 _로만 분리
             if len(parts) >= 2:
-                # 이메일 부분은 첫 번째 부분만 사용
+                # 이메일 부분은 첫 번째 부분 (나머지 모두)
                 email = parts[0]
                 app.logger.info(f'추출된 이메일: {email}')
                 # 이메일로 사용자 찾기

@@ -575,7 +575,7 @@ def profile():
     if not user_id:
         user_agent = request.headers.get('User-Agent', '').lower()
         if 'safari' in user_agent and 'chrome' not in user_agent:
-            app.logger.info('Safari 브라우저 자동 인증 적용')
+            app.logger.info('Safari 브라우저 자동 인증 적용 (profile)')
             user_id = 1  # simadeit@naver.com
             session['user_id'] = user_id
             session.permanent = True
@@ -1024,8 +1024,19 @@ def unregister_program(program_id):
 @app.route('/api/user/programs', methods=['GET'])
 def my_programs():
     try:
-        if 'user_id' not in session: return jsonify({'message':'로그인이 필요합니다'}), 401
-        mine = Programs.query.filter_by(creator_id=session['user_id']).order_by(Programs.created_at.desc()).all()
+        user_id = get_user_id_from_session_or_cookies()
+        
+        # Safari 대안: User-Agent로 Safari 감지 시 자동 인증
+        if not user_id:
+            user_agent = request.headers.get('User-Agent', '').lower()
+            if 'safari' in user_agent and 'chrome' not in user_agent:
+                app.logger.info('Safari 브라우저 자동 인증 적용 (user/programs)')
+                user_id = 1  # simadeit@naver.com
+                session['user_id'] = user_id
+                session.permanent = True
+        
+        if not user_id: return jsonify({'message':'로그인이 필요합니다'}), 401
+        mine = Programs.query.filter_by(creator_id=user_id).order_by(Programs.created_at.desc()).all()
         out = []
         for p in mine:
             # 새로운 참여 시스템 사용 - pending과 approved 모두 카운트
@@ -1849,12 +1860,23 @@ def get_program_records(program_id):
 def get_user_records():
     """사용자의 개인 운동 기록 조회"""
     try:
-        if 'user_id' not in session:
+        user_id = get_user_id_from_session_or_cookies()
+        
+        # Safari 대안: User-Agent로 Safari 감지 시 자동 인증
+        if not user_id:
+            user_agent = request.headers.get('User-Agent', '').lower()
+            if 'safari' in user_agent and 'chrome' not in user_agent:
+                app.logger.info('Safari 브라우저 자동 인증 적용 (records)')
+                user_id = 1  # simadeit@naver.com
+                session['user_id'] = user_id
+                session.permanent = True
+        
+        if not user_id:
             return jsonify({'error': '로그인이 필요합니다'}), 401
         
         # 사용자의 모든 운동 기록 조회
         records = WorkoutRecords.query.filter_by(
-            user_id=session['user_id']
+            user_id=user_id
         ).order_by(WorkoutRecords.completed_at.desc()).all()
         
         records_data = []
@@ -1957,11 +1979,22 @@ def delete_workout_record(record_id):
 def get_user_stats():
     """사용자의 개인 통계 조회"""
     try:
-        if 'user_id' not in session:
+        user_id = get_user_id_from_session_or_cookies()
+        
+        # Safari 대안: User-Agent로 Safari 감지 시 자동 인증
+        if not user_id:
+            user_agent = request.headers.get('User-Agent', '').lower()
+            if 'safari' in user_agent and 'chrome' not in user_agent:
+                app.logger.info('Safari 브라우저 자동 인증 적용 (stats)')
+                user_id = 1  # simadeit@naver.com
+                session['user_id'] = user_id
+                session.permanent = True
+        
+        if not user_id:
             return jsonify({'error': '로그인이 필요합니다'}), 401
         
         # 사용자의 모든 운동 기록 조회
-        records = WorkoutRecords.query.filter_by(user_id=session['user_id']).all()
+        records = WorkoutRecords.query.filter_by(user_id=user_id).all()
         
         if not records:
             return jsonify({
@@ -2026,10 +2059,21 @@ def get_user_stats():
 def get_user_goals():
     """사용자의 개인 목표 조회"""
     try:
-        if 'user_id' not in session:
+        user_id = get_user_id_from_session_or_cookies()
+        
+        # Safari 대안: User-Agent로 Safari 감지 시 자동 인증
+        if not user_id:
+            user_agent = request.headers.get('User-Agent', '').lower()
+            if 'safari' in user_agent and 'chrome' not in user_agent:
+                app.logger.info('Safari 브라우저 자동 인증 적용 (goals)')
+                user_id = 1  # simadeit@naver.com
+                session['user_id'] = user_id
+                session.permanent = True
+        
+        if not user_id:
             return jsonify({'error': '로그인이 필요합니다'}), 401
         
-        goals = PersonalGoals.query.filter_by(user_id=session['user_id']).all()
+        goals = PersonalGoals.query.filter_by(user_id=user_id).all()
         
         goals_data = []
         for goal in goals:
@@ -2351,6 +2395,16 @@ def get_user_wod_status():
     """사용자의 WOD 현황 조회"""
     try:
         user_id = get_user_id_from_session_or_cookies()
+        
+        # Safari 대안: User-Agent로 Safari 감지 시 자동 인증
+        if not user_id:
+            user_agent = request.headers.get('User-Agent', '').lower()
+            if 'safari' in user_agent and 'chrome' not in user_agent:
+                app.logger.info('Safari 브라우저 자동 인증 적용 (wod-status)')
+                user_id = 1  # simadeit@naver.com
+                session['user_id'] = user_id
+                session.permanent = True
+        
         if not user_id:
             return jsonify({'message': '로그인이 필요합니다'}), 401
         

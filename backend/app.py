@@ -571,14 +571,18 @@ def profile():
     
     user_id = get_user_id_from_session_or_cookies()
     
-    # Safari 대안: User-Agent로 Safari 감지 시 자동 인증
-    if not user_id:
-        user_agent = request.headers.get('User-Agent', '').lower()
-        if 'safari' in user_agent and 'chrome' not in user_agent:
-            app.logger.info('Safari 브라우저 자동 인증 적용 (profile)')
-            user_id = 1  # simadeit@naver.com
-            session['user_id'] = user_id
-            session.permanent = True
+        # Safari 대안: User-Agent로 Safari 감지 시 자동 인증 (개선된 버전)
+        if not user_id:
+            user_agent = request.headers.get('User-Agent', '').lower()
+            if 'safari' in user_agent and 'chrome' not in user_agent:
+                # Safari 전용 세션 확인
+                safari_user_id = session.get('safari_user_id')
+                if safari_user_id:
+                    app.logger.info(f'Safari 전용 세션에서 사용자 ID 확인: {safari_user_id}')
+                    user_id = safari_user_id
+                    session['user_id'] = user_id  # 일반 세션에도 복사
+                else:
+                    app.logger.warning('Safari 브라우저이지만 전용 세션이 없음 - 인증 필요')
     
     if not user_id:
         return jsonify({'message':'Unauthorized'}), 401
@@ -690,6 +694,12 @@ def login():
                     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Cache-Control, Accept, Accept-Language, Sec-Fetch-Site, Sec-Fetch-Mode, Sec-Fetch-Dest, X-Safari-Auth-Token'
                     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
                     app.logger.info(f'모바일 사파리 전용 쿠키 설정 완료')
+            
+            # Safari 전용 세션 설정 (보안 강화)
+            if is_safari or is_mobile_safari:
+                session['safari_user_id'] = u.id
+                session['safari_login_time'] = int(time.time())
+                app.logger.info(f'Safari 전용 세션 설정: user_id={u.id}')
             
             app.logger.info(f'로그인 성공: user_id={u.id}, session={dict(session)}, origin={request.headers.get("Origin")}, safari={is_safari}, mobile_safari={is_mobile_safari}')
             return response, 200
@@ -1274,14 +1284,18 @@ def get_notifications():
     """사용자의 알림 목록 조회"""
     user_id = get_user_id_from_session_or_cookies()
     
-    # Safari 대안: User-Agent로 Safari 감지 시 자동 인증
+    # Safari 대안: User-Agent로 Safari 감지 시 자동 인증 (개선된 버전)
     if not user_id:
         user_agent = request.headers.get('User-Agent', '').lower()
         if 'safari' in user_agent and 'chrome' not in user_agent:
-            app.logger.info('Safari 브라우저 자동 인증 적용 (notifications)')
-            user_id = 1  # simadeit@naver.com
-            session['user_id'] = user_id
-            session.permanent = True
+            # Safari 전용 세션 확인
+            safari_user_id = session.get('safari_user_id')
+            if safari_user_id:
+                app.logger.info(f'Safari 전용 세션에서 사용자 ID 확인: {safari_user_id}')
+                user_id = safari_user_id
+                session['user_id'] = user_id  # 일반 세션에도 복사
+            else:
+                app.logger.warning('Safari 브라우저이지만 전용 세션이 없음 - 인증 필요')
     
     if not user_id:
         return jsonify({'message': '로그인이 필요합니다'}), 401

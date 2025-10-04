@@ -23,5 +23,12 @@
     ],
     "env": {
         "REACT_APP_API_URL": "https://wodybody-production.up.railway.app"
+    },
+    "git": {
+        "deploymentEnabled": {
+            "frontend": true,
+            "main": false,
+            "backend": false
+        }
     }
 }

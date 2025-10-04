@@ -131,7 +131,19 @@ CORS(app,
      resources={r"/api/*": {
          "origins": cors_origins,
          "supports_credentials": True,
-         "allow_headers": ["Content-Type", "Authorization"],
+         "allow_headers": [
+             "Content-Type", 
+             "Authorization", 
+             "X-Requested-With", 
+             "Cache-Control", 
+             "Accept", 
+             "Accept-Language", 
+             "Sec-Fetch-Site", 
+             "Sec-Fetch-Mode", 
+             "Sec-Fetch-Dest",
+             "Origin",
+             "User-Agent"
+         ],
          "methods": ["GET","POST","PUT","DELETE","OPTIONS"]
      }})
 

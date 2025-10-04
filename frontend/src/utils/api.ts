@@ -57,16 +57,18 @@ async function apiRequest<T>(
         ...options.headers,
     };
 
-    // Safari 브라우저를 위한 추가 헤더 설정
+    // Safari 브라우저를 위한 추가 헤더 설정 (Cache-Control 제거)
     if (isSafari()) {
         headers['X-Requested-With'] = 'XMLHttpRequest';
-        headers['Cache-Control'] = 'no-cache';
+        // Cache-Control 헤더 제거 - CORS 문제 해결
+        // headers['Cache-Control'] = 'no-cache';
     }
 
-    // 모바일 Safari를 위한 추가 헤더 설정
+    // 모바일 Safari를 위한 추가 헤더 설정 (Cache-Control 제거)
     if (isMobileSafari()) {
         headers['X-Requested-With'] = 'XMLHttpRequest';
-        headers['Cache-Control'] = 'no-cache';
+        // Cache-Control 헤더 제거 - CORS 문제 해결
+        // headers['Cache-Control'] = 'no-cache';
         headers['Accept'] = 'application/json, text/plain, */*';
         headers['Accept-Language'] = 'ko-KR,ko;q=0.9,en;q=0.8';
         // 모바일 Safari를 위한 추가 보안 헤더

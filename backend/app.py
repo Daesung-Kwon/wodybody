@@ -722,14 +722,14 @@ def logout():
 @app.route('/api/programs', methods=['POST'])
 def create_program():
     try:
-        if 'user_id' not in session:
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id:
             return jsonify({'message':'로그인이 필요합니다'}), 401
         data = request.get_json(silent=True)
         err = validate_program(data)
         if err: return jsonify({'message':err}), 400
         
         # WOD 개수 제한 확인
-        user_id = session['user_id']
         total_wods = Programs.query.filter_by(creator_id=user_id).count()
         if total_wods >= 5:
             return jsonify({'message':'WOD 개수 제한에 도달했습니다. (최대 5개)'}), 400
@@ -760,7 +760,7 @@ def create_program():
         
         # 프로그램 생성 (expires_at 필드가 있는 경우에만)
         program_data = {
-            'creator_id': session['user_id'],
+            'creator_id': user_id,
             'title': data['title'].strip(),
             'description': (data.get('description') or '').strip(),
             'workout_type': data.get('workout_type') or 'time_based',

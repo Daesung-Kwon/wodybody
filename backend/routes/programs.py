@@ -103,7 +103,10 @@ def get_programs():
 def create_program():
     """프로그램 생성"""
     try:
-        if 'user_id' not in session:
+        # Safari 호환 인증 방식을 위해 app.py의 함수 사용
+        from app import get_user_id_from_session_or_cookies
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id:
             return jsonify({'message': '로그인이 필요합니다'}), 401
         
         data = request.get_json(silent=True)
@@ -113,7 +116,7 @@ def create_program():
         
         # 프로그램 생성
         program = Programs(
-            creator_id=session['user_id'],
+            creator_id=user_id,
             title=data['title'].strip(),
             description=(data.get('description') or '').strip(),
             workout_type=data.get('workout_type') or 'time_based',
@@ -127,7 +130,7 @@ def create_program():
         
         # 프로그램 생성 알림 전송
         create_notification(
-            user_id=session['user_id'],
+            user_id=user_id,
             notification_type='program_created',
             title='새 프로그램이 등록되었습니다',
             message=f'"{data["title"].strip()}" 프로그램이 성공적으로 등록되었습니다.',

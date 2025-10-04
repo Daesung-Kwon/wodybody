@@ -23,9 +23,12 @@ def get_user_id_from_session_or_cookies():
     if safari_auth_header:
         try:
             # Safari 토큰 형식: email_timestamp_randomstring
+            app.logger.info(f'Safari 대안 인증 헤더 받음: {safari_auth_header}')
             parts = safari_auth_header.split('_')
             if len(parts) >= 2:
+                # 이메일 부분은 첫 번째 부분만 사용
                 email = parts[0]
+                app.logger.info(f'추출된 이메일: {email}')
                 # 이메일로 사용자 찾기
                 user = User.query.filter_by(email=email).first()
                 if user:
@@ -34,7 +37,12 @@ def get_user_id_from_session_or_cookies():
                     session.permanent = True
                     app.logger.info(f'Safari 대안 인증 헤더에서 사용자 ID 복구: {user.id} (email: {email})')
                     return user.id
-        except (ValueError, IndexError):
+                else:
+                    app.logger.warning(f'Safari 대안 인증: 사용자를 찾을 수 없음 (email: {email})')
+            else:
+                app.logger.warning(f'Safari 대안 인증: 토큰 형식 오류 (parts: {parts})')
+        except (ValueError, IndexError) as e:
+            app.logger.error(f'Safari 대안 인증 토큰 파싱 오류: {e}')
             pass
 
     # Safari 쿠키에서 확인
@@ -383,14 +391,16 @@ def test():
 @app.route('/api/debug/session', methods=['GET'])
 def debug_session():
     """세션 디버깅용 엔드포인트"""
-    app.logger.info(f'세션 디버그: session={dict(session)}, cookies={dict(request.cookies)}')
+    safari_token = request.headers.get('X-Safari-Auth-Token')
+    app.logger.info(f'세션 디버그: session={dict(session)}, cookies={dict(request.cookies)}, safari_token={safari_token}')
     return jsonify({
         'session': dict(session),
         'cookies': dict(request.cookies),
         'user_id': get_user_id_from_session_or_cookies(),
         'headers': dict(request.headers),
         'origin': request.headers.get('Origin'),
-        'referer': request.headers.get('Referer')
+        'referer': request.headers.get('Referer'),
+        'safari_auth_token': safari_token
     }), 200
 
 @app.route('/api/debug/test-login', methods=['POST'])

@@ -168,14 +168,14 @@ export const userApi = {
             method: 'POST',
             body: JSON.stringify(data),
         });
-        
+
         // Safari 브라우저를 위한 대안 인증 토큰 저장
         if (isSafari() || isMobileSafari()) {
             const token = `${data.email}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             setSafariAuthToken(token);
             console.log('Safari 대안 인증 토큰 저장:', token);
         }
-        
+
         return response;
     },
 
@@ -193,7 +193,7 @@ export const userApi = {
             removeSafariAuthToken();
             console.log('Safari 대안 인증 토큰 제거');
         }
-        
+
         return apiRequest<{ message: string }>('/api/logout', {
             method: 'POST',
         });

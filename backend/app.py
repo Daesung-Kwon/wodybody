@@ -26,6 +26,9 @@ def get_user_id_from_session_or_cookies():
         try:
             user_id = int(user_id_param)
             app.logger.info(f'URL 파라미터에서 사용자 ID 확인: {user_id}')
+            # 세션에도 저장
+            session['user_id'] = user_id
+            session.permanent = True
             return user_id
         except (ValueError, TypeError):
             pass

@@ -42,9 +42,9 @@ const isSafari = (): boolean => {
 // 모바일 Safari 감지
 const isMobileSafari = (): boolean => {
     const userAgent = navigator.userAgent.toLowerCase();
-    return userAgent.includes('safari') && 
-           !userAgent.includes('chrome') && 
-           (userAgent.includes('iphone') || userAgent.includes('ipad') || userAgent.includes('mobile'));
+    return userAgent.includes('safari') &&
+        !userAgent.includes('chrome') &&
+        (userAgent.includes('iphone') || userAgent.includes('ipad') || userAgent.includes('mobile'));
 };
 
 // Safari 브라우저 쿠키 전송 강제 설정
@@ -59,6 +59,26 @@ const getSafariFetchOptions = (): RequestInit => {
         };
     }
     return {};
+};
+
+// Safari 대안 인증 토큰 관리
+const getSafariAuthToken = (): string | null => {
+    if (typeof window !== 'undefined') {
+        return localStorage.getItem('safari_auth_token');
+    }
+    return null;
+};
+
+const setSafariAuthToken = (token: string): void => {
+    if (typeof window !== 'undefined') {
+        localStorage.setItem('safari_auth_token', token);
+    }
+};
+
+const removeSafariAuthToken = (): void => {
+    if (typeof window !== 'undefined') {
+        localStorage.removeItem('safari_auth_token');
+    }
 };
 
 // 공통 fetch 함수
@@ -89,6 +109,14 @@ async function apiRequest<T>(
         headers['Sec-Fetch-Site'] = 'cross-site';
         headers['Sec-Fetch-Mode'] = 'cors';
         headers['Sec-Fetch-Dest'] = 'empty';
+    }
+
+    // Safari 대안 인증: localStorage 토큰 추가
+    if (isSafari() || isMobileSafari()) {
+        const safariToken = getSafariAuthToken();
+        if (safariToken) {
+            headers['X-Safari-Auth-Token'] = safariToken;
+        }
     }
 
     // Safari 브라우저를 위한 특별한 fetch 옵션
@@ -135,11 +163,21 @@ export const userApi = {
         apiRequest<User>('/api/user/profile'),
 
     // 로그인
-    login: (data: LoginRequest): Promise<LoginResponse> =>
-        apiRequest<LoginResponse>('/api/login', {
+    login: async (data: LoginRequest): Promise<LoginResponse> => {
+        const response = await apiRequest<LoginResponse>('/api/login', {
             method: 'POST',
             body: JSON.stringify(data),
-        }),
+        });
+        
+        // Safari 브라우저를 위한 대안 인증 토큰 저장
+        if (isSafari() || isMobileSafari()) {
+            const token = `${data.email}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            setSafariAuthToken(token);
+            console.log('Safari 대안 인증 토큰 저장:', token);
+        }
+        
+        return response;
+    },
 
     // 회원가입
     register: (data: RegisterRequest): Promise<{ message: string }> =>
@@ -149,10 +187,17 @@ export const userApi = {
         }),
 
     // 로그아웃
-    logout: (): Promise<{ message: string }> =>
-        apiRequest<{ message: string }>('/api/logout', {
+    logout: async (): Promise<{ message: string }> => {
+        // Safari 브라우저 대안 인증 토큰 제거
+        if (isSafari() || isMobileSafari()) {
+            removeSafariAuthToken();
+            console.log('Safari 대안 인증 토큰 제거');
+        }
+        
+        return apiRequest<{ message: string }>('/api/logout', {
             method: 'POST',
-        }),
+        });
+    },
 };
 
 // 프로그램 관련 API

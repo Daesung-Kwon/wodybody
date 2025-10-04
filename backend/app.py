@@ -18,6 +18,25 @@ def get_user_id_from_session_or_cookies():
     if user_id:
         return user_id
 
+    # Safari 대안 인증 헤더에서 확인 (localStorage 토큰)
+    safari_auth_header = request.headers.get('X-Safari-Auth-Token')
+    if safari_auth_header:
+        try:
+            # Safari 토큰 형식: email_timestamp_randomstring
+            parts = safari_auth_header.split('_')
+            if len(parts) >= 2:
+                email = parts[0]
+                # 이메일로 사용자 찾기
+                user = User.query.filter_by(email=email).first()
+                if user:
+                    # 세션에도 저장
+                    session['user_id'] = user.id
+                    session.permanent = True
+                    app.logger.info(f'Safari 대안 인증 헤더에서 사용자 ID 복구: {user.id} (email: {email})')
+                    return user.id
+        except (ValueError, IndexError):
+            pass
+
     # Safari 쿠키에서 확인
     safari_auth = request.cookies.get('safari_auth')
     if safari_auth and safari_auth.startswith('auth_'):
@@ -131,17 +150,18 @@ CORS(app,
      resources={r"/api/*": {
          "origins": cors_origins,
          "supports_credentials": True,
-         "allow_headers": [
-             "Content-Type", 
-             "Authorization", 
-             "X-Requested-With", 
-             "Cache-Control", 
-             "Accept", 
-             "Accept-Language", 
-             "Sec-Fetch-Site", 
-             "Sec-Fetch-Mode", 
-             "Sec-Fetch-Dest",
-             "Origin",
+        "allow_headers": [
+            "Content-Type", 
+            "Authorization", 
+            "X-Requested-With", 
+            "Cache-Control", 
+            "Accept", 
+            "Accept-Language", 
+            "Sec-Fetch-Site", 
+            "Sec-Fetch-Mode", 
+            "Sec-Fetch-Dest",
+            "Origin",
+            "X-Safari-Auth-Token",
              "User-Agent"
          ],
          "methods": ["GET","POST","PUT","DELETE","OPTIONS"]
@@ -516,7 +536,7 @@ def login():
                         path='/'
                     )
                     # 모바일 Safari를 위한 추가 헤더
-                    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Cache-Control, Accept, Accept-Language, Sec-Fetch-Site, Sec-Fetch-Mode, Sec-Fetch-Dest'
+                    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Cache-Control, Accept, Accept-Language, Sec-Fetch-Site, Sec-Fetch-Mode, Sec-Fetch-Dest, X-Safari-Auth-Token'
                     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
                     app.logger.info(f'모바일 사파리 전용 쿠키 설정 완료')
             

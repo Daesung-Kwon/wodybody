@@ -395,6 +395,41 @@ def validate_program(data):
 def test():
     return jsonify({'message':'서버 연결 정상','timestamp':datetime.utcnow().isoformat()}), 200
 
+@app.route('/api/test-safari-auth', methods=['GET'])
+def test_safari_auth():
+    """Safari 인증 테스트 엔드포인트"""
+    safari_token = request.headers.get('X-Safari-Auth-Token')
+    
+    result = {
+        'safari_token': safari_token,
+        'parsed': False,
+        'email': None,
+        'user_id': None,
+        'error': None
+    }
+    
+    if safari_token:
+        try:
+            parts = safari_token.rsplit('_', 2)
+            if len(parts) >= 2:
+                email_encoded = parts[0]
+                import base64
+                email = base64.b64decode(email_encoded).decode('utf-8')
+                user = User.query.filter_by(email=email).first()
+                
+                result.update({
+                    'parsed': True,
+                    'email': email,
+                    'user_id': user.id if user else None,
+                    'parts': parts
+                })
+            else:
+                result['error'] = f'Invalid token parts: {parts}'
+        except Exception as e:
+            result['error'] = str(e)
+    
+    return jsonify(result), 200
+
 @app.route('/api/debug/session', methods=['GET'])
 def debug_session():
     """세션 디버깅용 엔드포인트"""

@@ -19,7 +19,17 @@ def get_user_id_from_session_or_cookies():
         return user_id
 
     # Safari 대안 인증 헤더에서 확인 (localStorage 토큰)
-    safari_auth_header = request.headers.get('X-Safari-Auth-Token')
+    # Flask에서는 헤더 이름이 변환될 수 있으므로 여러 형태로 시도
+    safari_auth_header = (request.headers.get('X-Safari-Auth-Token') or 
+                         request.headers.get('X-SAFARI-AUTH-TOKEN') or
+                         request.headers.get('X-Safari-Auth-Token'.lower()) or
+                         request.headers.get('X-Safari-Auth-Token'.upper()))
+    
+    # 디버깅: 모든 헤더에서 x-safari 관련 항목 찾기
+    safari_headers = {k: v for k, v in request.headers.items() if 'safari' in k.lower() or 'x-safari' in k.lower()}
+    if safari_headers:
+        app.logger.info(f'Safari 관련 헤더: {safari_headers}')
+        app.logger.info(f'추출된 Safari 토큰: {safari_auth_header}')
     if safari_auth_header:
         try:
             # Safari 토큰 형식: base64_email_timestamp_randomstring

@@ -92,10 +92,10 @@ def get_user_id_from_session_or_cookies():
 
 app = Flask(__name__)
 
-# SocketIO 초기화
-socketio_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000').split(',')
+# SocketIO 초기화 - 모바일 Safari 호환성을 위한 관대한 설정
+socketio_origins = os.environ.get('CORS_ORIGINS', '*').split(',')
 socketio = SocketIO(app, 
-    cors_allowed_origins=socketio_origins,
+    cors_allowed_origins='*',  # 모든 오리진 허용 (개발 중)
     cors_credentials=True,
     logger=True,
     engineio_logger=True,
@@ -103,7 +103,8 @@ socketio = SocketIO(app,
     allow_unsafe_werkzeug=True,
     ping_interval=25,
     ping_timeout=60,
-    max_http_buffer_size=1000000
+    max_http_buffer_size=1000000,
+    async_mode='threading'
 )
 
 # Logs

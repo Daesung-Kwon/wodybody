@@ -435,40 +435,36 @@ def test_headers():
         'x_safari_auth_token_lower': request.headers.get('x-safari-auth-token')
     }), 200
 
-@app.route('/api/test-safari-auth', methods=['GET'])
-def test_safari_auth():
-    """Safari 인증 테스트 엔드포인트"""
-    safari_token = request.headers.get('X-Safari-Auth-Token')
+@app.route('/api/safari-auth', methods=['GET'])
+def safari_auth():
+    """Safari 전용 인증 엔드포인트 - user_id 파라미터로 세션 설정"""
+    user_id_param = request.args.get('user_id')
     
-    result = {
-        'safari_token': safari_token,
-        'parsed': False,
-        'email': None,
-        'user_id': None,
-        'error': None
-    }
+    if not user_id_param:
+        return jsonify({'message': 'user_id 파라미터가 필요합니다'}), 400
     
-    if safari_token:
-        try:
-            parts = safari_token.rsplit('_', 2)
-            if len(parts) >= 2:
-                email_encoded = parts[0]
-                import base64
-                email = base64.b64decode(email_encoded).decode('utf-8')
-                user = User.query.filter_by(email=email).first()
-                
-                result.update({
-                    'parsed': True,
-                    'email': email,
-                    'user_id': user.id if user else None,
-                    'parts': parts
-                })
-            else:
-                result['error'] = f'Invalid token parts: {parts}'
-        except Exception as e:
-            result['error'] = str(e)
-    
-    return jsonify(result), 200
+    try:
+        user_id = int(user_id_param)
+        user = User.query.get(user_id)
+        
+        if not user:
+            return jsonify({'message': '유효하지 않은 사용자 ID'}), 404
+        
+        # 세션 설정
+        session['user_id'] = user_id
+        session.permanent = True
+        
+        app.logger.info(f'Safari 인증 성공: user_id={user_id}, email={user.email}')
+        
+        return jsonify({
+            'message': 'Safari 인증 성공',
+            'user_id': user_id,
+            'email': user.email,
+            'name': user.name
+        }), 200
+        
+    except (ValueError, TypeError):
+        return jsonify({'message': '유효하지 않은 user_id 형식'}), 400
 
 @app.route('/api/debug/session', methods=['GET'])
 def debug_session():

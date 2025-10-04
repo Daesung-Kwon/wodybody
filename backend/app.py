@@ -400,15 +400,37 @@ def debug_session():
     """세션 디버깅용 엔드포인트"""
     safari_token = request.headers.get('X-Safari-Auth-Token')
     app.logger.info(f'세션 디버그: session={dict(session)}, cookies={dict(request.cookies)}, safari_token={safari_token}')
-    return jsonify({
+    
+    # Safari 토큰 디버깅 정보 추가
+    debug_info = {
         'session': dict(session),
         'cookies': dict(request.cookies),
         'user_id': get_user_id_from_session_or_cookies(),
-        'headers': dict(request.headers),
         'origin': request.headers.get('Origin'),
         'referer': request.headers.get('Referer'),
         'safari_auth_token': safari_token
-    }), 200
+    }
+    
+    # Safari 토큰 파싱 테스트
+    if safari_token:
+        try:
+            parts = safari_token.rsplit('_', 2)
+            if len(parts) >= 2:
+                email_encoded = parts[0]
+                import base64
+                email = base64.b64decode(email_encoded).decode('utf-8')
+                user = User.query.filter_by(email=email).first()
+                debug_info.update({
+                    'safari_token_parts': parts,
+                    'email_encoded': email_encoded,
+                    'email_decoded': email,
+                    'user_found': user is not None,
+                    'user_id': user.id if user else None
+                })
+        except Exception as e:
+            debug_info['safari_token_error'] = str(e)
+    
+    return jsonify(debug_info), 200
 
 @app.route('/api/debug/test-login', methods=['POST'])
 def debug_test_login():

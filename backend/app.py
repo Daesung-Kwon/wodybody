@@ -22,24 +22,30 @@ def get_user_id_from_session_or_cookies():
     safari_auth_header = request.headers.get('X-Safari-Auth-Token')
     if safari_auth_header:
         try:
-            # Safari 토큰 형식: email_timestamp_randomstring
+            # Safari 토큰 형식: base64_email_timestamp_randomstring
             app.logger.info(f'Safari 대안 인증 헤더 받음: {safari_auth_header}')
-            # 이메일에 @가 포함되어 있으므로 마지막 두 개의 _로 분리
+            # 마지막 두 개의 _로 분리
             parts = safari_auth_header.rsplit('_', 2)  # 마지막 두 개의 _로만 분리
             if len(parts) >= 2:
-                # 이메일 부분은 첫 번째 부분 (나머지 모두)
-                email = parts[0]
-                app.logger.info(f'추출된 이메일: {email}')
-                # 이메일로 사용자 찾기
-                user = User.query.filter_by(email=email).first()
-                if user:
-                    # 세션에도 저장
-                    session['user_id'] = user.id
-                    session.permanent = True
-                    app.logger.info(f'Safari 대안 인증 헤더에서 사용자 ID 복구: {user.id} (email: {email})')
-                    return user.id
-                else:
-                    app.logger.warning(f'Safari 대안 인증: 사용자를 찾을 수 없음 (email: {email})')
+                # 이메일 부분은 base64로 인코딩된 상태
+                email_encoded = parts[0]
+                try:
+                    # base64 디코딩
+                    import base64
+                    email = base64.b64decode(email_encoded).decode('utf-8')
+                    app.logger.info(f'디코딩된 이메일: {email}')
+                    # 이메일로 사용자 찾기
+                    user = User.query.filter_by(email=email).first()
+                    if user:
+                        # 세션에도 저장
+                        session['user_id'] = user.id
+                        session.permanent = True
+                        app.logger.info(f'Safari 대안 인증 헤더에서 사용자 ID 복구: {user.id} (email: {email})')
+                        return user.id
+                    else:
+                        app.logger.warning(f'Safari 대안 인증: 사용자를 찾을 수 없음 (email: {email})')
+                except Exception as decode_error:
+                    app.logger.error(f'Safari 대안 인증: base64 디코딩 오류: {decode_error}')
             else:
                 app.logger.warning(f'Safari 대안 인증: 토큰 형식 오류 (parts: {parts})')
         except (ValueError, IndexError) as e:

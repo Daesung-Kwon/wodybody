@@ -171,9 +171,13 @@ export const userApi = {
 
         // Safari 브라우저를 위한 대안 인증 토큰 저장
         if (isSafari() || isMobileSafari()) {
-            const token = `${data.email}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            // 이메일을 base64로 인코딩하여 @ 기호 문제 해결
+            const emailEncoded = btoa(data.email);
+            const token = `${emailEncoded}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             setSafariAuthToken(token);
             console.log('Safari 대안 인증 토큰 저장:', token);
+            console.log('원본 이메일:', data.email);
+            console.log('인코딩된 이메일:', emailEncoded);
         }
 
         return response;

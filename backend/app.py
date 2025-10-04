@@ -467,7 +467,8 @@ def login():
             
             if is_safari:
                 app.logger.info(f'사파리 브라우저 감지: {user_agent}')
-                # 사파리 전용 쿠키 설정 - 여러 쿠키로 시도
+                
+                # Safari 전용 쿠키 설정 - 여러 쿠키로 시도
                 response.set_cookie(
                     'session',
                     value=f'safari_session_{u.id}_{int(time.time())}',
@@ -477,24 +478,26 @@ def login():
                     samesite='None',  # 사파리 호환성
                     path='/'
                 )
-                # 추가 쿠키 설정 (사파리 호환성)
+                
+                # Safari 전용 추가 쿠키 (HttpOnly=False)
                 response.set_cookie(
                     'safari_auth',
                     value=f'auth_{u.id}_{int(time.time())}',
                     max_age=24*60*60,
                     secure=True,
-                    httponly=False,  # JavaScript에서 접근 가능
+                    httponly=False,
                     samesite='None',
                     path='/'
                 )
-                # Safari를 위한 추가 쿠키 (다양한 옵션)
+                
+                # Safari 백업 쿠키 (SameSite=Lax)
                 response.set_cookie(
                     'safari_session_backup',
                     value=f'backup_{u.id}_{int(time.time())}',
                     max_age=24*60*60,
                     secure=True,
                     httponly=False,
-                    samesite='Lax',  # 다른 SameSite 옵션
+                    samesite='Lax',
                     path='/'
                 )
                 app.logger.info(f'사파리 전용 세션 쿠키 설정 완료')

@@ -47,6 +47,20 @@ const isMobileSafari = (): boolean => {
            (userAgent.includes('iphone') || userAgent.includes('ipad') || userAgent.includes('mobile'));
 };
 
+// Safari 브라우저 쿠키 전송 강제 설정
+const getSafariFetchOptions = (): RequestInit => {
+    if (isSafari() || isMobileSafari()) {
+        return {
+            credentials: 'include',
+            mode: 'cors',
+            cache: 'no-cache',
+            redirect: 'follow',
+            referrerPolicy: 'strict-origin-when-cross-origin'
+        };
+    }
+    return {};
+};
+
 // 공통 fetch 함수
 async function apiRequest<T>(
     endpoint: string,
@@ -77,20 +91,14 @@ async function apiRequest<T>(
         headers['Sec-Fetch-Dest'] = 'empty';
     }
 
-    // 모바일 Safari를 위한 특별한 fetch 옵션
+    // Safari 브라우저를 위한 특별한 fetch 옵션
+    const safariOptions = getSafariFetchOptions();
     const fetchOptions: RequestInit = {
         credentials: 'include',
         headers,
-        ...options,
+        ...safariOptions,  // Safari 전용 옵션 먼저 적용
+        ...options,        // 사용자 옵션이 있으면 덮어쓰기
     };
-
-    // 모바일 Safari를 위한 추가 옵션
-    if (isMobileSafari()) {
-        fetchOptions.mode = 'cors';
-        fetchOptions.cache = 'no-cache';
-        fetchOptions.redirect = 'follow';
-        fetchOptions.referrerPolicy = 'strict-origin-when-cross-origin';
-    }
 
     const response = await fetch(`${API_BASE}${endpoint}`, fetchOptions);
 

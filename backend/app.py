@@ -722,14 +722,14 @@ def logout():
 @app.route('/api/programs', methods=['POST'])
 def create_program():
     try:
-        if 'user_id' not in session:
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id:
             return jsonify({'message':'로그인이 필요합니다'}), 401
         data = request.get_json(silent=True)
         err = validate_program(data)
         if err: return jsonify({'message':err}), 400
         
         # WOD 개수 제한 확인
-        user_id = session['user_id']
         total_wods = Programs.query.filter_by(creator_id=user_id).count()
         if total_wods >= 5:
             return jsonify({'message':'WOD 개수 제한에 도달했습니다. (최대 5개)'}), 400
@@ -760,7 +760,7 @@ def create_program():
         
         # 프로그램 생성 (expires_at 필드가 있는 경우에만)
         program_data = {
-            'creator_id': session['user_id'],
+            'creator_id': user_id,
             'title': data['title'].strip(),
             'description': (data.get('description') or '').strip(),
             'workout_type': data.get('workout_type') or 'time_based',
@@ -780,7 +780,7 @@ def create_program():
         
         # 프로그램 생성 알림 전송
         create_notification(
-            user_id=session['user_id'],
+            user_id=user_id,
             notification_type='program_created',
             title='새 프로그램이 등록되었습니다',
             message=f'"{data["title"].strip()}" 프로그램이 성공적으로 등록되었습니다.',
@@ -790,7 +790,7 @@ def create_program():
         # 공개 WOD인 경우 만료 알림 추가
         if data.get('is_open', False):
             create_notification(
-                user_id=session['user_id'],
+                user_id=user_id,
                 notification_type='wod_expiry_warning',
                 title='공개 WOD 만료 안내',
                 message=f'"{data["title"].strip()}" WOD는 7일 후 자동으로 만료됩니다.',
@@ -1610,7 +1610,8 @@ def leave_program(program_id):
 @app.route('/api/programs/<int:program_id>/participants', methods=['GET'])
 def get_program_participants(program_id):
     """프로그램 참여자 목록 조회"""
-    if 'user_id' not in session:
+    user_id = get_user_id_from_session_or_cookies()
+    if not user_id:
         return jsonify({'error': '로그인이 필요합니다'}), 401
     
     try:
@@ -1648,7 +1649,8 @@ def get_program_participants(program_id):
 @app.route('/api/programs/<int:program_id>/participants/<int:user_id>/approve', methods=['PUT'])
 def approve_participant(program_id, user_id):
     """참여자 승인/거부"""
-    if 'user_id' not in session:
+    current_user_id = get_user_id_from_session_or_cookies()
+    if not current_user_id:
         return jsonify({'error': '로그인이 필요합니다'}), 401
     
     try:
@@ -1658,7 +1660,7 @@ def approve_participant(program_id, user_id):
             return jsonify({'error': '프로그램을 찾을 수 없습니다'}), 404
         
         # 프로그램 생성자인지 확인
-        if program.creator_id != session['user_id']:
+        if program.creator_id != current_user_id:
             return jsonify({'error': '프로그램 생성자만 승인할 수 있습니다'}), 403
         
         # 참여 기록 찾기

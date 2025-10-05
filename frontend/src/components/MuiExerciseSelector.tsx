@@ -29,11 +29,13 @@ import { useTheme } from '../theme/ThemeProvider';
 interface MuiExerciseSelectorProps {
     selectedExercises: SelectedExercise[];
     onExercisesChange: (exercises: SelectedExercise[]) => void;
+    showCategorySelector?: boolean; // 카테고리 선택기 표시 여부 (기본값: true)
 }
 
 const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
     selectedExercises,
-    onExercisesChange
+    onExercisesChange,
+    showCategorySelector = true
 }) => {
     const { isDarkMode } = useTheme();
     const [categories, setCategories] = useState<ExerciseCategory[]>([]);
@@ -67,6 +69,24 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
         };
         loadCategories();
     }, []);
+
+    // 카테고리 선택기가 비활성화된 경우 모든 운동 로드
+    useEffect(() => {
+        if (!showCategorySelector) {
+            const loadAllExercises = async () => {
+                setLoading(true);
+                try {
+                    const data = await exerciseApi.getExercises(); // 카테고리 ID 없이 모든 운동 조회
+                    setExercises(data.exercises);
+                } catch (error) {
+                    console.error('전체 운동 로딩 실패:', error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+            loadAllExercises();
+        }
+    }, [showCategorySelector]);
 
     // 선택된 카테고리의 운동들 로드
     useEffect(() => {
@@ -156,44 +176,46 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
     return (
         <>
             <Box>
-                {/* 카테고리 선택 */}
-                <Paper sx={{
-                    p: { xs: 2, sm: 3 },
-                    mb: { xs: 2, sm: 3 },
-                    borderRadius: 2
-                }}>
-                    <Typography variant="h6" sx={{
-                        mb: { xs: 1.5, sm: 2 },
-                        fontWeight: 600,
-                        fontSize: { xs: '1.1rem', sm: '1.25rem' }
+                {/* 카테고리 선택 (조건부 렌더링) */}
+                {showCategorySelector && (
+                    <Paper sx={{
+                        p: { xs: 2, sm: 3 },
+                        mb: { xs: 2, sm: 3 },
+                        borderRadius: 2
                     }}>
-                        📂 카테고리 선택
-                    </Typography>
-                    <FormControl fullWidth>
-                        <InputLabel>운동 카테고리</InputLabel>
-                        <Select
-                            value={selectedCategoryId || ''}
-                            label="운동 카테고리"
-                            onChange={(e) => setSelectedCategoryId(Number(e.target.value))}
-                            startAdornment={<CategoryIcon sx={{ mr: 1, color: 'text.secondary' }} />}
-                            sx={{
-                                borderRadius: 2,
-                                '& .MuiSelect-select': {
-                                    minHeight: { xs: '48px', sm: 'auto' }
-                                }
-                            }}
-                        >
-                            {categories.map(category => (
-                                <MenuItem key={category.id} value={category.id}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <FitnessCenterIcon sx={{ fontSize: 20 }} />
-                                        {category.name}
-                                    </Box>
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                </Paper>
+                        <Typography variant="h6" sx={{
+                            mb: { xs: 1.5, sm: 2 },
+                            fontWeight: 600,
+                            fontSize: { xs: '1.1rem', sm: '1.25rem' }
+                        }}>
+                            📂 카테고리 선택
+                        </Typography>
+                        <FormControl fullWidth>
+                            <InputLabel>운동 카테고리</InputLabel>
+                            <Select
+                                value={selectedCategoryId || ''}
+                                label="운동 카테고리"
+                                onChange={(e) => setSelectedCategoryId(Number(e.target.value))}
+                                startAdornment={<CategoryIcon sx={{ mr: 1, color: 'text.secondary' }} />}
+                                sx={{
+                                    borderRadius: 2,
+                                    '& .MuiSelect-select': {
+                                        minHeight: { xs: '48px', sm: 'auto' }
+                                    }
+                                }}
+                            >
+                                {categories.map(category => (
+                                    <MenuItem key={category.id} value={category.id}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <FitnessCenterIcon sx={{ fontSize: 20 }} />
+                                            {category.name}
+                                        </Box>
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Paper>
+                )}
 
                 {/* 운동 검색 및 선택 */}
                 <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
@@ -313,6 +335,17 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
                                                     <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                                                         {exercise.name}
                                                     </Typography>
+                                                    {/* 카테고리 선택기가 비활성화된 경우 카테고리 정보 표시 */}
+                                                    {!showCategorySelector && (
+                                                        <Chip
+                                                            label={exercise.category_name || '기타'}
+                                                            size="small"
+                                                            color="info"
+                                                            variant="outlined"
+                                                            icon={<CategoryIcon />}
+                                                            sx={{ alignSelf: 'flex-start' }}
+                                                        />
+                                                    )}
                                                     <Typography variant="body2" color="text.secondary" sx={{
                                                         display: '-webkit-box',
                                                         WebkitLineClamp: 2,

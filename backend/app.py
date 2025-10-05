@@ -780,7 +780,7 @@ def create_program():
         
         # 프로그램 생성 알림 전송
         create_notification(
-            user_id=session['user_id'],
+            user_id=user_id,
             notification_type='program_created',
             title='새 프로그램이 등록되었습니다',
             message=f'"{data["title"].strip()}" 프로그램이 성공적으로 등록되었습니다.',
@@ -790,7 +790,7 @@ def create_program():
         # 공개 WOD인 경우 만료 알림 추가
         if data.get('is_open', False):
             create_notification(
-                user_id=session['user_id'],
+                user_id=user_id,
                 notification_type='wod_expiry_warning',
                 title='공개 WOD 만료 안내',
                 message=f'"{data["title"].strip()}" WOD는 7일 후 자동으로 만료됩니다.',

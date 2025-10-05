@@ -13,9 +13,16 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
+    - name: Setup Railway CLI
+      run: |
+        curl -fsSL https://railway.app/install.sh | sh
+        echo "$HOME/.railway/bin" >> $GITHUB_PATH
+    
+    - name: Login to Railway
+      run: railway login --token ${{ secrets.RAILWAY_TOKEN }}
+      env:
+        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    
     - name: Deploy to Railway
-      uses: railway-deploy/action@v1
-      with:
-        railway-token: ${{ secrets.RAILWAY_TOKEN }}
-        service: backend
-        working-directory: ./backend
+      run: railway up --service backend
+      working-directory: ./backend

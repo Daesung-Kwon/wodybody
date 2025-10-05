@@ -1,0 +1,21 @@
+name: Railway Backend Deploy
+
+on:
+  push:
+    branches: [ backend ]
+  workflow_dispatch:  # 수동 트리거 가능
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Deploy to Railway
+      uses: railway-deploy/action@v1
+      with:
+        railway-token: ${{ secrets.RAILWAY_TOKEN }}
+        service: backend
+        working-directory: ./backend

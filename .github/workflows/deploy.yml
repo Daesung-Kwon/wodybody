@@ -2,9 +2,9 @@ name: Full Stack CI/CD
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, backend ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, backend ]
 
 jobs:
   backend:
@@ -77,7 +77,7 @@ jobs:
   deploy:
     needs: [backend, frontend]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/backend') && github.event_name == 'push'
     
     steps:
     - uses: actions/checkout@v3

@@ -73,8 +73,9 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
     // 카테고리 선택기가 비활성화된 경우 모든 운동 로드
     useEffect(() => {
         if (!showCategorySelector) {
-            // 검색어 초기화
+            // 검색어 및 카테고리 ID 초기화
             setSearchTerm('');
+            setSelectedCategoryId(null);
             
             const loadAllExercises = async () => {
                 setLoading(true);
@@ -91,9 +92,9 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
         }
     }, [showCategorySelector]);
 
-    // 선택된 카테고리의 운동들 로드
+    // 선택된 카테고리의 운동들 로드 (카테고리 선택기가 활성화된 경우에만)
     useEffect(() => {
-        if (selectedCategoryId) {
+        if (showCategorySelector && selectedCategoryId) {
             const loadExercises = async () => {
                 setLoading(true);
                 try {
@@ -107,7 +108,7 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
             };
             loadExercises();
         }
-    }, [selectedCategoryId]);
+    }, [selectedCategoryId, showCategorySelector]);
 
     // 운동 추가
     const addExercise = (exercise: Exercise) => {

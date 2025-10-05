@@ -320,14 +320,14 @@ const MuiStepBasedCreateProgramPage: React.FC<CreateProgramPageProps> = ({ goMy,
                                     mb: { xs: 1.5, sm: 2 },
                                     fontSize: { xs: '0.875rem', sm: '0.875rem' }
                                 }}>
-                                    기본적인 운동 목록과 목표값을 설정하는 방식입니다.
+                                    모든 운동을 한 번에 보여주고 선택하는 간편한 방식입니다.
                                 </Typography>
 
                                 <Stack spacing={1} alignItems="flex-start">
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         <CheckCircleIcon sx={{ fontSize: { xs: 14, sm: 16 }, color: 'success.main' }} />
                                         <Typography variant="caption" sx={{ fontSize: { xs: '0.75rem', sm: '0.75rem' } }}>
-                                            운동 종류 선택
+                                            전체 운동 목록에서 선택
                                         </Typography>
                                     </Box>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -459,6 +459,7 @@ const MuiStepBasedCreateProgramPage: React.FC<CreateProgramPageProps> = ({ goMy,
                             <MuiExerciseSelector
                                 selectedExercises={stepData.selected_exercises}
                                 onExercisesChange={(exercises) => updateStepData({ selected_exercises: exercises })}
+                                showCategorySelector={false}
                             />
                         </Stack>
                     </Box>

@@ -1,0 +1,18 @@
+version: "1"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - FLASK_ENV=production
+      - PYTHONPATH=/app
+    ports:
+      - "8000:8000"
+    healthcheck:
+      path: /api/health
+      timeout: 100
+    restart: on-failure
+    restart_policy:
+      max_retries: 10

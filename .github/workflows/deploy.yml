@@ -49,12 +49,13 @@ jobs:
 
   frontend:
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'  # main 브랜치에서만 frontend 작업 실행
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
@@ -62,7 +63,7 @@ jobs:
     
     - name: Install frontend dependencies
       working-directory: ./frontend
-      run: npm ci
+      run: npm ci --legacy-peer-deps
     
     - name: Run frontend tests
       working-directory: ./frontend
@@ -74,13 +75,28 @@ jobs:
         REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
       run: npm run build
 
-  deploy:
-    needs: [backend, frontend]
+  deploy-backend:
+    needs: [backend]
     runs-on: ubuntu-latest
-    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/backend') && github.event_name == 'push'
+    if: github.ref == 'refs/heads/backend' && github.event_name == 'push'
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+    
+    - name: Deploy Backend to Railway
+      uses: railway-deploy/action@v1
+      with:
+        railway-token: ${{ secrets.RAILWAY_TOKEN }}
+        service: backend
+        working-directory: ./backend
+
+  deploy-full:
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v4
     
     - name: Deploy Backend to Railway
       uses: railway-deploy/action@v1

@@ -88,7 +88,7 @@ async function apiRequest<T>(
 ): Promise<T> {
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        ...options.headers,
+        ...(options.headers as Record<string, string> || {}),
     };
 
     // Safari 브라우저를 위한 추가 헤더 설정 (Cache-Control 제거)

@@ -73,6 +73,9 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
     // 카테고리 선택기가 비활성화된 경우 모든 운동 로드
     useEffect(() => {
         if (!showCategorySelector) {
+            // 검색어 초기화
+            setSearchTerm('');
+            
             const loadAllExercises = async () => {
                 setLoading(true);
                 try {
@@ -146,10 +149,13 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
     };
 
     // 운동 검색 필터링
-    const filteredExercises = exercises.filter(exercise =>
-        exercise.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        exercise.description.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredExercises = exercises.filter(exercise => {
+        // 검색어가 없으면 모든 운동 표시
+        if (!searchTerm.trim()) return true;
+        
+        return exercise.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               exercise.description.toLowerCase().includes(searchTerm.toLowerCase());
+    });
 
     // 운동 순서 변경
     const moveExercise = (index: number, direction: 'up' | 'down') => {

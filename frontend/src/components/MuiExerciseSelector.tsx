@@ -338,7 +338,7 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
                                                     {/* 카테고리 선택기가 비활성화된 경우 카테고리 정보 표시 */}
                                                     {!showCategorySelector && (
                                                         <Chip
-                                                            label={exercise.category?.name || '기타'}
+                                                            label={exercise.category_name || '기타'}
                                                             size="small"
                                                             color="info"
                                                             variant="outlined"

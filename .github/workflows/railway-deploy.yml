@@ -6,23 +6,32 @@ on:
   workflow_dispatch:  # 수동 트리거 가능
 
 jobs:
-  deploy:
+  notify-railway:
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Setup Railway CLI
+    - name: Notify Railway Deployment
       run: |
-        curl -fsSL https://railway.app/install.sh | sh
-        echo "$HOME/.railway/bin" >> $GITHUB_PATH
-    
-    - name: Login to Railway
-      run: railway login --token ${{ secrets.RAILWAY_TOKEN }}
-      env:
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-    
-    - name: Deploy to Railway
-      run: railway up --service backend
-      working-directory: ./backend
+        echo "Backend branch updated. Railway should auto-deploy via webhook."
+        echo "Commit: ${{ github.sha }}"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "Repository: ${{ github.repository }}"
+        
+        # Railway 웹훅 트리거 (Railway 대시보드에서 설정된 경우)
+        curl -X POST \
+          -H "Content-Type: application/json" \
+          -d '{
+            "ref": "${{ github.ref }}",
+            "repository": {
+              "full_name": "${{ github.repository }}",
+              "clone_url": "${{ github.server_url }}/${{ github.repository }}.git"
+            },
+            "head_commit": {
+              "id": "${{ github.sha }}",
+              "message": "${{ github.event.head_commit.message }}"
+            }
+          }' \
+          "${{ secrets.RAILWAY_WEBHOOK_URL }}" || echo "Webhook not configured, Railway auto-deploy should handle this"

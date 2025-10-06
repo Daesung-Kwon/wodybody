@@ -666,8 +666,20 @@ def login():
             session['user_id'] = u.id
             session.permanent = True  # 세션을 영구적으로 설정
             
-            # 사파리 브라우저를 위한 명시적 쿠키 설정
-            response = jsonify({'message':'로그인 성공','user_id':u.id,'name':u.name})
+            # 사파리 브라우저를 위한 명시적 쿠키 설정 + 토큰 발급
+            access_token = None
+            try:
+                from utils.token import generate_access_token
+                access_token = generate_access_token(u.id)
+                try:
+                    masked = access_token[:8] + '...'
+                    app.logger.info(f'login success → access_token issued (user_id={u.id}, token={masked})')
+                except Exception:
+                    pass
+            except Exception as _e:
+                app.logger.info(f'token generate failed: {_e}')
+
+            response = jsonify({'message':'로그인 성공','user_id':u.id,'name':u.name,'access_token': access_token})
             
             # 사파리 호환성을 위한 추가 헤더 설정
             response.headers['Access-Control-Allow-Credentials'] = 'true'

@@ -22,13 +22,18 @@ def get_user_id_from_session_or_cookies():
     
     # Safari 대안: URL 파라미터에서 사용자 ID 확인 (여러 방법으로 시도)
     user_id_param = request.args.get('user_id')
+    app.logger.info(f'URL 파라미터 확인: user_id_param={user_id_param}, args={dict(request.args)}')
+    
     if not user_id_param:
         # 쿼리 스트링에서 직접 파싱 시도
         query_string = request.query_string.decode('utf-8')
+        app.logger.info(f'쿼리 스트링 확인: {query_string}')
         if 'user_id=' in query_string:
             try:
                 user_id_param = query_string.split('user_id=')[1].split('&')[0]
-            except:
+                app.logger.info(f'쿼리 스트링에서 파싱된 user_id: {user_id_param}')
+            except Exception as e:
+                app.logger.warning(f'쿼리 스트링 파싱 실패: {e}')
                 pass
     
     if user_id_param:

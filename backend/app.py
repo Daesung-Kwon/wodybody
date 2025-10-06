@@ -940,14 +940,14 @@ def get_programs():
 @app.route('/api/programs/<int:program_id>/open', methods=['POST'])
 def open_program(program_id):
     try:
-        if 'user_id' not in session: return jsonify({'message':'로그인이 필요합니다'}), 401
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id: return jsonify({'message':'로그인이 필요합니다'}), 401
         p = Programs.query.get(program_id)
         if not p: return jsonify({'message':'프로그램을 찾을 수 없습니다'}), 404
-        if p.creator_id != session['user_id']:
+        if p.creator_id != user_id:
             return jsonify({'message':'프로그램을 공개할 권한이 없습니다'}), 403
         
         # 공개 WOD 개수 제한 확인 (만료되지 않은 것만 카운트)
-        user_id = session['user_id']
         try:
             # expires_at 필드가 있는 경우 만료되지 않은 것만 카운트
             public_wods = Programs.query.filter_by(creator_id=user_id, is_open=True).filter(
@@ -1230,14 +1230,15 @@ def get_program_exercises(program_id):
 @app.route('/api/programs/<int:program_id>', methods=['DELETE'])
 def delete_program(program_id):
     try:
-        if 'user_id' not in session:
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id:
             return jsonify({'message': '로그인이 필요합니다'}), 401
         
         program = Programs.query.get(program_id)
         if not program:
             return jsonify({'message': '프로그램을 찾을 수 없습니다'}), 404
         
-        if program.creator_id != session['user_id']:
+        if program.creator_id != user_id:
             return jsonify({'message': '프로그램을 삭제할 권한이 없습니다'}), 403
         
         # 관련 데이터 삭제 (외래키 제약으로 인해 순서 중요)
@@ -1499,7 +1500,8 @@ def seed_exercise_data():
 @app.route('/api/programs/<int:program_id>/join', methods=['POST'])
 def join_program(program_id):
     """프로그램 참여 신청"""
-    if 'user_id' not in session:
+    user_id = get_user_id_from_session_or_cookies()
+    if not user_id:
         return jsonify({'error': '로그인이 필요합니다'}), 401
     
     try:
@@ -1515,7 +1517,7 @@ def join_program(program_id):
         # 이미 참여했는지 확인
         existing_participation = ProgramParticipants.query.filter_by(
             program_id=program_id, 
-            user_id=session['user_id']
+            user_id=user_id
         ).first()
         
         if existing_participation:
@@ -1556,7 +1558,7 @@ def join_program(program_id):
         # 참여 신청 생성
         participation = ProgramParticipants(
             program_id=program_id,
-            user_id=session['user_id'],
+            user_id=user_id,
             status='pending'
         )
         
@@ -1582,14 +1584,15 @@ def join_program(program_id):
 @app.route('/api/programs/<int:program_id>/leave', methods=['DELETE'])
 def leave_program(program_id):
     """프로그램 참여 취소/탈퇴"""
-    if 'user_id' not in session:
+    user_id = get_user_id_from_session_or_cookies()
+    if not user_id:
         return jsonify({'error': '로그인이 필요합니다'}), 401
     
     try:
         # 참여 기록 찾기
         participation = ProgramParticipants.query.filter_by(
             program_id=program_id, 
-            user_id=session['user_id']
+            user_id=user_id
         ).first()
         
         if not participation:

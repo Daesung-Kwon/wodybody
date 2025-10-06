@@ -4,8 +4,9 @@
 
 ```
 main (통합 브랜치)
-├── frontend (프론트엔드 전용)
-└── backend (백엔드 전용)
+├── frontend (프론트엔드 프로덕션)
+├── backend (백엔드 프로덕션)
+└── develop (개발 브랜치 - 배포 비활성화)
 ```
 
 ## 브랜치별 역할
@@ -21,52 +22,61 @@ main (통합 브랜치)
 - **사용법**: UI/UX 변경, 컴포넌트 개발, 프론트엔드 기능 추가
 
 ### backend
-- **용도**: Flask 백엔드 개발 전용
-- **배포**: Railway에서 자동 배포 (기존 설정 유지)
-- **사용법**: API 개발, 데이터베이스 변경, 백엔드 로직 수정
+- **용도**: Flask 백엔드 프로덕션 배포
+- **배포**: Railway에서 자동 배포
+- **사용법**: 백엔드 프로덕션 코드 관리
+
+### develop
+- **용도**: 개발 및 테스트 전용
+- **배포**: 배포 비활성화 (Vercel, Railway 모두 비활성화)
+- **사용법**: 기능 개발, 로컬 테스트, 코드 리뷰
 
 ## 워크플로우
 
-### 1. 프론트엔드 개발
+### 1. 프론트엔드 개발 (권장 워크플로우)
 ```bash
-# frontend 브랜치로 전환
-git checkout frontend
+# develop 브랜치에서 개발 시작
+git checkout develop
 
-# 새 기능 브랜치 생성 (선택사항)
+# 새 기능 브랜치 생성
 git checkout -b feature/new-ui-component
 
 # 개발 및 커밋
 git add .
 git commit -m "feat: 새로운 UI 컴포넌트 추가"
 
-# frontend 브랜치에 푸시
-git push origin frontend
+# develop 브랜치에 머지
+git checkout develop
+git merge feature/new-ui-component
+git push origin develop
 
-# 필요시 main에 머지
-git checkout main
-git merge frontend
-git push origin main
+# 로컬 테스트 완료 후 frontend 브랜치로 머지
+git checkout frontend
+git merge develop
+git push origin frontend  # Vercel 자동 배포 트리거
 ```
 
-### 2. 백엔드 개발
+### 2. 백엔드 개발 (권장 워크플로우)
 ```bash
-# backend 브랜치로 전환
-git checkout backend
+# develop 브랜치에서 개발 시작
+git checkout develop
 
-# 새 기능 브랜치 생성 (선택사항)
+# 새 기능 브랜치 생성
 git checkout -b feature/new-api-endpoint
 
 # 개발 및 커밋
 git add .
 git commit -m "feat: 새로운 API 엔드포인트 추가"
 
-# backend 브랜치에 푸시
-git push origin backend
+# develop 브랜치에 머지
+git checkout develop
+git merge feature/new-api-endpoint
+git push origin develop
 
-# 필요시 main에 머지
-git checkout main
-git merge backend
-git push origin main
+# 로컬 테스트 완료 후 backend 브랜치로 머지
+git checkout backend
+git merge develop
+git push origin backend  # Railway 자동 배포 트리거
 ```
 
 ### 3. 통합 배포

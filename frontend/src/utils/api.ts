@@ -196,7 +196,12 @@ export const userApi = {
         });
 
         // access_token 저장 (사파리 포함 전 브라우저 공통)
-        if (response.access_token) setAccessToken(response.access_token);
+        if (response.access_token) {
+            console.log('[auth] access_token received, storing to localStorage');
+            setAccessToken(response.access_token);
+        } else {
+            console.log('[auth] no access_token in login response');
+        }
 
         return response;
     },

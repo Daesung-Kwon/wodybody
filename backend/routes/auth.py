@@ -82,6 +82,12 @@ def login():
             try:
                 from utils.token import generate_access_token
                 access_token = generate_access_token(user.id)
+                try:
+                    from flask import current_app
+                    masked = access_token[:8] + '...' if access_token else 'None'
+                    current_app.logger.info(f'login success → access_token issued (user_id={user.id}, token={masked})')
+                except Exception:
+                    pass
             except Exception:
                 access_token = None
 

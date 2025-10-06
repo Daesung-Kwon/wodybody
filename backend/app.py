@@ -988,14 +988,15 @@ def open_program(program_id):
 @app.route('/api/programs/<int:program_id>/register', methods=['POST'])
 def register_program(program_id):
     try:
-        if 'user_id' not in session: return jsonify({'message':'로그인이 필요합니다'}), 401
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id: return jsonify({'message':'로그인이 필요합니다'}), 401
         p = Programs.query.get(program_id)
         if not p or not p.is_open: return jsonify({'message':'참여할 수 없는 프로그램입니다'}), 400
         cur = Registrations.query.filter_by(program_id=program_id).count()
         if cur >= p.max_participants: return jsonify({'message':'정원이 초과되었습니다'}), 400
-        if Registrations.query.filter_by(program_id=program_id,user_id=session['user_id']).first():
+        if Registrations.query.filter_by(program_id=program_id,user_id=user_id).first():
             return jsonify({'message':'이미 신청한 프로그램입니다'}), 400
-        r = Registrations(program_id=program_id,user_id=session['user_id'])
+        r = Registrations(program_id=program_id,user_id=user_id)
         db.session.add(r); db.session.commit()
         return jsonify({'message':'프로그램 참여 신청이 완료되었습니다'}), 200
     except Exception as e:
@@ -1006,7 +1007,8 @@ def register_program(program_id):
 @app.route('/api/programs/<int:program_id>/unregister', methods=['POST'])
 def unregister_program(program_id):
     try:
-        if 'user_id' not in session:
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id:
             return jsonify({'message': '로그인이 필요합니다'}), 401
 
         # 공개 프로그램만 취소 허용(원하면 비공개여도 취소 허용 가능)
@@ -1014,7 +1016,7 @@ def unregister_program(program_id):
         if not program:
             return jsonify({'message': '프로그램을 찾을 수 없습니다'}), 404
 
-        reg = Registrations.query.filter_by(program_id=program_id, user_id=session['user_id']).first()
+        reg = Registrations.query.filter_by(program_id=program_id, user_id=user_id).first()
         if not reg:
             return jsonify({'message': '신청 내역이 없습니다'}), 400
 
@@ -1321,13 +1323,14 @@ def get_notifications():
 @app.route('/api/notifications/<int:notification_id>/read', methods=['PUT'])
 def mark_notification_read(notification_id):
     """알림을 읽음으로 표시"""
-    if 'user_id' not in session:
+    user_id = get_user_id_from_session_or_cookies()
+    if not user_id:
         return jsonify({'message': '로그인이 필요합니다'}), 401
     
     try:
         notification = Notifications.query.filter_by(
             id=notification_id, 
-            user_id=session['user_id']
+            user_id=user_id
         ).first()
         
         if not notification:
@@ -1345,12 +1348,13 @@ def mark_notification_read(notification_id):
 @app.route('/api/notifications/read-all', methods=['PUT'])
 def mark_all_notifications_read():
     """모든 알림을 읽음으로 표시"""
-    if 'user_id' not in session:
+    user_id = get_user_id_from_session_or_cookies()
+    if not user_id:
         return jsonify({'message': '로그인이 필요합니다'}), 401
     
     try:
         Notifications.query.filter_by(
-            user_id=session['user_id'],
+            user_id=user_id,
             is_read=False
         ).update({'is_read': True})
         
@@ -1781,7 +1785,8 @@ def handle_leave_user_room(data):
 def create_workout_record(program_id):
     """운동 기록 생성"""
     try:
-        if 'user_id' not in session:
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id:
             return jsonify({'error': '로그인이 필요합니다'}), 401
         
         # 프로그램 존재 확인
@@ -1792,7 +1797,7 @@ def create_workout_record(program_id):
         # 사용자가 해당 프로그램에 참여했는지 확인
         participation = ProgramParticipants.query.filter_by(
             program_id=program_id, 
-            user_id=session['user_id'],
+            user_id=user_id,
             status='approved'
         ).first()
         
@@ -1810,7 +1815,7 @@ def create_workout_record(program_id):
         # 운동 기록 생성
         record = WorkoutRecords(
             program_id=program_id,
-            user_id=session['user_id'],
+            user_id=user_id,
             completion_time=completion_time,
             notes=data.get('notes', ''),
             is_public=data.get('is_public', True)
@@ -1819,7 +1824,7 @@ def create_workout_record(program_id):
         db.session.add(record)
         db.session.commit()
         
-        app.logger.info(f'사용자 {session["user_id"]}가 프로그램 {program_id}의 운동 기록을 생성했습니다: {completion_time}초')
+        app.logger.info(f'사용자 {user_id}가 프로그램 {program_id}의 운동 기록을 생성했습니다: {completion_time}초')
         
         return jsonify({
             'message': '운동 기록이 저장되었습니다',
@@ -1921,7 +1926,8 @@ def get_user_records():
 def update_workout_record(record_id):
     """운동 기록 수정"""
     try:
-        if 'user_id' not in session:
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id:
             return jsonify({'error': '로그인이 필요합니다'}), 401
         
         # 기록 존재 확인 및 소유자 확인
@@ -1929,7 +1935,7 @@ def update_workout_record(record_id):
         if not record:
             return jsonify({'error': '기록을 찾을 수 없습니다'}), 404
         
-        if record.user_id != session['user_id']:
+        if record.user_id != user_id:
             return jsonify({'error': '본인의 기록만 수정할 수 있습니다'}), 403
         
         data = request.get_json()
@@ -1968,7 +1974,8 @@ def update_workout_record(record_id):
 def delete_workout_record(record_id):
     """운동 기록 삭제"""
     try:
-        if 'user_id' not in session:
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id:
             return jsonify({'error': '로그인이 필요합니다'}), 401
         
         # 기록 존재 확인 및 소유자 확인
@@ -1976,13 +1983,13 @@ def delete_workout_record(record_id):
         if not record:
             return jsonify({'error': '기록을 찾을 수 없습니다'}), 404
         
-        if record.user_id != session['user_id']:
+        if record.user_id != user_id:
             return jsonify({'error': '본인의 기록만 삭제할 수 있습니다'}), 403
         
         db.session.delete(record)
         db.session.commit()
         
-        app.logger.info(f'사용자 {session["user_id"]}가 기록 {record_id}를 삭제했습니다')
+        app.logger.info(f'사용자 {user_id}가 기록 {record_id}를 삭제했습니다')
         
         return jsonify({'message': '운동 기록이 삭제되었습니다'}), 200
         

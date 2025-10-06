@@ -81,6 +81,20 @@ const removeSafariAuthToken = (): void => {
     }
 };
 
+// 토큰 저장소
+const TOKEN_KEY = 'access_token';
+
+const getAccessToken = (): string | null => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(TOKEN_KEY);
+};
+
+const setAccessToken = (token: string | null): void => {
+    if (typeof window === 'undefined') return;
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+};
+
 // 공통 fetch 함수
 async function apiRequest<T>(
     endpoint: string,
@@ -90,6 +104,12 @@ async function apiRequest<T>(
         'Content-Type': 'application/json',
         ...(options.headers as Record<string, string> || {}),
     };
+
+    // Authorization 헤더 (토큰 우선)
+    const accessToken = getAccessToken();
+    if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+    }
 
     // Safari 브라우저를 위한 추가 헤더 설정 (Cache-Control 제거)
     if (isSafari()) {
@@ -111,39 +131,13 @@ async function apiRequest<T>(
         headers['Sec-Fetch-Dest'] = 'empty';
     }
 
-    // Safari 대안 인증: localStorage 토큰 추가
-    if (isSafari() || isMobileSafari()) {
-        const safariToken = getSafariAuthToken();
-        if (safariToken) {
-            headers['X-Safari-Auth-Token'] = safariToken;
-        }
-    }
+    // Safari 대안 인증 헤더 제거 (토큰 방식으로 대체)
 
     // Safari 브라우저를 위한 특별한 fetch 옵션
     const safariOptions = getSafariFetchOptions();
 
-    // Safari 대안: localStorage에서 사용자 ID 가져와서 URL에 추가
+    // URL 파라미터 우회 제거 (토큰 방식으로 대체)
     let finalEndpoint = endpoint;
-    if (isSafari() || isMobileSafari()) {
-        const safariToken = getSafariAuthToken();
-        if (safariToken) {
-            try {
-                const tokenParts = safariToken.split('_');
-                if (tokenParts.length >= 2) {
-                    const emailEncoded = tokenParts[0];
-                    const emailDecoded = atob(emailEncoded);
-                    // 사용자 정보에서 ID 가져오기 (임시로 토근에서 추출)
-                    // 실제로는 별도 API로 사용자 ID를 가져와야 하지만,
-                    // 현재는 알려진 사용자 ID를 사용
-                    const userId = '1'; // simadeit@naver.com의 사용자 ID
-                    finalEndpoint = `${endpoint}${endpoint.includes('?') ? '&' : '?'}user_id=${userId}`;
-                    console.log('Safari 대안 인증: URL 파라미터 추가', finalEndpoint);
-                }
-            } catch (e) {
-                console.error('Safari 토큰 파싱 오류:', e);
-            }
-        }
-    }
 
     const fetchOptions: RequestInit = {
         credentials: 'include',
@@ -165,12 +159,10 @@ async function apiRequest<T>(
             }
 
             // 다른 API인 경우에만 자동으로 로그인 페이지로 이동
-            if (globalRedirectToLogin) {
-                globalRedirectToLogin();
-            } else {
-                // fallback: window.location을 사용
-                window.location.href = '/';
-            }
+            // 토큰 제거 후 로그인 리다이렉트
+            setAccessToken(null);
+            if (globalRedirectToLogin) globalRedirectToLogin();
+            else window.location.href = '/';
             throw new Error('로그인이 필요합니다');
         }
 
@@ -188,37 +180,13 @@ export const userApi = {
 
     // 로그인
     login: async (data: LoginRequest): Promise<LoginResponse> => {
-        const response = await apiRequest<LoginResponse>('/api/login', {
+        const response = await apiRequest<LoginResponse & { access_token?: string }>('/api/login', {
             method: 'POST',
             body: JSON.stringify(data),
         });
 
-        // Safari 브라우저를 위한 대안 인증 토큰 저장
-        if (isSafari() || isMobileSafari()) {
-            // 이메일을 base64로 인코딩하여 @ 기호 문제 해결
-            const emailEncoded = btoa(data.email);
-            const token = `${emailEncoded}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            setSafariAuthToken(token);
-            console.log('Safari 대안 인증 토큰 저장:', token);
-            console.log('원본 이메일:', data.email);
-            console.log('인코딩된 이메일:', emailEncoded);
-
-            // Safari 전용 세션 설정 API 호출
-            try {
-                const safariAuthResponse = await fetch(`${API_BASE}/api/safari-auth?user_id=${response.user_id}`, {
-                    method: 'GET',
-                    credentials: 'include'
-                });
-                if (safariAuthResponse.ok) {
-                    const authResult = await safariAuthResponse.json();
-                    console.log('Safari 세션 설정 완료:', authResult);
-                } else {
-                    console.log('Safari 세션 설정 실패:', safariAuthResponse.status);
-                }
-            } catch (error) {
-                console.error('Safari 세션 설정 중 오류:', error);
-            }
-        }
+        // access_token 저장 (사파리 포함 전 브라우저 공통)
+        if (response.access_token) setAccessToken(response.access_token);
 
         return response;
     },
@@ -232,11 +200,8 @@ export const userApi = {
 
     // 로그아웃
     logout: async (): Promise<{ message: string }> => {
-        // Safari 브라우저 대안 인증 토큰 제거
-        if (isSafari() || isMobileSafari()) {
-            removeSafariAuthToken();
-            console.log('Safari 대안 인증 토큰 제거');
-        }
+        // 토큰 제거
+        setAccessToken(null);
 
         return apiRequest<{ message: string }>('/api/logout', {
             method: 'POST',

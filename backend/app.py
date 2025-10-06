@@ -13,6 +13,20 @@ from models.exercise import ProgramExercises, WorkoutPatterns, ExerciseSets
 
 def get_user_id_from_session_or_cookies():
     """세션 또는 쿠키에서 사용자 ID를 가져오는 함수 (Safari 호환)"""
+    # 0) Authorization: Bearer <token>
+    auth_header = request.headers.get('Authorization') or request.headers.get('authorization')
+    if auth_header and isinstance(auth_header, str) and auth_header.lower().startswith('bearer '):
+        token = auth_header.split(' ', 1)[1].strip()
+        try:
+            from utils.token import verify_access_token
+            user_id_from_token = verify_access_token(token)
+            if user_id_from_token:
+                session['user_id'] = user_id_from_token
+                session.permanent = True
+                app.logger.info(f'Authorization 토큰에서 사용자 ID 확인: {user_id_from_token}')
+                return user_id_from_token
+        except Exception as e:
+            app.logger.info(f'Authorization 토큰 검증 실패: {e}')
     
     # 먼저 세션에서 확인
     user_id = session.get('user_id')

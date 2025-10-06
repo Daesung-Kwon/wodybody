@@ -1844,7 +1844,8 @@ def create_workout_record(program_id):
 def get_program_records(program_id):
     """프로그램의 운동 기록 조회"""
     try:
-        if 'user_id' not in session:
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id:
             return jsonify({'error': '로그인이 필요합니다'}), 401
         
         # 프로그램 존재 확인
@@ -2124,7 +2125,8 @@ def get_user_goals():
 def create_user_goal():
     """개인 목표 생성"""
     try:
-        if 'user_id' not in session:
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id:
             return jsonify({'error': '로그인이 필요합니다'}), 401
         
         data = request.get_json()
@@ -2148,7 +2150,7 @@ def create_user_goal():
         # 사용자가 해당 프로그램에 참여했는지 확인
         participation = ProgramParticipants.query.filter_by(
             program_id=program_id,
-            user_id=session['user_id'],
+            user_id=user_id,
             status='approved'
         ).first()
         
@@ -2157,7 +2159,7 @@ def create_user_goal():
         
         # 기존 목표가 있는지 확인
         existing_goal = PersonalGoals.query.filter_by(
-            user_id=session['user_id'],
+            user_id=user_id,
             program_id=program_id
         ).first()
         
@@ -2175,7 +2177,7 @@ def create_user_goal():
         else:
             # 새 목표 생성
             goal = PersonalGoals(
-                user_id=session['user_id'],
+                user_id=user_id,
                 program_id=program_id,
                 target_time=target_time
             )
@@ -2197,14 +2199,15 @@ def create_user_goal():
 def delete_user_goal(goal_id):
     """개인 목표 삭제"""
     try:
-        if 'user_id' not in session:
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id:
             return jsonify({'error': '로그인이 필요합니다'}), 401
         
         goal = PersonalGoals.query.get(goal_id)
         if not goal:
             return jsonify({'error': '목표를 찾을 수 없습니다'}), 404
         
-        if goal.user_id != session['user_id']:
+        if goal.user_id != user_id:
             return jsonify({'error': '본인의 목표만 삭제할 수 있습니다'}), 403
         
         db.session.delete(goal)
@@ -2222,7 +2225,8 @@ def delete_user_goal(goal_id):
 @app.route('/api/programs/<int:program_id>', methods=['PUT'])
 def update_program(program_id):
     """프로그램 수정 (공개 전에만 가능)"""
-    if 'user_id' not in session:
+    user_id = get_user_id_from_session_or_cookies()
+    if not user_id:
         return jsonify({'message': '로그인이 필요합니다'}), 401
     
     try:
@@ -2231,7 +2235,7 @@ def update_program(program_id):
             return jsonify({'message': '프로그램을 찾을 수 없습니다'}), 404
         
         # 권한 확인
-        if program.creator_id != session['user_id']:
+        if program.creator_id != user_id:
             return jsonify({'message': '프로그램을 수정할 권한이 없습니다'}), 403
         
         # 공개된 프로그램은 수정 불가

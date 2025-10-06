@@ -24,7 +24,17 @@ import {
 } from '../types';
 
 // API 기본 설정
-const API_BASE = process.env.REACT_APP_API_URL || 'https://wodybody-production.up.railway.app';
+const DEFAULT_API_BASE = (() => {
+    if (typeof window !== 'undefined') {
+        const host = window.location.hostname;
+        if (host === 'localhost' || host === '127.0.0.1') {
+            return 'http://localhost:5001';
+        }
+    }
+    return 'https://wodybody-production.up.railway.app';
+})();
+
+const API_BASE = process.env.REACT_APP_API_URL || DEFAULT_API_BASE;
 
 // 전역 리다이렉트 함수 (AuthProvider에서 설정됨)
 let globalRedirectToLogin: (() => void) | null = null;

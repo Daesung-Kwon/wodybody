@@ -29,14 +29,14 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
             console.log('WebSocket 연결 시도 중...', userId);
             // 모바일 Safari 감지
             const userAgent = navigator.userAgent.toLowerCase();
-            const isMobileSafari = userAgent.includes('safari') && 
-                                  !userAgent.includes('chrome') && 
-                                  (userAgent.includes('iphone') || userAgent.includes('ipad') || userAgent.includes('mobile'));
-            
+            const isMobileSafari = userAgent.includes('safari') &&
+                !userAgent.includes('chrome') &&
+                (userAgent.includes('iphone') || userAgent.includes('ipad') || userAgent.includes('mobile'));
+
             // localStorage에서 토큰 가져오기 (모바일 Safari 대응)
             const authToken = localStorage.getItem('access_token');
             console.log('모바일 Safari 감지:', isMobileSafari, '| 인증 토큰:', authToken ? '있음' : '없음');
-            
+
             const newSocket = io(process.env.REACT_APP_API_URL || 'https://wodybody-production.up.railway.app', {
                 transports: isMobileSafari ? ['polling', 'websocket'] : ['websocket', 'polling'],
                 autoConnect: true,

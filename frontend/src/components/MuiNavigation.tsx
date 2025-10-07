@@ -30,6 +30,7 @@ import {
 } from '@mui/icons-material';
 import { User } from '../types';
 import { useTheme } from '../theme/ThemeProvider';
+import WodyBodyLogo from './WodyBodyLogo';
 
 interface MuiNavigationProps {
     user: User;
@@ -105,20 +106,9 @@ const MuiNavigation: React.FC<MuiNavigationProps> = ({
                     </IconButton>
 
                     {/* 브랜드 로고 */}
-                    <Typography
-                        variant="h6"
-                        component="div"
-                        sx={{
-                            flexGrow: 1,
-                            fontWeight: 'bold',
-                            background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
-                            backgroundClip: 'text',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                        }}
-                    >
-                        Enjoy WOD!
-                    </Typography>
+                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                        <WodyBodyLogo variant="simple" size="small" />
+                    </Box>
 
                     {/* 알림 버튼 */}
                     <IconButton color="inherit" onClick={onNotifications}>

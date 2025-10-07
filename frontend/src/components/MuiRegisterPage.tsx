@@ -15,6 +15,7 @@ import {
 import { RegisterPageProps } from '../types';
 import { userApi } from '../utils/api';
 import { useTheme } from '../theme/ThemeProvider';
+import WodyBodyLogo from './WodyBodyLogo';
 
 const MuiRegisterPage: React.FC<RegisterPageProps> = ({ goLogin }) => {
     const { isDarkMode } = useTheme();
@@ -94,25 +95,9 @@ const MuiRegisterPage: React.FC<RegisterPageProps> = ({ goLogin }) => {
                     }}
                 >
                     <CardContent sx={{ p: 4 }}>
-                        {/* 헤더 */}
+                        {/* 브랜드 로고 */}
                         <Box sx={{ textAlign: 'center', mb: 4 }}>
-                            <Typography
-                                variant="h4"
-                                component="h1"
-                                sx={{
-                                    fontWeight: 'bold',
-                                    background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
-                                    backgroundClip: 'text',
-                                    WebkitBackgroundClip: 'text',
-                                    WebkitTextFillColor: 'transparent',
-                                    mb: 1,
-                                }}
-                            >
-                                회원가입
-                            </Typography>
-                            <Typography variant="body1" color="text.secondary">
-                                CrossFit WOD 관리 시스템에 오신 것을 환영합니다
-                            </Typography>
+                            <WodyBodyLogo variant="detailed" size="large" />
                         </Box>
 
                         {/* 성공 메시지 */}

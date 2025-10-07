@@ -1,6 +1,6 @@
 {
-  "short_name": "CrossFit System",
-  "name": "CrossFit 운동 프로그램 관리 시스템",
+  "short_name": "WODYBODY",
+  "name": "WODYBODY - 크로스핏 운동 프로그램 관리",
   "description": "크로스핏 운동 프로그램을 만들고 공유하는 모바일 앱",
   "icons": [
     {
@@ -21,8 +21,12 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#2c3e50",
-  "background_color": "#f5f5f5",
+  "theme_color": "#0284c7",
+  "background_color": "#fafafa",
   "orientation": "portrait-primary",
-  "categories": ["fitness", "health", "lifestyle"]
+  "categories": [
+    "fitness",
+    "health",
+    "lifestyle"
+  ]
 }

@@ -468,7 +468,7 @@ const MuiWODBuilder: React.FC<MuiWODBuilderProps> = ({ workoutPattern, onPattern
                                                                         size="small"
                                                                         color="primary"
                                                                         variant="outlined"
-                                                                        sx={{ 
+                                                                        sx={{
                                                                             height: 20,
                                                                             fontSize: '0.7rem',
                                                                             fontWeight: 500

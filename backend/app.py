@@ -170,31 +170,6 @@ def get_user_id_from_session_or_cookies():
         except (ValueError, IndexError):
             pass
 
-    # Safari 브라우저인 경우 자동 인증 시도 (보안상 제거됨)
-    # user_agent = request.headers.get('User-Agent', '').lower()
-    # is_safari = 'safari' in user_agent and 'chrome' not in user_agent
-    # if is_safari:
-    #     app.logger.info('Safari 브라우저 감지 - 자동 인증 시도')
-    #     # Safari 전용 세션 확인
-    #     safari_user_id = session.get('safari_user_id')
-    #     if safari_user_id:
-    #         app.logger.info(f'Safari 전용 세션에서 사용자 ID 확인: {safari_user_id}')
-    #         session['user_id'] = safari_user_id
-    #         session.permanent = True
-    #         return safari_user_id
-    #     else:
-    #         # Safari 자동 인증 (테스트용) - 보안상 제거됨
-    #         app.logger.info('Safari 자동 인증 적용 - simadeit@naver.com')
-    #         user_id = 1  # simadeit@naver.com의 사용자 ID
-    #         session['user_id'] = user_id
-    #         session['safari_user_id'] = user_id
-    #         session.permanent = True
-    #         return user_id
-
-    # # Safari 브라우저인 경우 추가 로깅
-    # if is_safari:
-    #     app.logger.warning(f'Safari 브라우저에서 인증 실패: cookies={dict(request.cookies)}, headers={dict(request.headers)}')
-
     return None
 
 app = Flask(__name__)
@@ -608,19 +583,6 @@ def profile():
     app.logger.info(f'Profile 요청: session={dict(session)}, cookies={dict(request.cookies)}')
     
     user_id = get_user_id_from_session_or_cookies()
-    
-    # Safari 대안: User-Agent로 Safari 감지 시 자동 인증 (개선된 버전)
-    if not user_id:
-        user_agent = request.headers.get('User-Agent', '').lower()
-        if 'safari' in user_agent and 'chrome' not in user_agent:
-            # Safari 전용 세션 확인
-            safari_user_id = session.get('safari_user_id')
-            if safari_user_id:
-                app.logger.info(f'Safari 전용 세션에서 사용자 ID 확인: {safari_user_id}')
-                user_id = safari_user_id
-                session['user_id'] = user_id  # 일반 세션에도 복사
-            else:
-                app.logger.warning('Safari 브라우저이지만 전용 세션이 없음 - 인증 필요')
     
     if not user_id:
         return jsonify({'message':'Unauthorized'}), 401
@@ -1088,15 +1050,6 @@ def my_programs():
     try:
         user_id = get_user_id_from_session_or_cookies()
         
-        # Safari 대안: User-Agent로 Safari 감지 시 자동 인증 (보안상 제거됨)
-        # if not user_id:
-        #     user_agent = request.headers.get('User-Agent', '').lower()
-        #     if 'safari' in user_agent and 'chrome' not in user_agent:
-        #         app.logger.info('Safari 브라우저 자동 인증 적용 (user/programs)')
-        #         user_id = 1  # simadeit@naver.com
-        #         session['user_id'] = user_id
-        #         session.permanent = True
-        
         if not user_id: return jsonify({'message':'로그인이 필요합니다'}), 401
         mine = Programs.query.filter_by(creator_id=user_id).order_by(Programs.created_at.desc()).all()
         out = []
@@ -1336,19 +1289,6 @@ def delete_program(program_id):
 def get_notifications():
     """사용자의 알림 목록 조회"""
     user_id = get_user_id_from_session_or_cookies()
-    
-    # Safari 대안: User-Agent로 Safari 감지 시 자동 인증 (개선된 버전)
-    if not user_id:
-        user_agent = request.headers.get('User-Agent', '').lower()
-        if 'safari' in user_agent and 'chrome' not in user_agent:
-            # Safari 전용 세션 확인
-            safari_user_id = session.get('safari_user_id')
-            if safari_user_id:
-                app.logger.info(f'Safari 전용 세션에서 사용자 ID 확인: {safari_user_id}')
-                user_id = safari_user_id
-                session['user_id'] = user_id  # 일반 세션에도 복사
-            else:
-                app.logger.warning('Safari 브라우저이지만 전용 세션이 없음 - 인증 필요')
     
     if not user_id:
         return jsonify({'message': '로그인이 필요합니다'}), 401
@@ -1796,15 +1736,39 @@ def handle_connect():
     user_agent = request.headers.get('User-Agent', '').lower()
     is_mobile_safari = 'safari' in user_agent and 'chrome' not in user_agent and ('iphone' in user_agent or 'ipad' in user_agent or 'mobile' in user_agent)
     
-    app.logger.info(f'클라이언트 연결됨: {request.sid} | User-Agent: {user_agent[:100]} | Mobile Safari: {is_mobile_safari}')
-    print(f'🔌 WebSocket 클라이언트 연결됨: {request.sid} {"(모바일 Safari)" if is_mobile_safari else ""}')
+    # 웹소켓 연결 시 인증 확인 (모바일 Safari 대응)
+    auth_verified = False
+    user_id_from_token = None
+    
+    # 1. query parameter에서 토큰 확인 (모바일 Safari)
+    query_token = request.args.get('token')
+    if query_token:
+        try:
+            from utils.token import verify_access_token
+            user_id_from_token = verify_access_token(query_token)
+            if user_id_from_token:
+                auth_verified = True
+                session['user_id'] = user_id_from_token
+                app.logger.info(f'WebSocket 인증 성공 (query token): user_id={user_id_from_token}')
+        except Exception as e:
+            app.logger.warning(f'WebSocket query token 검증 실패: {e}')
+    
+    # 2. 세션에서 확인 (일반 브라우저)
+    if not auth_verified and session.get('user_id'):
+        auth_verified = True
+        user_id_from_token = session.get('user_id')
+        app.logger.info(f'WebSocket 인증 성공 (session): user_id={user_id_from_token}')
+    
+    app.logger.info(f'클라이언트 연결됨: {request.sid} | User-Agent: {user_agent[:100]} | Mobile Safari: {is_mobile_safari} | 인증: {auth_verified}')
+    print(f'🔌 WebSocket 클라이언트 연결됨: {request.sid} {"(모바일 Safari)" if is_mobile_safari else ""} | 인증: {"✅" if auth_verified else "❌"}')
     
     # 모바일 Safari를 위한 추가 정보 응답
     if is_mobile_safari:
         emit('mobile_safari_info', {
             'message': '모바일 Safari에서 연결됨',
             'transport': request.transport,
-            'recommended_transport': 'polling'
+            'recommended_transport': 'polling',
+            'authenticated': auth_verified
         })
 
 @socketio.on('disconnect')
@@ -1816,13 +1780,26 @@ def handle_disconnect():
 @socketio.on('join_user_room')
 def handle_join_user_room(data):
     """사용자별 방에 참여"""
-    user_id = data.get('user_id')
-    if user_id:
-        join_room(f'user_{user_id}')
-        app.logger.info(f'사용자 {user_id}가 방에 참여했습니다.')
-        print(f'👤 사용자 {user_id}가 방에 참여했습니다.')
-    else:
-        print('❌ 사용자 ID가 없습니다.')
+    requested_user_id = data.get('user_id')
+    
+    # 세션에서 인증된 사용자 ID 확인
+    authenticated_user_id = session.get('user_id')
+    
+    if not authenticated_user_id:
+        app.logger.warning(f'인증되지 않은 사용자의 방 참여 시도: requested={requested_user_id}')
+        emit('join_error', {'message': '인증이 필요합니다'})
+        return
+    
+    # 본인의 방에만 참여 가능
+    if requested_user_id != authenticated_user_id:
+        app.logger.warning(f'다른 사용자의 방 참여 시도: authenticated={authenticated_user_id}, requested={requested_user_id}')
+        emit('join_error', {'message': '권한이 없습니다'})
+        return
+    
+    join_room(f'user_{authenticated_user_id}')
+    app.logger.info(f'사용자 {authenticated_user_id}가 방에 참여했습니다.')
+    print(f'👤 사용자 {authenticated_user_id}가 방에 참여했습니다.')
+    emit('join_success', {'message': f'user_{authenticated_user_id} 방에 참여했습니다'})
 
 @socketio.on('leave_user_room')
 def handle_leave_user_room(data):
@@ -1937,15 +1914,6 @@ def get_user_records():
     try:
         user_id = get_user_id_from_session_or_cookies()
         
-        # Safari 대안: User-Agent로 Safari 감지 시 자동 인증 (보안상 제거됨)
-        # if not user_id:
-        #     user_agent = request.headers.get('User-Agent', '').lower()
-        #     if 'safari' in user_agent and 'chrome' not in user_agent:
-        #         app.logger.info('Safari 브라우저 자동 인증 적용 (records)')
-        #         user_id = 1  # simadeit@naver.com
-        #         session['user_id'] = user_id
-        #         session.permanent = True
-        
         if not user_id:
             return jsonify({'error': '로그인이 필요합니다'}), 401
         
@@ -2058,15 +2026,6 @@ def get_user_stats():
     try:
         user_id = get_user_id_from_session_or_cookies()
         
-        # Safari 대안: User-Agent로 Safari 감지 시 자동 인증 (보안상 제거됨)
-        # if not user_id:
-        #     user_agent = request.headers.get('User-Agent', '').lower()
-        #     if 'safari' in user_agent and 'chrome' not in user_agent:
-        #         app.logger.info('Safari 브라우저 자동 인증 적용 (stats)')
-        #         user_id = 1  # simadeit@naver.com
-        #         session['user_id'] = user_id
-        #         session.permanent = True
-        
         if not user_id:
             return jsonify({'error': '로그인이 필요합니다'}), 401
         
@@ -2137,15 +2096,6 @@ def get_user_goals():
     """사용자의 개인 목표 조회"""
     try:
         user_id = get_user_id_from_session_or_cookies()
-        
-        # Safari 대안: User-Agent로 Safari 감지 시 자동 인증 (보안상 제거됨)
-        # if not user_id:
-        #     user_agent = request.headers.get('User-Agent', '').lower()
-        #     if 'safari' in user_agent and 'chrome' not in user_agent:
-        #         app.logger.info('Safari 브라우저 자동 인증 적용 (goals)')
-        #         user_id = 1  # simadeit@naver.com
-        #         session['user_id'] = user_id
-        #         session.permanent = True
         
         if not user_id:
             return jsonify({'error': '로그인이 필요합니다'}), 401
@@ -2475,15 +2425,6 @@ def get_user_wod_status():
     """사용자의 WOD 현황 조회"""
     try:
         user_id = get_user_id_from_session_or_cookies()
-        
-        # Safari 대안: User-Agent로 Safari 감지 시 자동 인증 (보안상 제거됨)
-        # if not user_id:
-        #     user_agent = request.headers.get('User-Agent', '').lower()
-        #     if 'safari' in user_agent and 'chrome' not in user_agent:
-        #         app.logger.info('Safari 브라우저 자동 인증 적용 (wod-status)')
-        #         user_id = 1  # simadeit@naver.com
-        #         session['user_id'] = user_id
-        #         session.permanent = True
         
         if not user_id:
             return jsonify({'message': '로그인이 필요합니다'}), 401

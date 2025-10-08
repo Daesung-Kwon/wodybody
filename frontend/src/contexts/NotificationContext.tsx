@@ -54,23 +54,40 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
             });
 
             newSocket.on('connect', () => {
-                console.log('WebSocket 연결됨:', newSocket.id);
+                console.log('✅ WebSocket 연결 성공!', newSocket.id);
+                console.log('Transport:', newSocket.io.engine.transport.name);
                 // 사용자 방에 참여
                 newSocket.emit('join_user_room', { user_id: userId });
+                console.log('사용자 방 참여 요청 전송:', userId);
             });
 
             newSocket.on('disconnect', (reason) => {
-                console.log('WebSocket 연결 해제됨:', reason);
+                console.log('⚠️ WebSocket 연결 해제:', reason);
             });
 
             newSocket.on('connect_error', (error) => {
-                console.error('WebSocket 연결 오류:', error);
+                console.error('❌ WebSocket 연결 오류:', error.message);
+                console.error('오류 상세:', error);
                 // 모바일 Safari에서 WebSocket 연결 실패 시 polling만 사용하도록 재시도
                 if (isMobileSafari) {
                     console.log('모바일 Safari에서 polling 전용으로 재연결 시도');
                     newSocket.io.opts.transports = ['polling'];
                     newSocket.connect();
                 }
+            });
+            
+            // 방 참여 성공/실패 이벤트
+            newSocket.on('join_success', (data) => {
+                console.log('✅ 방 참여 성공:', data);
+            });
+            
+            newSocket.on('join_error', (data) => {
+                console.error('❌ 방 참여 오류:', data);
+            });
+            
+            // 모바일 Safari 정보
+            newSocket.on('mobile_safari_info', (data) => {
+                console.log('📱 모바일 Safari 정보:', data);
             });
 
             // 개인 알림 수신

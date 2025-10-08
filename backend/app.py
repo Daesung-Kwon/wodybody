@@ -1740,35 +1740,44 @@ def handle_connect():
     auth_verified = False
     user_id_from_token = None
     
+    # 디버깅: 모든 query parameters 출력
+    app.logger.info(f'WebSocket 연결 시도 - query params: {dict(request.args)}')
+    app.logger.info(f'WebSocket 연결 시도 - session: {dict(session)}')
+    app.logger.info(f'WebSocket 연결 시도 - cookies: {list(request.cookies.keys())}')
+    
     # 1. query parameter에서 토큰 확인 (모바일 Safari)
     query_token = request.args.get('token')
     if query_token:
+        app.logger.info(f'query token 발견: {query_token[:20]}...')
         try:
             from utils.token import verify_access_token
             user_id_from_token = verify_access_token(query_token)
             if user_id_from_token:
                 auth_verified = True
                 session['user_id'] = user_id_from_token
-                app.logger.info(f'WebSocket 인증 성공 (query token): user_id={user_id_from_token}')
+                app.logger.info(f'✅ WebSocket 인증 성공 (query token): user_id={user_id_from_token}')
         except Exception as e:
-            app.logger.warning(f'WebSocket query token 검증 실패: {e}')
+            app.logger.warning(f'❌ WebSocket query token 검증 실패: {e}')
+    else:
+        app.logger.info('query token 없음')
     
     # 2. 세션에서 확인 (일반 브라우저)
     if not auth_verified and session.get('user_id'):
         auth_verified = True
         user_id_from_token = session.get('user_id')
-        app.logger.info(f'WebSocket 인증 성공 (session): user_id={user_id_from_token}')
+        app.logger.info(f'✅ WebSocket 인증 성공 (session): user_id={user_id_from_token}')
     
-    app.logger.info(f'클라이언트 연결됨: {request.sid} | User-Agent: {user_agent[:100]} | Mobile Safari: {is_mobile_safari} | 인증: {auth_verified}')
+    app.logger.info(f'🔌 클라이언트 연결됨: {request.sid} | User-Agent: {user_agent[:100]} | Mobile Safari: {is_mobile_safari} | 인증: {auth_verified}')
     print(f'🔌 WebSocket 클라이언트 연결됨: {request.sid} {"(모바일 Safari)" if is_mobile_safari else ""} | 인증: {"✅" if auth_verified else "❌"}')
     
     # 모바일 Safari를 위한 추가 정보 응답
     if is_mobile_safari:
         emit('mobile_safari_info', {
             'message': '모바일 Safari에서 연결됨',
-            'transport': request.transport,
+            'transport': request.transport if hasattr(request, 'transport') else 'unknown',
             'recommended_transport': 'polling',
-            'authenticated': auth_verified
+            'authenticated': auth_verified,
+            'user_id': user_id_from_token
         })
 
 @socketio.on('disconnect')

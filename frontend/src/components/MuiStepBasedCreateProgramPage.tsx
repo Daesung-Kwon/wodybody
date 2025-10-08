@@ -600,7 +600,7 @@ const MuiStepBasedCreateProgramPage: React.FC<CreateProgramPageProps> = ({ goMy,
                                                                     {index + 1}
                                                                 </Avatar>
                                                                 <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                                                    운동 #{exercise.exercise_id}
+                                                                    {exercise.name || `운동 #${exercise.exercise_id}`}
                                                                 </Typography>
                                                                 {exercise.target_value && (
                                                                     <Chip

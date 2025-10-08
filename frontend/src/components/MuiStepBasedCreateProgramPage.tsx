@@ -603,15 +603,6 @@ const MuiStepBasedCreateProgramPage: React.FC<CreateProgramPageProps> = ({ goMy,
                                                                     <Typography variant="body2" sx={{ fontWeight: 500 }}>
                                                                         {exercise.name || `운동 #${exercise.exercise_id}`}
                                                                     </Typography>
-                                                                    {exercise.target_value && (
-                                                                        <Typography variant="caption" sx={{ 
-                                                                            color: 'text.secondary',
-                                                                            fontSize: '0.7rem',
-                                                                            fontWeight: 400
-                                                                        }}>
-                                                                            목표: {exercise.target_value}
-                                                                        </Typography>
-                                                                    )}
                                                                 </Box>
                                                                 {exercise.target_value && (
                                                                     <Chip

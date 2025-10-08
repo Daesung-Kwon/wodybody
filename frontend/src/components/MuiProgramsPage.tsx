@@ -632,19 +632,7 @@ const MuiProgramsPage: React.FC = () => {
                                     {program.workout_pattern && (
                                         <Box sx={{ mb: 2 }}>
                                             <Chip
-                                                label={`${getWorkoutTypeLabel(program.workout_pattern.type)} • ${(() => {
-                                                    const rounds = program.workout_pattern.total_rounds;
-                                                    console.log('Rounds debug:', {
-                                                        programId: program.id,
-                                                        programTitle: program.title,
-                                                        totalRounds: rounds,
-                                                        type: typeof rounds,
-                                                        isNull: rounds === null,
-                                                        isUndefined: rounds === undefined,
-                                                        isZero: rounds === 0
-                                                    });
-                                                    return rounds || 0;
-                                                })()}라운드`}
+                                                label={`${getWorkoutTypeLabel(program.workout_pattern.type)} • ${program.workout_pattern.total_rounds || 0}라운드`}
                                                 size="small"
                                                 color="secondary"
                                                 variant="outlined"

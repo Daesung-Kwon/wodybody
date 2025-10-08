@@ -96,7 +96,12 @@ const MuiRegisterPage: React.FC<RegisterPageProps> = ({ goLogin }) => {
                 >
                     <CardContent sx={{ p: 4 }}>
                         {/* 브랜드 로고 */}
-                        <Box sx={{ textAlign: 'center', mb: 4 }}>
+                        <Box sx={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            mb: 4
+                        }}>
                             <WodyBodyLogo variant="detailed" size="large" />
                         </Box>
 

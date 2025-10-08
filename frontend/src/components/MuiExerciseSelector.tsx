@@ -476,7 +476,16 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
 
                                                     <Box sx={{ flex: 1 }}>
                                                         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                                                            {exercise?.name || selectedEx.name || `운동 #${selectedEx.exercise_id}`}
+                                                            {(() => {
+                                                                const displayName = exercise?.name || selectedEx.name || `운동 #${selectedEx.exercise_id}`;
+                                                                console.log('Display name for exercise:', {
+                                                                    exerciseId: selectedEx.exercise_id,
+                                                                    exerciseName: exercise?.name,
+                                                                    selectedExName: selectedEx.name,
+                                                                    finalDisplayName: displayName
+                                                                });
+                                                                return displayName;
+                                                            })()}
                                                         </Typography>
                                                         <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
                                                             <Chip
@@ -509,39 +518,73 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
                                                     </Box>
 
                                                     <Stack direction="row" spacing={1}>
-                                                        <IconButton
-                                                            size="small"
+                                                        <Box
+                                                            component="div"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 moveExercise(index, 'up');
                                                             }}
-                                                            disabled={index === 0}
-                                                            sx={{ borderRadius: 1 }}
+                                                            sx={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                width: 32,
+                                                                height: 32,
+                                                                borderRadius: 1,
+                                                                cursor: index === 0 ? 'default' : 'pointer',
+                                                                opacity: index === 0 ? 0.3 : 1,
+                                                                '&:hover': index === 0 ? {} : {
+                                                                    backgroundColor: 'action.hover'
+                                                                }
+                                                            }}
                                                         >
                                                             <ArrowUpIcon />
-                                                        </IconButton>
-                                                        <IconButton
-                                                            size="small"
+                                                        </Box>
+                                                        <Box
+                                                            component="div"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 moveExercise(index, 'down');
                                                             }}
-                                                            disabled={index === selectedExercises.length - 1}
-                                                            sx={{ borderRadius: 1 }}
+                                                            sx={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                width: 32,
+                                                                height: 32,
+                                                                borderRadius: 1,
+                                                                cursor: index === selectedExercises.length - 1 ? 'default' : 'pointer',
+                                                                opacity: index === selectedExercises.length - 1 ? 0.3 : 1,
+                                                                '&:hover': index === selectedExercises.length - 1 ? {} : {
+                                                                    backgroundColor: 'action.hover'
+                                                                }
+                                                            }}
                                                         >
                                                             <ArrowDownIcon />
-                                                        </IconButton>
-                                                        <IconButton
-                                                            size="small"
+                                                        </Box>
+                                                        <Box
+                                                            component="div"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 removeExercise(index);
                                                             }}
-                                                            color="error"
-                                                            sx={{ borderRadius: 1 }}
+                                                            sx={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                width: 32,
+                                                                height: 32,
+                                                                borderRadius: 1,
+                                                                cursor: 'pointer',
+                                                                color: 'error.main',
+                                                                '&:hover': {
+                                                                    backgroundColor: 'error.light',
+                                                                    color: 'error.dark'
+                                                                }
+                                                            }}
                                                         >
                                                             <DeleteIcon />
-                                                        </IconButton>
+                                                        </Box>
                                                     </Stack>
                                                 </AccordionSummary>
 

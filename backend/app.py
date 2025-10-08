@@ -2423,6 +2423,8 @@ def get_program_detail(program_id):
                 'id': workout_patterns.id,
                 'type': map_pattern_type(workout_patterns.pattern_type),
                 'description': workout_patterns.description,
+                'total_rounds': workout_patterns.total_rounds,
+                'time_cap_per_round': workout_patterns.time_cap_per_round,
                 'exercises': []
             }
             for es in exercise_sets:

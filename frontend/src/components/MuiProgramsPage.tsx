@@ -632,7 +632,18 @@ const MuiProgramsPage: React.FC = () => {
                                     {program.workout_pattern && (
                                         <Box sx={{ mb: 2 }}>
                                             <Chip
-                                                label={`${getWorkoutTypeLabel(program.workout_pattern.type)} • ${program.workout_pattern.total_rounds ?? 0}라운드`}
+                                                label={`${getWorkoutTypeLabel(program.workout_pattern.type)} • ${(() => {
+                                                    const rounds = program.workout_pattern.total_rounds;
+                                                    console.log('Card view rounds:', {
+                                                        programId: program.id,
+                                                        programTitle: program.title,
+                                                        workoutPattern: program.workout_pattern,
+                                                        totalRounds: rounds,
+                                                        type: typeof rounds,
+                                                        stringified: JSON.stringify(rounds)
+                                                    });
+                                                    return rounds;
+                                                })()}라운드`}
                                                 size="small"
                                                 color="secondary"
                                                 variant="outlined"
@@ -1074,7 +1085,18 @@ const MuiProgramsPage: React.FC = () => {
                                                             sx={{ fontWeight: 600 }}
                                                         />
                                                         <Chip
-                                                            label={`${selectedProgram.workout_pattern.total_rounds ?? 0}라운드`}
+                                                            label={`${(() => {
+                                                                const rounds = selectedProgram.workout_pattern.total_rounds;
+                                                                console.log('Modal view rounds:', {
+                                                                    programId: selectedProgram.id,
+                                                                    programTitle: selectedProgram.title,
+                                                                    workoutPattern: selectedProgram.workout_pattern,
+                                                                    totalRounds: rounds,
+                                                                    type: typeof rounds,
+                                                                    stringified: JSON.stringify(rounds)
+                                                                });
+                                                                return rounds;
+                                                            })()}라운드`}
                                                             color="secondary"
                                                             variant="filled"
                                                             sx={{ fontWeight: 600 }}

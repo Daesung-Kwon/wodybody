@@ -40,6 +40,7 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
     const { isDarkMode } = useTheme();
     const [categories, setCategories] = useState<ExerciseCategory[]>([]);
     const [exercises, setExercises] = useState<Exercise[]>([]);
+    const [allExercises, setAllExercises] = useState<Exercise[]>([]); // 모든 운동 저장
     const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [searchTerm, setSearchTerm] = useState<string>('');
@@ -76,12 +77,13 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
             // 검색어 및 카테고리 ID 초기화
             setSearchTerm('');
             setSelectedCategoryId(null);
-
+            
             const loadAllExercises = async () => {
                 setLoading(true);
                 try {
                     const data = await exerciseApi.getExercises(); // 카테고리 ID 없이 모든 운동 조회
                     setExercises(data.exercises);
+                    setAllExercises(data.exercises); // 모든 운동도 저장
                 } catch (error) {
                     console.error('전체 운동 로딩 실패:', error);
                 } finally {
@@ -423,7 +425,10 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
                             <Fade in={showSelectedExercises} timeout={500}>
                                 <Stack spacing={2}>
                                     {selectedExercises.map((selectedEx, index) => {
-                                        const exercise = exercises.find(ex => ex.id === selectedEx.exercise_id);
+                                        // showCategorySelector가 false일 때는 allExercises에서 찾기
+                                        const exercise = showCategorySelector 
+                                            ? exercises.find(ex => ex.id === selectedEx.exercise_id)
+                                            : allExercises.find(ex => ex.id === selectedEx.exercise_id);
                                         return (
                                             <Accordion
                                                 key={`${selectedEx.exercise_id}-${index}`}
@@ -460,7 +465,7 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
                                                         </Typography>
                                                         <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
                                                             <Chip
-                                                                label={getCategoryName(selectedCategoryId || 0)}
+                                                                label={exercise?.category_name || getCategoryName(exercise?.category_id || 0)}
                                                                 size="small"
                                                                 color="info"
                                                                 variant="outlined"

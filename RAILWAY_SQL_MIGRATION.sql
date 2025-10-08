@@ -62,4 +62,3 @@ ORDER BY c.id;
 
 -- 4. 전체 운동 수 확인
 SELECT COUNT(*) as total_exercises FROM exercises WHERE is_active = true;
-

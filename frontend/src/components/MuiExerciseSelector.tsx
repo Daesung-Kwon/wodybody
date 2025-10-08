@@ -339,20 +339,26 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
 
                                             <CardContent sx={{ p: 2, pr: 5 }}>
                                                 <Stack spacing={1}>
-                                                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                                                        {exercise.name}
-                                                    </Typography>
-                                                    {/* 카테고리 선택기가 비활성화된 경우 카테고리 정보 표시 */}
-                                                    {!showCategorySelector && (
-                                                        <Chip
-                                                            label={exercise.category_name || '기타'}
-                                                            size="small"
-                                                            color="info"
-                                                            variant="outlined"
-                                                            icon={<CategoryIcon />}
-                                                            sx={{ alignSelf: 'flex-start' }}
-                                                        />
-                                                    )}
+                                                    {/* 운동명과 카테고리 chip을 같은 줄에 표시 */}
+                                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                                                            {exercise.name}
+                                                        </Typography>
+                                                        {/* 카테고리 선택기가 비활성화된 경우 카테고리 정보 표시 */}
+                                                        {!showCategorySelector && exercise.category_name && (
+                                                            <Chip
+                                                                label={exercise.category_name}
+                                                                size="small"
+                                                                color="primary"
+                                                                variant="outlined"
+                                                                sx={{
+                                                                    height: 20,
+                                                                    fontSize: '0.7rem',
+                                                                    fontWeight: 500
+                                                                }}
+                                                            />
+                                                        )}
+                                                    </Stack>
                                                     <Typography variant="body2" color="text.secondary" sx={{
                                                         display: '-webkit-box',
                                                         WebkitLineClamp: 2,
@@ -366,7 +372,7 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
                                                             label="추가됨"
                                                             color="success"
                                                             size="small"
-                                                            icon={<CheckCircleIcon />}
+                                                            icon={<FitnessCenterIcon />}
                                                             sx={{ alignSelf: 'flex-start' }}
                                                         />
                                                     )}

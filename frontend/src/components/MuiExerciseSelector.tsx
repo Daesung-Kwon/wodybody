@@ -76,7 +76,7 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
             // 검색어 및 카테고리 ID 초기화
             setSearchTerm('');
             setSelectedCategoryId(null);
-            
+
             const loadAllExercises = async () => {
                 setLoading(true);
                 try {
@@ -153,9 +153,9 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
     const filteredExercises = exercises.filter(exercise => {
         // 검색어가 없으면 모든 운동 표시
         if (!searchTerm.trim()) return true;
-        
+
         return exercise.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-               exercise.description.toLowerCase().includes(searchTerm.toLowerCase());
+            exercise.description.toLowerCase().includes(searchTerm.toLowerCase());
     });
 
     // 운동 순서 변경

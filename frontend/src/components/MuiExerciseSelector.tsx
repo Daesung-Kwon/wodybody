@@ -127,6 +127,7 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
 
         const newExercise: SelectedExercise = {
             exercise_id: exercise.id,
+            name: exercise.name, // 운동 이름도 함께 저장
             target_value: '',
             order: selectedExercises.length
         };
@@ -429,6 +430,18 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
                                         const exercise = showCategorySelector 
                                             ? exercises.find(ex => ex.id === selectedEx.exercise_id)
                                             : allExercises.find(ex => ex.id === selectedEx.exercise_id);
+                                        
+                                        // 디버깅 정보
+                                        console.log('Selected exercise lookup:', {
+                                            selectedEx,
+                                            exercise,
+                                            showCategorySelector,
+                                            exercisesCount: exercises.length,
+                                            allExercisesCount: allExercises.length,
+                                            foundInExercises: exercises.find(ex => ex.id === selectedEx.exercise_id),
+                                            foundInAllExercises: allExercises.find(ex => ex.id === selectedEx.exercise_id)
+                                        });
+                                        
                                         return (
                                             <Accordion
                                                 key={`${selectedEx.exercise_id}-${index}`}
@@ -461,7 +474,7 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
 
                                                     <Box sx={{ flex: 1 }}>
                                                         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                                                            {exercise?.name || '알 수 없는 운동'}
+                                                            {exercise?.name || selectedEx.name || `운동 #${selectedEx.exercise_id}`}
                                                         </Typography>
                                                         <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
                                                             <Chip

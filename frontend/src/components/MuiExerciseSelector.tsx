@@ -82,6 +82,7 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
                 setLoading(true);
                 try {
                     const data = await exerciseApi.getExercises(); // 카테고리 ID 없이 모든 운동 조회
+                    console.log('Loaded all exercises:', data.exercises.length, 'exercises');
                     setExercises(data.exercises);
                     setAllExercises(data.exercises); // 모든 운동도 저장
                 } catch (error) {
@@ -426,10 +427,11 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
                             <Fade in={showSelectedExercises} timeout={500}>
                                 <Stack spacing={2}>
                                     {selectedExercises.map((selectedEx, index) => {
-                                        // showCategorySelector가 false일 때는 allExercises에서 찾기
-                                        const exercise = showCategorySelector 
-                                            ? exercises.find(ex => ex.id === selectedEx.exercise_id)
-                                            : allExercises.find(ex => ex.id === selectedEx.exercise_id);
+                                        // 모든 가능한 소스에서 운동 찾기
+                                        let exercise = exercises.find(ex => ex.id === selectedEx.exercise_id);
+                                        if (!exercise) {
+                                            exercise = allExercises.find(ex => ex.id === selectedEx.exercise_id);
+                                        }
                                         
                                         // 디버깅 정보
                                         console.log('Selected exercise lookup:', {

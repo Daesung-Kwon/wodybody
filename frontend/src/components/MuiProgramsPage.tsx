@@ -1074,7 +1074,7 @@ const MuiProgramsPage: React.FC = () => {
                                                             sx={{ fontWeight: 600 }}
                                                         />
                                                         <Chip
-                                                            label={`${selectedProgram.workout_pattern.total_rounds || 'N/A'}라운드`}
+                                                            label={`${selectedProgram.workout_pattern.total_rounds ?? 0}라운드`}
                                                             color="secondary"
                                                             variant="filled"
                                                             sx={{ fontWeight: 600 }}

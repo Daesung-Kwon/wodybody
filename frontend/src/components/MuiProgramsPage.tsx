@@ -622,7 +622,7 @@ const MuiProgramsPage: React.FC = () => {
                                     {program.workout_pattern && (
                                         <Box sx={{ mb: 2 }}>
                                             <Chip
-                                                label={`${program.workout_pattern.type} • ${program.workout_pattern.total_rounds}라운드`}
+                                                label={`${program.workout_pattern.type} • ${program.workout_pattern.total_rounds || 0}라운드`}
                                                 size="small"
                                                 color="secondary"
                                                 variant="outlined"
@@ -1064,7 +1064,7 @@ const MuiProgramsPage: React.FC = () => {
                                                             sx={{ fontWeight: 600 }}
                                                         />
                                                         <Chip
-                                                            label={`${selectedProgram.workout_pattern.total_rounds}라운드`}
+                                                            label={`${selectedProgram.workout_pattern.total_rounds || 0}라운드`}
                                                             color="secondary"
                                                             variant="filled"
                                                             sx={{ fontWeight: 600 }}

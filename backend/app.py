@@ -2369,7 +2369,9 @@ def get_program_detail(program_id):
         # WOD 패턴 조회 (새로운 방식)
         workout_pattern = None
         workout_patterns = WorkoutPatterns.query.filter_by(program_id=program_id).first()
+        app.logger.info(f"Program {program_id} - WorkoutPatterns query result: {workout_patterns}")
         if workout_patterns:
+            app.logger.info(f"WorkoutPattern found: ID={workout_patterns.id}, total_rounds={workout_patterns.total_rounds}, time_cap_per_round={workout_patterns.time_cap_per_round}")
             exercise_sets = ExerciseSets.query.filter_by(pattern_id=workout_patterns.id).order_by(ExerciseSets.order_index).all()
             # 기존 패턴 타입을 새로운 타입으로 매핑
             def map_pattern_type(old_type):
@@ -2382,8 +2384,11 @@ def get_program_detail(program_id):
                 'id': workout_patterns.id,
                 'type': map_pattern_type(workout_patterns.pattern_type),
                 'description': workout_patterns.description,
+                'total_rounds': workout_patterns.total_rounds,
+                'time_cap_per_round': workout_patterns.time_cap_per_round,
                 'exercises': []
             }
+            app.logger.info(f"Created workout_pattern: {workout_pattern}")
             for es in exercise_sets:
                 workout_pattern['exercises'].append({
                     'id': es.exercise_id,

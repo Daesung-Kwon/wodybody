@@ -74,6 +74,16 @@ const MuiProgramsPage: React.FC = () => {
     const [selectedProgram, setSelectedProgram] = useState<ProgramDetail | null>(null);
     const [showModal, setShowModal] = useState<boolean>(false);
 
+
+    // WOD 패턴 타입을 한글로 변환하는 함수
+    const getWorkoutTypeLabel = (type: string) => {
+        const typeMap: { [key: string]: string } = {
+            'round_based': '라운드 제한',
+            'time_cap': '시간 제한'
+        };
+        return typeMap[type] || type;
+    };
+
     // 필터링 상태
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [difficultyFilter, setDifficultyFilter] = useState<string>('all');
@@ -622,7 +632,7 @@ const MuiProgramsPage: React.FC = () => {
                                     {program.workout_pattern && (
                                         <Box sx={{ mb: 2 }}>
                                             <Chip
-                                                label={`${program.workout_pattern.type} • ${program.workout_pattern.total_rounds || 0}라운드`}
+                                                label={`${getWorkoutTypeLabel(program.workout_pattern.type)} • ${program.workout_pattern.total_rounds}라운드`}
                                                 size="small"
                                                 color="secondary"
                                                 variant="outlined"
@@ -1058,13 +1068,13 @@ const MuiProgramsPage: React.FC = () => {
                                                     {/* 패턴 태그들 */}
                                                     <Stack direction="row" spacing={2} flexWrap="wrap">
                                                         <Chip
-                                                            label={selectedProgram.workout_pattern.type}
+                                                            label={getWorkoutTypeLabel(selectedProgram.workout_pattern.type)}
                                                             color="primary"
                                                             variant="filled"
                                                             sx={{ fontWeight: 600 }}
                                                         />
                                                         <Chip
-                                                            label={`${selectedProgram.workout_pattern.total_rounds || 0}라운드`}
+                                                            label={`${selectedProgram.workout_pattern.total_rounds ?? 0}라운드`}
                                                             color="secondary"
                                                             variant="filled"
                                                             sx={{ fontWeight: 600 }}

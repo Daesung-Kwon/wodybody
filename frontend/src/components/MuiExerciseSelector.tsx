@@ -40,6 +40,7 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
     const { isDarkMode } = useTheme();
     const [categories, setCategories] = useState<ExerciseCategory[]>([]);
     const [exercises, setExercises] = useState<Exercise[]>([]);
+    const [allExercises, setAllExercises] = useState<Exercise[]>([]); // 모든 운동 저장
     const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [searchTerm, setSearchTerm] = useState<string>('');
@@ -76,12 +77,14 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
             // 검색어 및 카테고리 ID 초기화
             setSearchTerm('');
             setSelectedCategoryId(null);
-
+            
             const loadAllExercises = async () => {
                 setLoading(true);
                 try {
                     const data = await exerciseApi.getExercises(); // 카테고리 ID 없이 모든 운동 조회
+                    console.log('Loaded all exercises:', data.exercises.length, 'exercises');
                     setExercises(data.exercises);
+                    setAllExercises(data.exercises); // 모든 운동도 저장
                 } catch (error) {
                     console.error('전체 운동 로딩 실패:', error);
                 } finally {
@@ -125,6 +128,7 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
 
         const newExercise: SelectedExercise = {
             exercise_id: exercise.id,
+            name: exercise.name, // 운동 이름도 함께 저장
             target_value: '',
             order: selectedExercises.length
         };
@@ -423,7 +427,23 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
                             <Fade in={showSelectedExercises} timeout={500}>
                                 <Stack spacing={2}>
                                     {selectedExercises.map((selectedEx, index) => {
-                                        const exercise = exercises.find(ex => ex.id === selectedEx.exercise_id);
+                                        // 모든 가능한 소스에서 운동 찾기
+                                        let exercise = exercises.find(ex => ex.id === selectedEx.exercise_id);
+                                        if (!exercise) {
+                                            exercise = allExercises.find(ex => ex.id === selectedEx.exercise_id);
+                                        }
+                                        
+                                        // 디버깅 정보
+                                        console.log('Selected exercise lookup:', {
+                                            selectedEx,
+                                            exercise,
+                                            showCategorySelector,
+                                            exercisesCount: exercises.length,
+                                            allExercisesCount: allExercises.length,
+                                            foundInExercises: exercises.find(ex => ex.id === selectedEx.exercise_id),
+                                            foundInAllExercises: allExercises.find(ex => ex.id === selectedEx.exercise_id)
+                                        });
+                                        
                                         return (
                                             <Accordion
                                                 key={`${selectedEx.exercise_id}-${index}`}
@@ -456,11 +476,20 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
 
                                                     <Box sx={{ flex: 1 }}>
                                                         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                                                            {exercise?.name || '알 수 없는 운동'}
+                                                            {(() => {
+                                                                const displayName = exercise?.name || selectedEx.name || `운동 #${selectedEx.exercise_id}`;
+                                                                console.log('Display name for exercise:', {
+                                                                    exerciseId: selectedEx.exercise_id,
+                                                                    exerciseName: exercise?.name,
+                                                                    selectedExName: selectedEx.name,
+                                                                    finalDisplayName: displayName
+                                                                });
+                                                                return displayName;
+                                                            })()}
                                                         </Typography>
                                                         <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
                                                             <Chip
-                                                                label={getCategoryName(selectedCategoryId || 0)}
+                                                                label={exercise?.category_name || getCategoryName(exercise?.category_id || 0)}
                                                                 size="small"
                                                                 color="info"
                                                                 variant="outlined"
@@ -489,39 +518,73 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
                                                     </Box>
 
                                                     <Stack direction="row" spacing={1}>
-                                                        <IconButton
-                                                            size="small"
+                                                        <Box
+                                                            component="div"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 moveExercise(index, 'up');
                                                             }}
-                                                            disabled={index === 0}
-                                                            sx={{ borderRadius: 1 }}
+                                                            sx={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                width: 32,
+                                                                height: 32,
+                                                                borderRadius: 1,
+                                                                cursor: index === 0 ? 'default' : 'pointer',
+                                                                opacity: index === 0 ? 0.3 : 1,
+                                                                '&:hover': index === 0 ? {} : {
+                                                                    backgroundColor: 'action.hover'
+                                                                }
+                                                            }}
                                                         >
                                                             <ArrowUpIcon />
-                                                        </IconButton>
-                                                        <IconButton
-                                                            size="small"
+                                                        </Box>
+                                                        <Box
+                                                            component="div"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 moveExercise(index, 'down');
                                                             }}
-                                                            disabled={index === selectedExercises.length - 1}
-                                                            sx={{ borderRadius: 1 }}
+                                                            sx={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                width: 32,
+                                                                height: 32,
+                                                                borderRadius: 1,
+                                                                cursor: index === selectedExercises.length - 1 ? 'default' : 'pointer',
+                                                                opacity: index === selectedExercises.length - 1 ? 0.3 : 1,
+                                                                '&:hover': index === selectedExercises.length - 1 ? {} : {
+                                                                    backgroundColor: 'action.hover'
+                                                                }
+                                                            }}
                                                         >
                                                             <ArrowDownIcon />
-                                                        </IconButton>
-                                                        <IconButton
-                                                            size="small"
+                                                        </Box>
+                                                        <Box
+                                                            component="div"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 removeExercise(index);
                                                             }}
-                                                            color="error"
-                                                            sx={{ borderRadius: 1 }}
+                                                            sx={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                width: 32,
+                                                                height: 32,
+                                                                borderRadius: 1,
+                                                                cursor: 'pointer',
+                                                                color: 'error.main',
+                                                                '&:hover': {
+                                                                    backgroundColor: 'error.light',
+                                                                    color: 'error.dark'
+                                                                }
+                                                            }}
                                                         >
                                                             <DeleteIcon />
-                                                        </IconButton>
+                                                        </Box>
                                                     </Stack>
                                                 </AccordionSummary>
 

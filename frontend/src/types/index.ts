@@ -121,6 +121,7 @@ export interface MyProgram {
     participants: number;
     max_participants: number;
     created_at: string;
+    expires_at?: string;  // 공개 WOD 만료 시간
     exercises?: ProgramExercise[];  // 기존 운동 정보 (호환성 유지)
     workout_pattern?: WorkoutPattern;  // WOD 패턴 정보 추가
 }

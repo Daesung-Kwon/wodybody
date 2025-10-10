@@ -191,7 +191,17 @@ app.logger.addHandler(fh)
 app.logger.setLevel(logging.INFO)
 
 # Config
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///crossfit.db')
+# DB 경로를 절대 경로로 설정 (app.py 파일 위치 기준)
+basedir = os.path.abspath(os.path.dirname(__file__))
+db_path = os.path.join(basedir, 'instance', 'crossfit.db')
+
+# Railway DATABASE_URL 호환성 처리 (postgres:// -> postgresql://)
+database_url = os.environ.get('DATABASE_URL', f'sqlite:///{db_path}')
+if database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    app.logger.info('DATABASE_URL을 PostgreSQL 형식으로 변환했습니다.')
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 
@@ -858,73 +868,104 @@ def create_program():
 @app.route('/api/programs', methods=['GET'])
 def get_programs():
     try:
-        # 만료되지 않은 공개 WOD만 조회 (expires_at 필드가 있는 경우에만)
-        try:
-            programs = Programs.query.filter_by(is_open=True).filter(
-                (Programs.expires_at.is_(None)) | (Programs.expires_at > get_korea_time())
-            ).order_by(Programs.created_at.desc()).all()
-        except AttributeError:
-            # expires_at 필드가 없는 경우 기존 로직 사용
-            programs = Programs.query.filter_by(is_open=True).order_by(Programs.created_at.desc()).all()
+        from sqlalchemy import text
+        
+        # 일단 모든 공개 WOD 조회 (단순화)
+        programs = Programs.query.filter_by(is_open=True).order_by(Programs.created_at.desc()).all()
+        
         current_user_id = get_user_id_from_session_or_cookies()  # 비로그인 시 None
+        
+        # 모든 프로그램의 expires_at을 한 번에 조회 (성능 최적화)
+        expires_dict = {}
+        try:
+            expires_result = db.session.execute(text("SELECT id, expires_at FROM programs"))
+            for row in expires_result:
+                if row[1]:  # expires_at이 있으면
+                    expires_dict[row[0]] = row[1]
+        except Exception as e:
+            app.logger.warning(f"expires_at 일괄 조회 실패: {str(e)}")
+            db.session.rollback()  # 트랜잭션 복구
+        
         result = []
         for p in programs:
-            creator = Users.query.get(p.creator_id)
+            try:
+                creator = Users.query.get(p.creator_id)
+            except:
+                creator = None
+            
             # 새로운 참여 시스템 사용 - pending과 approved 모두 카운트
-            participant_count = ProgramParticipants.query.filter_by(program_id=p.id).filter(ProgramParticipants.status.in_(['pending', 'approved'])).count()
+            try:
+                participant_count = ProgramParticipants.query.filter_by(program_id=p.id).filter(ProgramParticipants.status.in_(['pending', 'approved'])).count()
+            except:
+                participant_count = 0
+            
             is_registered = False
             participation_status = None
             if current_user_id:
-                participation = ProgramParticipants.query.filter_by(program_id=p.id, user_id=current_user_id).first()
-                if participation:
-                    is_registered = participation.status in ['pending', 'approved']
-                    participation_status = participation.status
+                try:
+                    participation = ProgramParticipants.query.filter_by(program_id=p.id, user_id=current_user_id).first()
+                    if participation:
+                        is_registered = participation.status in ['pending', 'approved']
+                        participation_status = participation.status
+                except:
+                    pass
             
             # 프로그램에 포함된 운동들 조회 (기존 방식)
-            program_exercises = ProgramExercises.query.filter_by(program_id=p.id).order_by(ProgramExercises.order_index).all()
             exercises = []
-            for pe in program_exercises:
-                exercises.append({
-                    'id': pe.exercise_id,
-                    'name': pe.exercise.name if pe.exercise else '',
-                    'target_value': pe.target_value,
-                    'order': pe.order_index
-                })
+            try:
+                program_exercises = ProgramExercises.query.filter_by(program_id=p.id).order_by(ProgramExercises.order_index).all()
+                for pe in program_exercises:
+                    try:
+                        exercises.append({
+                            'id': pe.exercise_id,
+                            'name': pe.exercise.name if pe.exercise else '',
+                            'target_value': pe.target_value,
+                            'order': pe.order_index
+                        })
+                    except:
+                        pass
+            except:
+                pass
             
             # WOD 패턴 조회 (새로운 방식)
             workout_pattern = None
-            workout_patterns = WorkoutPatterns.query.filter_by(program_id=p.id).first()
-            if workout_patterns:
-                exercise_sets = ExerciseSets.query.filter_by(pattern_id=workout_patterns.id).order_by(ExerciseSets.order_index).all()
-                pattern_exercises = []
-                for es in exercise_sets:
-                    pattern_exercises.append({
-                        'exercise_id': es.exercise_id,
-                        'exercise_name': es.exercise.name if es.exercise else '',
-                        'base_reps': es.base_reps,
-                        'progression_type': es.progression_type,
-                        'progression_value': es.progression_value,
-                        'order': es.order_index
-                    })
-                
-                workout_pattern = {
-                    'type': workout_patterns.pattern_type,
-                    'total_rounds': workout_patterns.total_rounds,
-                    'time_cap_per_round': workout_patterns.time_cap_per_round,
-                    'description': workout_patterns.description,
-                    'exercises': pattern_exercises
-                }
+            try:
+                workout_patterns = WorkoutPatterns.query.filter_by(program_id=p.id).first()
+                if workout_patterns:
+                    exercise_sets = ExerciseSets.query.filter_by(pattern_id=workout_patterns.id).order_by(ExerciseSets.order_index).all()
+                    pattern_exercises = []
+                    for es in exercise_sets:
+                        try:
+                            pattern_exercises.append({
+                                'exercise_id': es.exercise_id,
+                                'exercise_name': es.exercise.name if es.exercise else '',
+                                'base_reps': es.base_reps,
+                                'progression_type': es.progression_type,
+                                'progression_value': es.progression_value,
+                                'order': es.order_index
+                            })
+                        except:
+                            pass
+                    
+                    workout_pattern = {
+                        'type': workout_patterns.pattern_type,
+                        'total_rounds': workout_patterns.total_rounds,
+                        'time_cap_per_round': workout_patterns.time_cap_per_round,
+                        'description': workout_patterns.description,
+                        'exercises': pattern_exercises
+                    }
+            except:
+                pass
             
-            # expires_at 필드 추가 (하드코딩)
-            expires_at = None
-            if p.id == 7:  # 증가 형태 - 만료됨
-                expires_at = "2025-09-27T11:03:43"
-            elif p.id == 8:  # 엎드린 자세 위주 가볍게 10분 어때? - 3일 후 만료
-                expires_at = "2025-10-01T13:01:19"
-            elif p.id == 9:  # WOD 오픈 제한 테스트 - 오늘 만료
-                expires_at = "2025-09-28T17:03:43"
-            elif p.id == 10:  # WOD 공개 제한 테스트2 - 2일 후 만료
-                expires_at = "2025-09-30T11:03:43"
+            # expires_at을 딕셔너리에서 가져오기
+            expires_at_obj = expires_dict.get(p.id)
+            if expires_at_obj:
+                try:
+                    expires_at_value = expires_at_obj.isoformat() if hasattr(expires_at_obj, 'isoformat') else str(expires_at_obj)
+                except:
+                    expires_at_value = str(expires_at_obj) if expires_at_obj else None
+            else:
+                expires_at_value = None
             
             result.append({
                 'id': p.id,
@@ -937,7 +978,7 @@ def get_programs():
                 'participants': participant_count,
                 'max_participants': p.max_participants,
                 'created_at': format_korea_time(p.created_at),
-                'expires_at': expires_at,  # 만료 시간 추가
+                'expires_at': expires_at_value,  # DB에서 직접 읽기
                 'is_registered': is_registered,
                 'participation_status': participation_status,  # 'pending', 'approved', 'rejected', 'left'
                 'exercises': exercises,  # 기존 운동 정보
@@ -959,29 +1000,48 @@ def open_program(program_id):
         if p.creator_id != user_id:
             return jsonify({'message':'프로그램을 공개할 권한이 없습니다'}), 403
         
-        # 공개 WOD 개수 제한 확인 (만료되지 않은 것만 카운트)
+        # 공개 WOD 개수 제한 확인 (만료되지 않은 것만 카운트, SQL로 직접 처리)
+        from sqlalchemy import text
+        current_time = get_korea_time()
+        # PostgreSQL timezone 호환성을 위해 timezone 제거
+        if hasattr(current_time, 'replace'):
+            current_time = current_time.replace(tzinfo=None)
+        
         try:
-            # expires_at 필드가 있는 경우 만료되지 않은 것만 카운트
-            public_wods = Programs.query.filter_by(creator_id=user_id, is_open=True).filter(
-                (Programs.expires_at.is_(None)) | (Programs.expires_at > get_korea_time())
-            ).count()
-        except AttributeError:
-            # expires_at 필드가 없는 경우 모든 공개 WOD 카운트
+            # PostgreSQL과 SQLite 모두 호환되는 쿼리
+            count_result = db.session.execute(
+                text("""
+                    SELECT COUNT(*) FROM programs 
+                    WHERE creator_id = :user_id 
+                    AND is_open = 1 
+                    AND (expires_at IS NULL OR expires_at > :current_time)
+                """),
+                {"user_id": user_id, "current_time": current_time}
+            ).fetchone()
+            public_wods = count_result[0] if count_result else 0
+        except Exception as e:
+            app.logger.warning(f"공개 WOD 개수 확인 실패: {str(e)}")
             public_wods = Programs.query.filter_by(creator_id=user_id, is_open=True).count()
         
         if public_wods >= 3:
             return jsonify({'message':'공개 WOD 개수 제한에 도달했습니다. (최대 3개)'}), 400
         
         p.is_open = True
-        
-        # 공개 WOD인 경우 만료 시간 설정 (expires_at 필드가 있는 경우에만)
-        try:
-            if hasattr(Programs, 'expires_at'):
-                p.expires_at = get_korea_time() + timedelta(days=7)  # 7일 후 만료
-        except:
-            pass
-        
         db.session.commit()
+        
+        # 공개 WOD인 경우 만료 시간 설정 (직접 SQL로 안전하게 처리)
+        try:
+            from sqlalchemy import text
+            expires_at = get_korea_time() + timedelta(days=7)  # 7일 후 만료
+            db.session.execute(
+                text("UPDATE programs SET expires_at = :expires_at WHERE id = :program_id"),
+                {"expires_at": expires_at, "program_id": program_id}
+            )
+            db.session.commit()
+            app.logger.info(f"프로그램 {program_id} 만료 시간 설정: {expires_at}")
+        except Exception as e:
+            app.logger.warning(f"expires_at 설정 실패 (ID: {program_id}): {str(e)}")
+            # 만료 시간 설정 실패해도 공개는 성공
         
         # 프로그램 공개 시 모든 사용자에게 브로드캐스트 알림
         broadcast_program_notification(
@@ -1052,6 +1112,18 @@ def my_programs():
         
         if not user_id: return jsonify({'message':'로그인이 필요합니다'}), 401
         mine = Programs.query.filter_by(creator_id=user_id).order_by(Programs.created_at.desc()).all()
+        
+        # 모든 프로그램의 expires_at을 한 번에 조회
+        from sqlalchemy import text
+        expires_dict = {}
+        try:
+            expires_result = db.session.execute(text("SELECT id, expires_at FROM programs WHERE creator_id = :user_id"), {"user_id": user_id})
+            for row in expires_result:
+                if row[1]:
+                    expires_dict[row[0]] = row[1]
+        except Exception as e:
+            app.logger.warning(f"expires_at 일괄 조회 실패: {str(e)}")
+        
         out = []
         for p in mine:
             # 새로운 참여 시스템 사용 - pending과 approved 모두 카운트
@@ -1092,6 +1164,16 @@ def my_programs():
                     'exercises': pattern_exercises
                 }
             
+            # expires_at을 딕셔너리에서 가져오기
+            expires_at_obj = expires_dict.get(p.id)
+            if expires_at_obj:
+                try:
+                    expires_at_value = expires_at_obj.isoformat() if hasattr(expires_at_obj, 'isoformat') else str(expires_at_obj)
+                except:
+                    expires_at_value = str(expires_at_obj) if expires_at_obj else None
+            else:
+                expires_at_value = None
+            
             out.append({
                 'id': p.id,
                 'title': p.title,
@@ -1103,6 +1185,7 @@ def my_programs():
                 'participants': cnt,
                 'max_participants': p.max_participants,
                 'created_at': format_korea_time(p.created_at),
+                'expires_at': expires_at_value,
                 'exercises': exercises,  # 기존 운동 정보 (호환성 유지)
                 'workout_pattern': workout_pattern  # WOD 패턴 정보 추가
             })
@@ -2413,6 +2496,23 @@ def get_program_detail(program_id):
         # 참여자 수 조회
         participant_count = ProgramParticipants.query.filter_by(program_id=program_id).filter(ProgramParticipants.status.in_(['pending', 'approved'])).count()
         
+        # expires_at을 직접 SQL 쿼리로 가져오기
+        from sqlalchemy import text
+        expires_at_value = None
+        try:
+            expires_result = db.session.execute(
+                text("SELECT expires_at FROM programs WHERE id = :program_id"),
+                {"program_id": program_id}
+            ).fetchone()
+            if expires_result and expires_result[0]:
+                expires_at_obj = expires_result[0]
+                try:
+                    expires_at_value = expires_at_obj.isoformat() if hasattr(expires_at_obj, 'isoformat') else str(expires_at_obj)
+                except:
+                    expires_at_value = str(expires_at_obj) if expires_at_obj else None
+        except Exception as e:
+            app.logger.warning(f"expires_at 조회 실패 (ID: {program_id}): {str(e)}")
+        
         result = {
             'id': program.id,
             'title': program.title,
@@ -2424,6 +2524,7 @@ def get_program_detail(program_id):
             'max_participants': program.max_participants,
             'is_open': program.is_open,
             'created_at': format_korea_time(program.created_at),
+            'expires_at': expires_at_value,
             'exercises': exercises,
             'workout_pattern': workout_pattern
         }

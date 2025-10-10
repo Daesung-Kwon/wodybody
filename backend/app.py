@@ -1348,18 +1348,25 @@ def delete_program(program_id):
         # 6. 운동 기록 삭제
         WorkoutRecords.query.filter_by(program_id=program_id).delete()
         
-        # 7. 프로그램 삭제 전에 알림 전송
-        create_notification(
-            user_id=program.creator_id,
-            notification_type='program_deleted',
-            title='프로그램이 삭제되었습니다',
-            message=f'"{program.title}" 프로그램이 삭제되었습니다.',
-            program_id=program.id
-        )
+        # 7. 알림용 정보 저장
+        program_title = program.title
+        program_creator_id = program.creator_id
         
         # 8. 프로그램 삭제
         db.session.delete(program)
         db.session.commit()
+        
+        # 9. 삭제 후 알림 전송 (별도 트랜잭션)
+        try:
+            create_notification(
+                user_id=program_creator_id,
+                notification_type='program_deleted',
+                title='프로그램이 삭제되었습니다',
+                message=f'"{program_title}" 프로그램이 삭제되었습니다.',
+                program_id=None  # 이미 삭제되었으므로 None
+            )
+        except Exception as notif_error:
+            app.logger.warning(f'알림 전송 실패: {str(notif_error)}')
         
         return jsonify({'message': '프로그램이 삭제되었습니다'}), 200
     except Exception as e:

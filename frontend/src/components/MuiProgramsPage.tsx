@@ -658,26 +658,35 @@ const MuiProgramsPage: React.FC = () => {
                 fullWidth
                 PaperProps={{
                     sx: {
-                        borderRadius: 4,
+                        borderRadius: { xs: 2, sm: 4 },
                         backgroundImage: 'none',
                         backgroundColor: isDarkMode ? 'background.paper' : 'white',
                         boxShadow: isDarkMode
                             ? '0 24px 48px rgba(0, 0, 0, 0.4)'
                             : '0 24px 48px rgba(0, 0, 0, 0.12)',
-                        minHeight: '80vh',
+                        // 반응형 높이 설정 - 모바일에서 더 효율적
+                        maxHeight: { xs: '90vh', sm: '80vh', md: '70vh' },
+                        height: { xs: 'auto', sm: 'auto' },
+                        // 모바일에서 좌우 여백 최소화
+                        mx: { xs: 1, sm: 2 },
+                        my: { xs: 1, sm: 2 },
+                        // Flexbox 레이아웃으로 헤더 고정, 콘텐츠 스크롤
+                        display: 'flex',
+                        flexDirection: 'column',
                     }
                 }}
             >
                 {selectedProgram && (
                     <>
-                        {/* 헤더 - 그라데이션 배경 */}
+                        {/* 헤더 - 그라데이션 배경 (고정 영역) */}
                         <Box
                             sx={{
                                 background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
                                 color: 'white',
-                                p: 3,
+                                p: { xs: 2, sm: 3 }, // 모바일에서 패딩 축소 (16px → 24px)
                                 position: 'relative',
                                 overflow: 'hidden',
+                                flexShrink: 0, // 헤더 크기 고정
                             }}
                         >
                             {/* 배경 장식 */}
@@ -706,10 +715,18 @@ const MuiProgramsPage: React.FC = () => {
 
                             <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
                                 <Box sx={{ position: 'relative', zIndex: 1 }}>
-                                    <Typography variant="h4" component="h1" sx={{ fontWeight: 700, mb: 1 }}>
+                                    <Typography variant="h4" component="h1" sx={{
+                                        fontWeight: 700,
+                                        mb: 1,
+                                        fontSize: { xs: '1.5rem', sm: '2.125rem' } // h5 -> h4
+                                    }}>
                                         {selectedProgram.title}
                                     </Typography>
-                                    <Typography variant="body1" sx={{ opacity: 0.9, mb: 2 }}>
+                                    <Typography variant="body1" sx={{
+                                        opacity: 0.9,
+                                        mb: 2,
+                                        fontSize: { xs: '0.875rem', sm: '1rem' } // body2 -> body1
+                                    }}>
                                         {selectedProgram.description}
                                     </Typography>
 
@@ -770,11 +787,32 @@ const MuiProgramsPage: React.FC = () => {
                             </Stack>
                         </Box>
 
-                        <DialogContent sx={{ p: 0 }}>
-                            <Box sx={{ p: 3 }}>
+                        {/* 스크롤 가능한 콘텐츠 영역 */}
+                        <DialogContent sx={{
+                            p: 0,
+                            flex: 1,
+                            overflowY: 'auto',
+                            // 스크롤바 스타일링 (모바일에서 더 깔끔하게)
+                            '&::-webkit-scrollbar': {
+                                width: '6px',
+                            },
+                            '&::-webkit-scrollbar-track': {
+                                backgroundColor: 'transparent',
+                            },
+                            '&::-webkit-scrollbar-thumb': {
+                                backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)',
+                                borderRadius: '3px',
+                            },
+                        }}>
+                            <Box sx={{ p: { xs: 2, sm: 3 } }}>
                                 {/* 운동 목록 */}
-                                <Box sx={{ mb: 4 }}>
-                                    <Typography variant="h6" sx={{ mb: 3, fontWeight: 600, color: 'text.primary' }}>
+                                <Box sx={{ mb: { xs: 3, sm: 4 } }}>
+                                    <Typography variant="h5" sx={{
+                                        mb: { xs: 2, sm: 3 },
+                                        fontWeight: 600,
+                                        color: 'text.primary',
+                                        fontSize: { xs: '1.25rem', sm: '1.5rem' } // h6 -> h5
+                                    }}>
                                         🏋️ 포함된 운동
                                     </Typography>
 
@@ -786,7 +824,10 @@ const MuiProgramsPage: React.FC = () => {
                                                 background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
                                                 color: 'white',
                                             }}>
-                                                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                                <Typography variant="h6" sx={{
+                                                    fontWeight: 600,
+                                                    fontSize: { xs: '1rem', sm: '1.25rem' } // body1 -> h6
+                                                }}>
                                                     🎯 WOD 패턴 운동
                                                 </Typography>
                                             </Box>
@@ -804,7 +845,7 @@ const MuiProgramsPage: React.FC = () => {
 
                                                         return (
                                                             <Card key={index} variant="outlined" sx={{
-                                                                p: 2,
+                                                                p: { xs: 1.5, sm: 2 },
                                                                 border: '1px solid',
                                                                 borderColor: 'primary.main',
                                                                 backgroundColor: 'primary.50',
@@ -821,7 +862,10 @@ const MuiProgramsPage: React.FC = () => {
                                                                             }}>
                                                                                 {index + 1}
                                                                             </Avatar>
-                                                                            <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                                                                            <Typography variant="body1" sx={{
+                                                                                fontWeight: 600,
+                                                                                fontSize: { xs: '0.875rem', sm: '1rem' } // body2 -> body1
+                                                                            }}>
                                                                                 {exercise.exercise_name || exercise.name}
                                                                             </Typography>
                                                                         </Stack>
@@ -835,7 +879,7 @@ const MuiProgramsPage: React.FC = () => {
 
                                                                     {/* 진행 방식 정보 - 실제 데이터 기반으로 수정 */}
                                                                     <Box sx={{
-                                                                        pl: 5,
+                                                                        pl: { xs: 2, sm: 3 }, // 왼쪽 여백 축소 (40px → 16px/24px)
                                                                         py: 2,
                                                                         bgcolor: (() => {
                                                                             const type = exercise.progression_type;
@@ -898,7 +942,7 @@ const MuiProgramsPage: React.FC = () => {
                                                                             </Stack>
 
                                                                             {/* 진행 방식 상세 정보 */}
-                                                                            <Stack direction="row" alignItems="center" spacing={2} flexWrap="wrap">
+                                                                            <Stack direction="column" spacing={1}>
                                                                                 <Chip
                                                                                     icon={(() => {
                                                                                         const type = exercise.progression_type;
@@ -929,8 +973,14 @@ const MuiProgramsPage: React.FC = () => {
                                                                                     variant="filled"
                                                                                     sx={{
                                                                                         fontSize: '0.75rem',
-                                                                                        height: 24,
+                                                                                        height: 24, // 목표값 chip과 동일한 높이
                                                                                         fontWeight: 600,
+                                                                                        width: 'fit-content', // 내용에 맞는 너비
+                                                                                        maxWidth: { xs: '100%', sm: '280px' }, // 최대 너비 제한
+                                                                                        whiteSpace: 'normal', // 긴 텍스트 줄바꿈 허용
+                                                                                        wordBreak: 'keep-all', // 한글 단어 단위로 줄바꿈
+                                                                                        px: 1, // 목표값 chip과 동일한 좌우 패딩
+                                                                                        py: 0, // 목표값 chip과 동일한 상하 패딩
                                                                                     }}
                                                                                 />
 
@@ -942,9 +992,17 @@ const MuiProgramsPage: React.FC = () => {
                                                                                     display: 'block',
                                                                                     mt: 0.5,
                                                                                     backgroundColor: 'rgba(0, 0, 0, 0.05)',
-                                                                                    p: 0.5,
+                                                                                    px: 1, // 목표값 chip과 동일한 좌우 패딩
+                                                                                    py: 0.25, // 약간의 상하 패딩
                                                                                     borderRadius: 1,
-                                                                                    border: '1px solid rgba(0, 0, 0, 0.1)'
+                                                                                    border: '1px solid rgba(0, 0, 0, 0.1)',
+                                                                                    // 내용 길이에 맞게 크기 조정
+                                                                                    width: 'fit-content',
+                                                                                    maxWidth: { xs: '100%', sm: '280px' },
+                                                                                    whiteSpace: 'normal',
+                                                                                    wordBreak: 'keep-all',
+                                                                                    minHeight: 'auto',
+                                                                                    height: 'auto'
                                                                                 }}>
                                                                                     {(() => {
                                                                                         const baseReps = exercise.base_reps || 0;

@@ -800,26 +800,10 @@ def create_program():
         db.session.add(p)
         db.session.flush()  # ID를 얻기 위해 flush
         
-        # 프로그램 생성 알림 전송
-        create_notification(
-            user_id=user_id,
-            notification_type='program_created',
-            title='새 프로그램이 등록되었습니다',
-            message=f'"{data["title"].strip()}" 프로그램이 성공적으로 등록되었습니다.',
-            program_id=p.id
-        )
-        
-        # 공개 WOD인 경우 만료 알림 추가
-        if data.get('is_open', False):
-            create_notification(
-                user_id=user_id,
-                notification_type='wod_expiry_warning',
-                title='공개 WOD 만료 안내',
-                message=f'"{data["title"].strip()}" WOD는 7일 후 자동으로 만료됩니다.',
-                program_id=p.id
-            )
-        
-        # 프로그램 등록 시에는 개인 알림만 전송 (공개 시에만 브로드캐스트)
+        # 프로그램 ID 저장 (commit 후 알림에서 사용)
+        program_id = p.id
+        program_title = data['title'].strip()
+        is_open = data.get('is_open', False)
         
         # 선택된 운동들을 ProgramExercises에 저장 (기존 방식)
         selected_exercises = data.get('selected_exercises', [])
@@ -859,7 +843,32 @@ def create_program():
                 db.session.add(es)
         
         db.session.commit()
-        return jsonify({'message':'프로그램이 생성되었습니다','program_id':p.id}), 200
+        
+        # ===== commit 후 알림 전송 (WebSocket 포함) =====
+        try:
+            # 프로그램 생성 알림 (WebSocket 전송 포함)
+            create_notification(
+                user_id=user_id,
+                notification_type='program_created',
+                title='새 프로그램이 등록되었습니다',
+                message=f'"{program_title}" 프로그램이 성공적으로 등록되었습니다.',
+                program_id=program_id
+            )
+            
+            # 공개 WOD인 경우 만료 알림 추가 (WebSocket 전송 포함)
+            if is_open:
+                create_notification(
+                    user_id=user_id,
+                    notification_type='wod_expiry_warning',
+                    title='공개 WOD 만료 안내',
+                    message=f'"{program_title}" WOD는 7일 후 자동으로 만료됩니다.',
+                    program_id=program_id
+                )
+        except Exception as notif_error:
+            app.logger.warning(f'프로그램 생성 알림 전송 실패: {str(notif_error)}')
+            # 알림 실패해도 프로그램 생성은 성공
+        
+        return jsonify({'message':'프로그램이 생성되었습니다','program_id':program_id}), 200
     except Exception as e:
         app.logger.exception('create_program error: %s', str(e))
         db.session.rollback()
@@ -1021,7 +1030,12 @@ def open_program(program_id):
             public_wods = count_result[0] if count_result else 0
         except Exception as e:
             app.logger.warning(f"공개 WOD 개수 확인 실패: {str(e)}")
-            public_wods = Programs.query.filter_by(creator_id=user_id, is_open=True).count()
+            db.session.rollback()  # 트랜잭션 복구
+            try:
+                public_wods = Programs.query.filter_by(creator_id=user_id, is_open=True).count()
+            except:
+                # 최악의 경우 0으로 설정 (공개는 허용)
+                public_wods = 0
         
         if public_wods >= 3:
             return jsonify({'message':'공개 WOD 개수 제한에 도달했습니다. (최대 3개)'}), 400
@@ -1033,6 +1047,10 @@ def open_program(program_id):
         try:
             from sqlalchemy import text
             expires_at = get_korea_time() + timedelta(days=7)  # 7일 후 만료
+            # PostgreSQL timezone 호환성
+            if hasattr(expires_at, 'replace'):
+                expires_at = expires_at.replace(tzinfo=None)
+            
             db.session.execute(
                 text("UPDATE programs SET expires_at = :expires_at WHERE id = :program_id"),
                 {"expires_at": expires_at, "program_id": program_id}
@@ -1040,7 +1058,8 @@ def open_program(program_id):
             db.session.commit()
             app.logger.info(f"프로그램 {program_id} 만료 시간 설정: {expires_at}")
         except Exception as e:
-            app.logger.warning(f"expires_at 설정 실패 (ID: {program_id}): {str(e)}")
+            app.logger.exception(f"expires_at 설정 실패 (ID: {program_id}): {str(e)}")
+            db.session.rollback()
             # 만료 시간 설정 실패해도 공개는 성공
         
         # 프로그램 공개 시 모든 사용자에게 브로드캐스트 알림
@@ -1327,46 +1346,89 @@ def delete_program(program_id):
         if program.creator_id != user_id:
             return jsonify({'message': '프로그램을 삭제할 권한이 없습니다'}), 403
         
-        # 관련 데이터 삭제 (외래키 제약으로 인해 순서 중요)
-        # 1. 운동 세트 삭제
-        workout_patterns = WorkoutPatterns.query.filter_by(program_id=program_id).all()
-        for pattern in workout_patterns:
-            ExerciseSets.query.filter_by(pattern_id=pattern.id).delete()
-        
-        # 2. WOD 패턴 삭제
-        WorkoutPatterns.query.filter_by(program_id=program_id).delete()
-        
-        # 3. 프로그램 운동 삭제
-        ProgramExercises.query.filter_by(program_id=program_id).delete()
-        
-        # 4. 참여 신청 삭제
-        Registrations.query.filter_by(program_id=program_id).delete()
-        
-        # 5. 프로그램 참여자 삭제
-        ProgramParticipants.query.filter_by(program_id=program_id).delete()
-        
-        # 6. 운동 기록 삭제
-        WorkoutRecords.query.filter_by(program_id=program_id).delete()
-        
-        # 7. 알림용 정보 저장
+        # 알림용 정보 미리 저장
         program_title = program.title
         program_creator_id = program.creator_id
         
-        # 8. 프로그램 삭제
-        db.session.delete(program)
-        db.session.commit()
+        # 관련 데이터 삭제 (SQL로 직접 처리 - ORM 관계 문제 회피)
+        from sqlalchemy import text
         
-        # 9. 삭제 후 알림 전송 (별도 트랜잭션)
+        try:
+            # 1. WorkoutPattern ID들 조회
+            pattern_ids = db.session.execute(
+                text("SELECT id FROM workout_patterns WHERE program_id = :pid"),
+                {"pid": program_id}
+            ).fetchall()
+            pattern_id_list = [row[0] for row in pattern_ids]
+            
+            # 2. ExerciseSets 삭제
+            if pattern_id_list:
+                db.session.execute(
+                    text("DELETE FROM exercise_sets WHERE pattern_id IN :pids"),
+                    {"pids": tuple(pattern_id_list) if len(pattern_id_list) > 1 else (pattern_id_list[0],)}
+                )
+            
+            # 3. WorkoutPatterns 삭제
+            db.session.execute(
+                text("DELETE FROM workout_patterns WHERE program_id = :pid"),
+                {"pid": program_id}
+            )
+            
+            # 4. ProgramExercises 삭제
+            db.session.execute(
+                text("DELETE FROM program_exercises WHERE program_id = :pid"),
+                {"pid": program_id}
+            )
+            
+            # 5. Registrations 삭제
+            db.session.execute(
+                text("DELETE FROM registrations WHERE program_id = :pid"),
+                {"pid": program_id}
+            )
+            
+            # 6. ProgramParticipants 삭제
+            db.session.execute(
+                text("DELETE FROM program_participants WHERE program_id = :pid"),
+                {"pid": program_id}
+            )
+            
+            # 7. WorkoutRecords 삭제
+            db.session.execute(
+                text("DELETE FROM workout_records WHERE program_id = :pid"),
+                {"pid": program_id}
+            )
+            
+            # 8. 알림 삭제 (선택적)
+            db.session.execute(
+                text("DELETE FROM notifications WHERE program_id = :pid"),
+                {"pid": program_id}
+            )
+            
+            # 9. 프로그램 삭제
+            db.session.execute(
+                text("DELETE FROM programs WHERE id = :pid"),
+                {"pid": program_id}
+            )
+            
+            db.session.commit()
+            app.logger.info(f"프로그램 {program_id} 삭제 완료")
+            
+        except Exception as e:
+            app.logger.exception(f'프로그램 삭제 실패: {str(e)}')
+            db.session.rollback()
+            return jsonify({'message': '프로그램 삭제 중 오류가 발생했습니다'}), 500
+        
+        # 삭제 후 알림 전송 (WebSocket 포함, 실패해도 괜찮음)
         try:
             create_notification(
                 user_id=program_creator_id,
                 notification_type='program_deleted',
                 title='프로그램이 삭제되었습니다',
                 message=f'"{program_title}" 프로그램이 삭제되었습니다.',
-                program_id=None  # 이미 삭제되었으므로 None
+                program_id=None  # 이미 삭제됨
             )
         except Exception as notif_error:
-            app.logger.warning(f'알림 전송 실패: {str(notif_error)}')
+            app.logger.warning(f'삭제 알림 전송 실패: {str(notif_error)}')
         
         return jsonify({'message': '프로그램이 삭제되었습니다'}), 200
     except Exception as e:
@@ -1615,14 +1677,17 @@ def join_program(program_id):
                 existing_participation.left_at = None
                 db.session.commit()
                 
-                # 프로그램 생성자에게 알림 전송
-                create_notification(
-                    user_id=program.creator_id,
-                    program_id=program_id,
-                    notification_type='program_join_request',
-                    title='새로운 참여 신청이 있습니다',
-                    message=f'"{program.title}" 프로그램에 새로운 참여 신청이 있습니다.'
-                )
+                # 프로그램 생성자에게 알림 전송 (WebSocket 포함, 실패해도 괜찮음)
+                try:
+                    create_notification(
+                        user_id=program.creator_id,
+                        notification_type='program_join_request',
+                        title='새로운 참여 신청이 있습니다',
+                        message=f'"{program.title}" 프로그램에 새로운 참여 신청이 있습니다.',
+                        program_id=program_id
+                    )
+                except Exception as notif_error:
+                    app.logger.warning(f'재참여 알림 전송 실패: {str(notif_error)}')
                 
                 return jsonify({'message': '참여 신청이 완료되었습니다'}), 200
         
@@ -1645,14 +1710,17 @@ def join_program(program_id):
         db.session.add(participation)
         db.session.commit()
         
-        # 프로그램 생성자에게 알림 전송
-        create_notification(
-            user_id=program.creator_id,
-            notification_type='program_join_request',
-            title='새로운 참여 신청이 있습니다',
-            message=f'"{program.title}" 프로그램에 새로운 참여 신청이 있습니다.',
-            program_id=program_id
-        )
+        # 프로그램 생성자에게 알림 전송 (WebSocket 포함, 실패해도 괜찮음)
+        try:
+            create_notification(
+                user_id=program.creator_id,
+                notification_type='program_join_request',
+                title='새로운 참여 신청이 있습니다',
+                message=f'"{program.title}" 프로그램에 새로운 참여 신청이 있습니다.',
+                program_id=program_id
+            )
+        except Exception as notif_error:
+            app.logger.warning(f'참여 신청 알림 전송 실패: {str(notif_error)}')
         
         return jsonify({'message': '참여 신청이 완료되었습니다'}), 200
         
@@ -1782,35 +1850,35 @@ def approve_participant(program_id, user_id):
             participation.status = 'approved'
             participation.approved_at = datetime.utcnow()
             
-            # 참여자에게 알림 전송
-            create_notification(
-                user_id=user_id,
-                notification_type='program_approved',
-                title='프로그램 참여가 승인되었습니다',
-                message=f'"{program.title}" 프로그램 참여가 승인되었습니다.',
-                program_id=program_id
-            )
-            
             message = '참여가 승인되었습니다'
+            notification_type = 'program_approved'
+            notification_title = '프로그램 참여가 승인되었습니다'
+            notification_message = f'"{program.title}" 프로그램 참여가 승인되었습니다.'
             
         elif action == 'reject':
             participation.status = 'rejected'
             
-            # 참여자에게 알림 전송
-            create_notification(
-                user_id=user_id,
-                notification_type='program_rejected',
-                title='프로그램 참여가 거부되었습니다',
-                message=f'"{program.title}" 프로그램 참여가 거부되었습니다.',
-                program_id=program_id
-            )
-            
             message = '참여가 거부되었습니다'
+            notification_type = 'program_rejected'
+            notification_title = '프로그램 참여가 거부되었습니다'
+            notification_message = f'"{program.title}" 프로그램 참여가 거부되었습니다.'
             
         else:
             return jsonify({'error': '유효하지 않은 액션입니다'}), 400
         
         db.session.commit()
+        
+        # commit 후 알림 전송 (WebSocket 포함)
+        try:
+            create_notification(
+                user_id=user_id,
+                notification_type=notification_type,
+                title=notification_title,
+                message=notification_message,
+                program_id=program_id
+            )
+        except Exception as notif_error:
+            app.logger.warning(f'승인/거부 알림 전송 실패: {str(notif_error)}')
         
         return jsonify({'message': message}), 200
         

@@ -29,10 +29,14 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
             console.log('WebSocket 연결 시도 중...', userId);
             // 모바일 Safari 감지
             const userAgent = navigator.userAgent.toLowerCase();
-            const isMobileSafari = userAgent.includes('safari') && 
-                                  !userAgent.includes('chrome') && 
-                                  (userAgent.includes('iphone') || userAgent.includes('ipad') || userAgent.includes('mobile'));
-            
+            const isMobileSafari = userAgent.includes('safari') &&
+                !userAgent.includes('chrome') &&
+                (userAgent.includes('iphone') || userAgent.includes('ipad') || userAgent.includes('mobile'));
+
+            // localStorage에서 토큰 가져오기 (모바일 Safari 대응)
+            const authToken = localStorage.getItem('access_token');
+            console.log('모바일 Safari 감지:', isMobileSafari, '| 인증 토큰:', authToken ? '있음' : '없음');
+
             const newSocket = io(process.env.REACT_APP_API_URL || 'https://wodybody-production.up.railway.app', {
                 transports: isMobileSafari ? ['polling', 'websocket'] : ['websocket', 'polling'],
                 autoConnect: true,
@@ -43,27 +47,47 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
                 forceNew: true,
                 // 모바일 Safari를 위한 추가 설정
                 upgrade: !isMobileSafari,
-                timeout: isMobileSafari ? 20000 : 10000
+                timeout: isMobileSafari ? 20000 : 10000,
+                // 모바일 Safari를 위한 인증 토큰 전달
+                auth: authToken ? { token: authToken } : undefined,
+                query: authToken ? { token: authToken, user_id: userId } : { user_id: userId }
             });
 
             newSocket.on('connect', () => {
-                console.log('WebSocket 연결됨:', newSocket.id);
+                console.log('✅ WebSocket 연결 성공!', newSocket.id);
+                console.log('Transport:', newSocket.io.engine.transport.name);
                 // 사용자 방에 참여
                 newSocket.emit('join_user_room', { user_id: userId });
+                console.log('사용자 방 참여 요청 전송:', userId);
             });
 
             newSocket.on('disconnect', (reason) => {
-                console.log('WebSocket 연결 해제됨:', reason);
+                console.log('⚠️ WebSocket 연결 해제:', reason);
             });
 
             newSocket.on('connect_error', (error) => {
-                console.error('WebSocket 연결 오류:', error);
+                console.error('❌ WebSocket 연결 오류:', error.message);
+                console.error('오류 상세:', error);
                 // 모바일 Safari에서 WebSocket 연결 실패 시 polling만 사용하도록 재시도
                 if (isMobileSafari) {
                     console.log('모바일 Safari에서 polling 전용으로 재연결 시도');
                     newSocket.io.opts.transports = ['polling'];
                     newSocket.connect();
                 }
+            });
+            
+            // 방 참여 성공/실패 이벤트
+            newSocket.on('join_success', (data) => {
+                console.log('✅ 방 참여 성공:', data);
+            });
+            
+            newSocket.on('join_error', (data) => {
+                console.error('❌ 방 참여 오류:', data);
+            });
+            
+            // 모바일 Safari 정보
+            newSocket.on('mobile_safari_info', (data) => {
+                console.log('📱 모바일 Safari 정보:', data);
             });
 
             // 개인 알림 수신

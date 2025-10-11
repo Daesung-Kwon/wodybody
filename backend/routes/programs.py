@@ -86,6 +86,7 @@ def get_programs():
                 'participants': participant_count,
                 'max_participants': p.max_participants,
                 'created_at': format_korea_time(p.created_at),
+                'expires_at': p.expires_at.isoformat() if p.expires_at else None,
                 'is_registered': is_registered,
                 'participation_status': participation_status,
                 'exercises': exercises,

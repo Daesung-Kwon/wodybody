@@ -51,11 +51,19 @@ const MuiWebSocketDebugger: React.FC = () => {
                                   !userAgent.includes('chrome') && 
                                   (userAgent.includes('iphone') || userAgent.includes('ipad') || userAgent.includes('mobile'));
 
+        // localStorage에서 토큰 가져오기
+        const authToken = localStorage.getItem('access_token');
+        
+        addLog(`모바일 Safari: ${isMobileSafari ? 'YES' : 'NO'}`);
+        addLog(`인증 토큰: ${authToken ? '있음 (길이:' + authToken.length + ')' : '없음'}`);
+        addLog(`API URL: ${process.env.REACT_APP_API_URL || 'https://wodybody-production.up.railway.app'}`);
+
         if (isMobileSafari) {
             console.log('모바일 Safari 감지됨, polling 우선 연결 시도');
+            addLog('polling 우선 연결 시도');
         }
         
-        const newSocket = io(process.env.REACT_APP_API_URL || 'https://wodybody-production.up.railway.app', {
+        const socketConfig = {
             transports: isMobileSafari ? ['polling', 'websocket'] : ['websocket', 'polling'],
             autoConnect: true,
             reconnection: true,
@@ -63,24 +71,44 @@ const MuiWebSocketDebugger: React.FC = () => {
             reconnectionAttempts: 10,
             withCredentials: true,
             forceNew: true,
-            // 모바일 Safari를 위한 추가 설정
             upgrade: !isMobileSafari,
-            timeout: isMobileSafari ? 20000 : 10000
-        });
+            timeout: isMobileSafari ? 20000 : 10000,
+            // 모바일 Safari를 위한 인증 토큰 전달
+            auth: authToken ? { token: authToken } : undefined,
+            query: authToken ? { token: authToken } : undefined
+        };
+        
+        addLog(`SocketIO 설정: ${JSON.stringify(socketConfig, null, 2)}`);
+        const newSocket = io(process.env.REACT_APP_API_URL || 'https://wodybody-production.up.railway.app', socketConfig);
 
         newSocket.on('connect', () => {
             setConnectionStatus('연결됨');
-            addLog(`WebSocket 연결됨: ${newSocket.id}`);
+            addLog(`✅ WebSocket 연결 성공!`);
+            addLog(`Socket ID: ${newSocket.id}`);
+            addLog(`Transport: ${newSocket.io.engine.transport.name}`);
         });
 
         newSocket.on('disconnect', (reason) => {
             setConnectionStatus('연결 해제됨');
-            addLog(`WebSocket 연결 해제됨: ${reason}`);
+            addLog(`⚠️ WebSocket 연결 해제: ${reason}`);
         });
 
         newSocket.on('connect_error', (error) => {
             setConnectionStatus('연결 오류');
-            addLog(`WebSocket 연결 오류: ${error.message}`);
+            addLog(`❌ WebSocket 연결 오류: ${error.message}`);
+            addLog(`오류 상세: ${JSON.stringify(error)}`);
+        });
+        
+        newSocket.on('mobile_safari_info', (data) => {
+            addLog(`📱 모바일 Safari 정보: ${JSON.stringify(data)}`);
+        });
+        
+        newSocket.on('join_success', (data) => {
+            addLog(`✅ 방 참여 성공: ${JSON.stringify(data)}`);
+        });
+        
+        newSocket.on('join_error', (data) => {
+            addLog(`❌ 방 참여 오류: ${JSON.stringify(data)}`);
         });
 
         newSocket.on('notification', (data) => {

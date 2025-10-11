@@ -170,31 +170,6 @@ def get_user_id_from_session_or_cookies():
         except (ValueError, IndexError):
             pass
 
-    # Safari 브라우저인 경우 자동 인증 시도
-    user_agent = request.headers.get('User-Agent', '').lower()
-    is_safari = 'safari' in user_agent and 'chrome' not in user_agent
-    if is_safari:
-        app.logger.info('Safari 브라우저 감지 - 자동 인증 시도')
-        # Safari 전용 세션 확인
-        safari_user_id = session.get('safari_user_id')
-        if safari_user_id:
-            app.logger.info(f'Safari 전용 세션에서 사용자 ID 확인: {safari_user_id}')
-            session['user_id'] = safari_user_id
-            session.permanent = True
-            return safari_user_id
-        else:
-            # Safari 자동 인증 (테스트용)
-            app.logger.info('Safari 자동 인증 적용 - simadeit@naver.com')
-            user_id = 1  # simadeit@naver.com의 사용자 ID
-            session['user_id'] = user_id
-            session['safari_user_id'] = user_id
-            session.permanent = True
-            return user_id
-
-    # Safari 브라우저인 경우 추가 로깅
-    if is_safari:
-        app.logger.warning(f'Safari 브라우저에서 인증 실패: cookies={dict(request.cookies)}, headers={dict(request.headers)}')
-
     return None
 
 app = Flask(__name__)
@@ -216,7 +191,17 @@ app.logger.addHandler(fh)
 app.logger.setLevel(logging.INFO)
 
 # Config
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///crossfit.db')
+# DB 경로를 절대 경로로 설정 (app.py 파일 위치 기준)
+basedir = os.path.abspath(os.path.dirname(__file__))
+db_path = os.path.join(basedir, 'instance', 'crossfit.db')
+
+# Railway DATABASE_URL 호환성 처리 (postgres:// -> postgresql://)
+database_url = os.environ.get('DATABASE_URL', f'sqlite:///{db_path}')
+if database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    app.logger.info('DATABASE_URL을 PostgreSQL 형식으로 변환했습니다.')
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 
@@ -609,19 +594,6 @@ def profile():
     
     user_id = get_user_id_from_session_or_cookies()
     
-    # Safari 대안: User-Agent로 Safari 감지 시 자동 인증 (개선된 버전)
-    if not user_id:
-        user_agent = request.headers.get('User-Agent', '').lower()
-        if 'safari' in user_agent and 'chrome' not in user_agent:
-            # Safari 전용 세션 확인
-            safari_user_id = session.get('safari_user_id')
-            if safari_user_id:
-                app.logger.info(f'Safari 전용 세션에서 사용자 ID 확인: {safari_user_id}')
-                user_id = safari_user_id
-                session['user_id'] = user_id  # 일반 세션에도 복사
-            else:
-                app.logger.warning('Safari 브라우저이지만 전용 세션이 없음 - 인증 필요')
-    
     if not user_id:
         return jsonify({'message':'Unauthorized'}), 401
         
@@ -828,26 +800,10 @@ def create_program():
         db.session.add(p)
         db.session.flush()  # ID를 얻기 위해 flush
         
-        # 프로그램 생성 알림 전송
-        create_notification(
-            user_id=user_id,
-            notification_type='program_created',
-            title='새 프로그램이 등록되었습니다',
-            message=f'"{data["title"].strip()}" 프로그램이 성공적으로 등록되었습니다.',
-            program_id=p.id
-        )
-        
-        # 공개 WOD인 경우 만료 알림 추가
-        if data.get('is_open', False):
-            create_notification(
-                user_id=user_id,
-                notification_type='wod_expiry_warning',
-                title='공개 WOD 만료 안내',
-                message=f'"{data["title"].strip()}" WOD는 7일 후 자동으로 만료됩니다.',
-                program_id=p.id
-            )
-        
-        # 프로그램 등록 시에는 개인 알림만 전송 (공개 시에만 브로드캐스트)
+        # 프로그램 ID 저장 (commit 후 알림에서 사용)
+        program_id = p.id
+        program_title = data['title'].strip()
+        is_open = data.get('is_open', False)
         
         # 선택된 운동들을 ProgramExercises에 저장 (기존 방식)
         selected_exercises = data.get('selected_exercises', [])
@@ -887,7 +843,32 @@ def create_program():
                 db.session.add(es)
         
         db.session.commit()
-        return jsonify({'message':'프로그램이 생성되었습니다','program_id':p.id}), 200
+        
+        # ===== commit 후 알림 전송 (WebSocket 포함) =====
+        try:
+            # 프로그램 생성 알림 (WebSocket 전송 포함)
+            create_notification(
+                user_id=user_id,
+                notification_type='program_created',
+                title='새 프로그램이 등록되었습니다',
+                message=f'"{program_title}" 프로그램이 성공적으로 등록되었습니다.',
+                program_id=program_id
+            )
+            
+            # 공개 WOD인 경우 만료 알림 추가 (WebSocket 전송 포함)
+            if is_open:
+                create_notification(
+                    user_id=user_id,
+                    notification_type='wod_expiry_warning',
+                    title='공개 WOD 만료 안내',
+                    message=f'"{program_title}" WOD는 7일 후 자동으로 만료됩니다.',
+                    program_id=program_id
+                )
+        except Exception as notif_error:
+            app.logger.warning(f'프로그램 생성 알림 전송 실패: {str(notif_error)}')
+            # 알림 실패해도 프로그램 생성은 성공
+        
+        return jsonify({'message':'프로그램이 생성되었습니다','program_id':program_id}), 200
     except Exception as e:
         app.logger.exception('create_program error: %s', str(e))
         db.session.rollback()
@@ -896,73 +877,104 @@ def create_program():
 @app.route('/api/programs', methods=['GET'])
 def get_programs():
     try:
-        # 만료되지 않은 공개 WOD만 조회 (expires_at 필드가 있는 경우에만)
-        try:
-            programs = Programs.query.filter_by(is_open=True).filter(
-                (Programs.expires_at.is_(None)) | (Programs.expires_at > get_korea_time())
-            ).order_by(Programs.created_at.desc()).all()
-        except AttributeError:
-            # expires_at 필드가 없는 경우 기존 로직 사용
-            programs = Programs.query.filter_by(is_open=True).order_by(Programs.created_at.desc()).all()
+        from sqlalchemy import text
+        
+        # 일단 모든 공개 WOD 조회 (단순화)
+        programs = Programs.query.filter_by(is_open=True).order_by(Programs.created_at.desc()).all()
+        
         current_user_id = get_user_id_from_session_or_cookies()  # 비로그인 시 None
+        
+        # 모든 프로그램의 expires_at을 한 번에 조회 (성능 최적화)
+        expires_dict = {}
+        try:
+            expires_result = db.session.execute(text("SELECT id, expires_at FROM programs"))
+            for row in expires_result:
+                if row[1]:  # expires_at이 있으면
+                    expires_dict[row[0]] = row[1]
+        except Exception as e:
+            app.logger.warning(f"expires_at 일괄 조회 실패: {str(e)}")
+            db.session.rollback()  # 트랜잭션 복구
+        
         result = []
         for p in programs:
-            creator = Users.query.get(p.creator_id)
+            try:
+                creator = Users.query.get(p.creator_id)
+            except:
+                creator = None
+            
             # 새로운 참여 시스템 사용 - pending과 approved 모두 카운트
-            participant_count = ProgramParticipants.query.filter_by(program_id=p.id).filter(ProgramParticipants.status.in_(['pending', 'approved'])).count()
+            try:
+                participant_count = ProgramParticipants.query.filter_by(program_id=p.id).filter(ProgramParticipants.status.in_(['pending', 'approved'])).count()
+            except:
+                participant_count = 0
+            
             is_registered = False
             participation_status = None
             if current_user_id:
-                participation = ProgramParticipants.query.filter_by(program_id=p.id, user_id=current_user_id).first()
-                if participation:
-                    is_registered = participation.status in ['pending', 'approved']
-                    participation_status = participation.status
+                try:
+                    participation = ProgramParticipants.query.filter_by(program_id=p.id, user_id=current_user_id).first()
+                    if participation:
+                        is_registered = participation.status in ['pending', 'approved']
+                        participation_status = participation.status
+                except:
+                    pass
             
             # 프로그램에 포함된 운동들 조회 (기존 방식)
-            program_exercises = ProgramExercises.query.filter_by(program_id=p.id).order_by(ProgramExercises.order_index).all()
             exercises = []
-            for pe in program_exercises:
-                exercises.append({
-                    'id': pe.exercise_id,
-                    'name': pe.exercise.name if pe.exercise else '',
-                    'target_value': pe.target_value,
-                    'order': pe.order_index
-                })
+            try:
+                program_exercises = ProgramExercises.query.filter_by(program_id=p.id).order_by(ProgramExercises.order_index).all()
+                for pe in program_exercises:
+                    try:
+                        exercises.append({
+                            'id': pe.exercise_id,
+                            'name': pe.exercise.name if pe.exercise else '',
+                            'target_value': pe.target_value,
+                            'order': pe.order_index
+                        })
+                    except:
+                        pass
+            except:
+                pass
             
             # WOD 패턴 조회 (새로운 방식)
             workout_pattern = None
-            workout_patterns = WorkoutPatterns.query.filter_by(program_id=p.id).first()
-            if workout_patterns:
-                exercise_sets = ExerciseSets.query.filter_by(pattern_id=workout_patterns.id).order_by(ExerciseSets.order_index).all()
-                pattern_exercises = []
-                for es in exercise_sets:
-                    pattern_exercises.append({
-                        'exercise_id': es.exercise_id,
-                        'exercise_name': es.exercise.name if es.exercise else '',
-                        'base_reps': es.base_reps,
-                        'progression_type': es.progression_type,
-                        'progression_value': es.progression_value,
-                        'order': es.order_index
-                    })
-                
-                workout_pattern = {
-                    'type': workout_patterns.pattern_type,
-                    'total_rounds': workout_patterns.total_rounds,
-                    'time_cap_per_round': workout_patterns.time_cap_per_round,
-                    'description': workout_patterns.description,
-                    'exercises': pattern_exercises
-                }
+            try:
+                workout_patterns = WorkoutPatterns.query.filter_by(program_id=p.id).first()
+                if workout_patterns:
+                    exercise_sets = ExerciseSets.query.filter_by(pattern_id=workout_patterns.id).order_by(ExerciseSets.order_index).all()
+                    pattern_exercises = []
+                    for es in exercise_sets:
+                        try:
+                            pattern_exercises.append({
+                                'exercise_id': es.exercise_id,
+                                'exercise_name': es.exercise.name if es.exercise else '',
+                                'base_reps': es.base_reps,
+                                'progression_type': es.progression_type,
+                                'progression_value': es.progression_value,
+                                'order': es.order_index
+                            })
+                        except:
+                            pass
+                    
+                    workout_pattern = {
+                        'type': workout_patterns.pattern_type,
+                        'total_rounds': workout_patterns.total_rounds,
+                        'time_cap_per_round': workout_patterns.time_cap_per_round,
+                        'description': workout_patterns.description,
+                        'exercises': pattern_exercises
+                    }
+            except:
+                pass
             
-            # expires_at 필드 추가 (하드코딩)
-            expires_at = None
-            if p.id == 7:  # 증가 형태 - 만료됨
-                expires_at = "2025-09-27T11:03:43"
-            elif p.id == 8:  # 엎드린 자세 위주 가볍게 10분 어때? - 3일 후 만료
-                expires_at = "2025-10-01T13:01:19"
-            elif p.id == 9:  # WOD 오픈 제한 테스트 - 오늘 만료
-                expires_at = "2025-09-28T17:03:43"
-            elif p.id == 10:  # WOD 공개 제한 테스트2 - 2일 후 만료
-                expires_at = "2025-09-30T11:03:43"
+            # expires_at을 딕셔너리에서 가져오기
+            expires_at_obj = expires_dict.get(p.id)
+            if expires_at_obj:
+                try:
+                    expires_at_value = expires_at_obj.isoformat() if hasattr(expires_at_obj, 'isoformat') else str(expires_at_obj)
+                except:
+                    expires_at_value = str(expires_at_obj) if expires_at_obj else None
+            else:
+                expires_at_value = None
             
             result.append({
                 'id': p.id,
@@ -975,7 +987,7 @@ def get_programs():
                 'participants': participant_count,
                 'max_participants': p.max_participants,
                 'created_at': format_korea_time(p.created_at),
-                'expires_at': expires_at,  # 만료 시간 추가
+                'expires_at': expires_at_value,  # DB에서 직접 읽기
                 'is_registered': is_registered,
                 'participation_status': participation_status,  # 'pending', 'approved', 'rejected', 'left'
                 'exercises': exercises,  # 기존 운동 정보
@@ -997,29 +1009,58 @@ def open_program(program_id):
         if p.creator_id != user_id:
             return jsonify({'message':'프로그램을 공개할 권한이 없습니다'}), 403
         
-        # 공개 WOD 개수 제한 확인 (만료되지 않은 것만 카운트)
+        # 공개 WOD 개수 제한 확인 (만료되지 않은 것만 카운트, SQL로 직접 처리)
+        from sqlalchemy import text
+        current_time = get_korea_time()
+        # PostgreSQL timezone 호환성을 위해 timezone 제거
+        if hasattr(current_time, 'replace'):
+            current_time = current_time.replace(tzinfo=None)
+        
         try:
-            # expires_at 필드가 있는 경우 만료되지 않은 것만 카운트
-            public_wods = Programs.query.filter_by(creator_id=user_id, is_open=True).filter(
-                (Programs.expires_at.is_(None)) | (Programs.expires_at > get_korea_time())
-            ).count()
-        except AttributeError:
-            # expires_at 필드가 없는 경우 모든 공개 WOD 카운트
-            public_wods = Programs.query.filter_by(creator_id=user_id, is_open=True).count()
+            # PostgreSQL과 SQLite 모두 호환되는 쿼리
+            count_result = db.session.execute(
+                text("""
+                    SELECT COUNT(*) FROM programs 
+                    WHERE creator_id = :user_id 
+                    AND is_open = 1 
+                    AND (expires_at IS NULL OR expires_at > :current_time)
+                """),
+                {"user_id": user_id, "current_time": current_time}
+            ).fetchone()
+            public_wods = count_result[0] if count_result else 0
+        except Exception as e:
+            app.logger.warning(f"공개 WOD 개수 확인 실패: {str(e)}")
+            db.session.rollback()  # 트랜잭션 복구
+            try:
+                public_wods = Programs.query.filter_by(creator_id=user_id, is_open=True).count()
+            except:
+                # 최악의 경우 0으로 설정 (공개는 허용)
+                public_wods = 0
         
         if public_wods >= 3:
             return jsonify({'message':'공개 WOD 개수 제한에 도달했습니다. (최대 3개)'}), 400
         
         p.is_open = True
-        
-        # 공개 WOD인 경우 만료 시간 설정 (expires_at 필드가 있는 경우에만)
-        try:
-            if hasattr(Programs, 'expires_at'):
-                p.expires_at = get_korea_time() + timedelta(days=7)  # 7일 후 만료
-        except:
-            pass
-        
         db.session.commit()
+        
+        # 공개 WOD인 경우 만료 시간 설정 (직접 SQL로 안전하게 처리)
+        try:
+            from sqlalchemy import text
+            expires_at = get_korea_time() + timedelta(days=7)  # 7일 후 만료
+            # PostgreSQL timezone 호환성
+            if hasattr(expires_at, 'replace'):
+                expires_at = expires_at.replace(tzinfo=None)
+            
+            db.session.execute(
+                text("UPDATE programs SET expires_at = :expires_at WHERE id = :program_id"),
+                {"expires_at": expires_at, "program_id": program_id}
+            )
+            db.session.commit()
+            app.logger.info(f"프로그램 {program_id} 만료 시간 설정: {expires_at}")
+        except Exception as e:
+            app.logger.exception(f"expires_at 설정 실패 (ID: {program_id}): {str(e)}")
+            db.session.rollback()
+            # 만료 시간 설정 실패해도 공개는 성공
         
         # 프로그램 공개 시 모든 사용자에게 브로드캐스트 알림
         broadcast_program_notification(
@@ -1088,17 +1129,20 @@ def my_programs():
     try:
         user_id = get_user_id_from_session_or_cookies()
         
-        # Safari 대안: User-Agent로 Safari 감지 시 자동 인증
-        if not user_id:
-            user_agent = request.headers.get('User-Agent', '').lower()
-            if 'safari' in user_agent and 'chrome' not in user_agent:
-                app.logger.info('Safari 브라우저 자동 인증 적용 (user/programs)')
-                user_id = 1  # simadeit@naver.com
-                session['user_id'] = user_id
-                session.permanent = True
-        
         if not user_id: return jsonify({'message':'로그인이 필요합니다'}), 401
         mine = Programs.query.filter_by(creator_id=user_id).order_by(Programs.created_at.desc()).all()
+        
+        # 모든 프로그램의 expires_at을 한 번에 조회
+        from sqlalchemy import text
+        expires_dict = {}
+        try:
+            expires_result = db.session.execute(text("SELECT id, expires_at FROM programs WHERE creator_id = :user_id"), {"user_id": user_id})
+            for row in expires_result:
+                if row[1]:
+                    expires_dict[row[0]] = row[1]
+        except Exception as e:
+            app.logger.warning(f"expires_at 일괄 조회 실패: {str(e)}")
+        
         out = []
         for p in mine:
             # 새로운 참여 시스템 사용 - pending과 approved 모두 카운트
@@ -1139,6 +1183,16 @@ def my_programs():
                     'exercises': pattern_exercises
                 }
             
+            # expires_at을 딕셔너리에서 가져오기
+            expires_at_obj = expires_dict.get(p.id)
+            if expires_at_obj:
+                try:
+                    expires_at_value = expires_at_obj.isoformat() if hasattr(expires_at_obj, 'isoformat') else str(expires_at_obj)
+                except:
+                    expires_at_value = str(expires_at_obj) if expires_at_obj else None
+            else:
+                expires_at_value = None
+            
             out.append({
                 'id': p.id,
                 'title': p.title,
@@ -1150,6 +1204,7 @@ def my_programs():
                 'participants': cnt,
                 'max_participants': p.max_participants,
                 'created_at': format_korea_time(p.created_at),
+                'expires_at': expires_at_value,
                 'exercises': exercises,  # 기존 운동 정보 (호환성 유지)
                 'workout_pattern': workout_pattern  # WOD 패턴 정보 추가
             })
@@ -1291,39 +1346,89 @@ def delete_program(program_id):
         if program.creator_id != user_id:
             return jsonify({'message': '프로그램을 삭제할 권한이 없습니다'}), 403
         
-        # 관련 데이터 삭제 (외래키 제약으로 인해 순서 중요)
-        # 1. 운동 세트 삭제
-        workout_patterns = WorkoutPatterns.query.filter_by(program_id=program_id).all()
-        for pattern in workout_patterns:
-            ExerciseSets.query.filter_by(pattern_id=pattern.id).delete()
+        # 알림용 정보 미리 저장
+        program_title = program.title
+        program_creator_id = program.creator_id
         
-        # 2. WOD 패턴 삭제
-        WorkoutPatterns.query.filter_by(program_id=program_id).delete()
+        # 관련 데이터 삭제 (SQL로 직접 처리 - ORM 관계 문제 회피)
+        from sqlalchemy import text
         
-        # 3. 프로그램 운동 삭제
-        ProgramExercises.query.filter_by(program_id=program_id).delete()
+        try:
+            # 1. WorkoutPattern ID들 조회
+            pattern_ids = db.session.execute(
+                text("SELECT id FROM workout_patterns WHERE program_id = :pid"),
+                {"pid": program_id}
+            ).fetchall()
+            pattern_id_list = [row[0] for row in pattern_ids]
+            
+            # 2. ExerciseSets 삭제
+            if pattern_id_list:
+                db.session.execute(
+                    text("DELETE FROM exercise_sets WHERE pattern_id IN :pids"),
+                    {"pids": tuple(pattern_id_list) if len(pattern_id_list) > 1 else (pattern_id_list[0],)}
+                )
+            
+            # 3. WorkoutPatterns 삭제
+            db.session.execute(
+                text("DELETE FROM workout_patterns WHERE program_id = :pid"),
+                {"pid": program_id}
+            )
+            
+            # 4. ProgramExercises 삭제
+            db.session.execute(
+                text("DELETE FROM program_exercises WHERE program_id = :pid"),
+                {"pid": program_id}
+            )
+            
+            # 5. Registrations 삭제
+            db.session.execute(
+                text("DELETE FROM registrations WHERE program_id = :pid"),
+                {"pid": program_id}
+            )
+            
+            # 6. ProgramParticipants 삭제
+            db.session.execute(
+                text("DELETE FROM program_participants WHERE program_id = :pid"),
+                {"pid": program_id}
+            )
+            
+            # 7. WorkoutRecords 삭제
+            db.session.execute(
+                text("DELETE FROM workout_records WHERE program_id = :pid"),
+                {"pid": program_id}
+            )
+            
+            # 8. 알림 삭제 (선택적)
+            db.session.execute(
+                text("DELETE FROM notifications WHERE program_id = :pid"),
+                {"pid": program_id}
+            )
+            
+            # 9. 프로그램 삭제
+            db.session.execute(
+                text("DELETE FROM programs WHERE id = :pid"),
+                {"pid": program_id}
+            )
+            
+            db.session.commit()
+            app.logger.info(f"프로그램 {program_id} 삭제 완료")
+            
+        except Exception as e:
+            app.logger.exception(f'프로그램 삭제 실패: {str(e)}')
+            db.session.rollback()
+            return jsonify({'message': '프로그램 삭제 중 오류가 발생했습니다'}), 500
         
-        # 4. 참여 신청 삭제
-        Registrations.query.filter_by(program_id=program_id).delete()
-        
-        # 5. 프로그램 참여자 삭제
-        ProgramParticipants.query.filter_by(program_id=program_id).delete()
-        
-        # 6. 운동 기록 삭제
-        WorkoutRecords.query.filter_by(program_id=program_id).delete()
-        
-        # 7. 프로그램 삭제 전에 알림 전송
-        create_notification(
-            user_id=program.creator_id,
-            notification_type='program_deleted',
-            title='프로그램이 삭제되었습니다',
-            message=f'"{program.title}" 프로그램이 삭제되었습니다.',
-            program_id=program.id
-        )
-        
-        # 8. 프로그램 삭제
-        db.session.delete(program)
-        db.session.commit()
+        # 삭제 후 알림 전송 (WebSocket 포함, 실패해도 괜찮음)
+        try:
+            create_notification(
+                user_id=program_creator_id,
+                notification_type='program_deleted',
+                title='프로그램이 삭제되었습니다',
+                message=f'"{program_title}" 프로그램이 삭제되었습니다.',
+                program_id=None  # 이미 삭제됨
+            )
+        except Exception as notif_error:
+            app.logger.warning(f'삭제 알림 전송 실패: {str(notif_error)}')
         
         return jsonify({'message': '프로그램이 삭제되었습니다'}), 200
     except Exception as e:
@@ -1336,19 +1441,6 @@ def delete_program(program_id):
 def get_notifications():
     """사용자의 알림 목록 조회"""
     user_id = get_user_id_from_session_or_cookies()
-    
-    # Safari 대안: User-Agent로 Safari 감지 시 자동 인증 (개선된 버전)
-    if not user_id:
-        user_agent = request.headers.get('User-Agent', '').lower()
-        if 'safari' in user_agent and 'chrome' not in user_agent:
-            # Safari 전용 세션 확인
-            safari_user_id = session.get('safari_user_id')
-            if safari_user_id:
-                app.logger.info(f'Safari 전용 세션에서 사용자 ID 확인: {safari_user_id}')
-                user_id = safari_user_id
-                session['user_id'] = user_id  # 일반 세션에도 복사
-            else:
-                app.logger.warning('Safari 브라우저이지만 전용 세션이 없음 - 인증 필요')
     
     if not user_id:
         return jsonify({'message': '로그인이 필요합니다'}), 401
@@ -1585,14 +1677,17 @@ def join_program(program_id):
                 existing_participation.left_at = None
                 db.session.commit()
                 
-                # 프로그램 생성자에게 알림 전송
-                create_notification(
-                    user_id=program.creator_id,
-                    program_id=program_id,
-                    notification_type='program_join_request',
-                    title='새로운 참여 신청이 있습니다',
-                    message=f'"{program.title}" 프로그램에 새로운 참여 신청이 있습니다.'
-                )
+                # 프로그램 생성자에게 알림 전송 (WebSocket 포함, 실패해도 괜찮음)
+                try:
+                    create_notification(
+                        user_id=program.creator_id,
+                        notification_type='program_join_request',
+                        title='새로운 참여 신청이 있습니다',
+                        message=f'"{program.title}" 프로그램에 새로운 참여 신청이 있습니다.',
+                        program_id=program_id
+                    )
+                except Exception as notif_error:
+                    app.logger.warning(f'재참여 알림 전송 실패: {str(notif_error)}')
                 
                 return jsonify({'message': '참여 신청이 완료되었습니다'}), 200
         
@@ -1615,14 +1710,17 @@ def join_program(program_id):
         db.session.add(participation)
         db.session.commit()
         
-        # 프로그램 생성자에게 알림 전송
-        create_notification(
-            user_id=program.creator_id,
-            notification_type='program_join_request',
-            title='새로운 참여 신청이 있습니다',
-            message=f'"{program.title}" 프로그램에 새로운 참여 신청이 있습니다.',
-            program_id=program_id
-        )
+        # 프로그램 생성자에게 알림 전송 (WebSocket 포함, 실패해도 괜찮음)
+        try:
+            create_notification(
+                user_id=program.creator_id,
+                notification_type='program_join_request',
+                title='새로운 참여 신청이 있습니다',
+                message=f'"{program.title}" 프로그램에 새로운 참여 신청이 있습니다.',
+                program_id=program_id
+            )
+        except Exception as notif_error:
+            app.logger.warning(f'참여 신청 알림 전송 실패: {str(notif_error)}')
         
         return jsonify({'message': '참여 신청이 완료되었습니다'}), 200
         
@@ -1752,35 +1850,35 @@ def approve_participant(program_id, user_id):
             participation.status = 'approved'
             participation.approved_at = datetime.utcnow()
             
-            # 참여자에게 알림 전송
-            create_notification(
-                user_id=user_id,
-                notification_type='program_approved',
-                title='프로그램 참여가 승인되었습니다',
-                message=f'"{program.title}" 프로그램 참여가 승인되었습니다.',
-                program_id=program_id
-            )
-            
             message = '참여가 승인되었습니다'
+            notification_type = 'program_approved'
+            notification_title = '프로그램 참여가 승인되었습니다'
+            notification_message = f'"{program.title}" 프로그램 참여가 승인되었습니다.'
             
         elif action == 'reject':
             participation.status = 'rejected'
             
-            # 참여자에게 알림 전송
-            create_notification(
-                user_id=user_id,
-                notification_type='program_rejected',
-                title='프로그램 참여가 거부되었습니다',
-                message=f'"{program.title}" 프로그램 참여가 거부되었습니다.',
-                program_id=program_id
-            )
-            
             message = '참여가 거부되었습니다'
+            notification_type = 'program_rejected'
+            notification_title = '프로그램 참여가 거부되었습니다'
+            notification_message = f'"{program.title}" 프로그램 참여가 거부되었습니다.'
             
         else:
             return jsonify({'error': '유효하지 않은 액션입니다'}), 400
         
         db.session.commit()
+        
+        # commit 후 알림 전송 (WebSocket 포함)
+        try:
+            create_notification(
+                user_id=user_id,
+                notification_type=notification_type,
+                title=notification_title,
+                message=notification_message,
+                program_id=program_id
+            )
+        except Exception as notif_error:
+            app.logger.warning(f'승인/거부 알림 전송 실패: {str(notif_error)}')
         
         return jsonify({'message': message}), 200
         
@@ -1796,15 +1894,48 @@ def handle_connect():
     user_agent = request.headers.get('User-Agent', '').lower()
     is_mobile_safari = 'safari' in user_agent and 'chrome' not in user_agent and ('iphone' in user_agent or 'ipad' in user_agent or 'mobile' in user_agent)
     
-    app.logger.info(f'클라이언트 연결됨: {request.sid} | User-Agent: {user_agent[:100]} | Mobile Safari: {is_mobile_safari}')
-    print(f'🔌 WebSocket 클라이언트 연결됨: {request.sid} {"(모바일 Safari)" if is_mobile_safari else ""}')
+    # 웹소켓 연결 시 인증 확인 (모바일 Safari 대응)
+    auth_verified = False
+    user_id_from_token = None
+    
+    # 디버깅: 모든 query parameters 출력
+    app.logger.info(f'WebSocket 연결 시도 - query params: {dict(request.args)}')
+    app.logger.info(f'WebSocket 연결 시도 - session: {dict(session)}')
+    app.logger.info(f'WebSocket 연결 시도 - cookies: {list(request.cookies.keys())}')
+    
+    # 1. query parameter에서 토큰 확인 (모바일 Safari)
+    query_token = request.args.get('token')
+    if query_token:
+        app.logger.info(f'query token 발견: {query_token[:20]}...')
+        try:
+            from utils.token import verify_access_token
+            user_id_from_token = verify_access_token(query_token)
+            if user_id_from_token:
+                auth_verified = True
+                session['user_id'] = user_id_from_token
+                app.logger.info(f'✅ WebSocket 인증 성공 (query token): user_id={user_id_from_token}')
+        except Exception as e:
+            app.logger.warning(f'❌ WebSocket query token 검증 실패: {e}')
+    else:
+        app.logger.info('query token 없음')
+    
+    # 2. 세션에서 확인 (일반 브라우저)
+    if not auth_verified and session.get('user_id'):
+        auth_verified = True
+        user_id_from_token = session.get('user_id')
+        app.logger.info(f'✅ WebSocket 인증 성공 (session): user_id={user_id_from_token}')
+    
+    app.logger.info(f'🔌 클라이언트 연결됨: {request.sid} | User-Agent: {user_agent[:100]} | Mobile Safari: {is_mobile_safari} | 인증: {auth_verified}')
+    print(f'🔌 WebSocket 클라이언트 연결됨: {request.sid} {"(모바일 Safari)" if is_mobile_safari else ""} | 인증: {"✅" if auth_verified else "❌"}')
     
     # 모바일 Safari를 위한 추가 정보 응답
     if is_mobile_safari:
         emit('mobile_safari_info', {
             'message': '모바일 Safari에서 연결됨',
-            'transport': request.transport,
-            'recommended_transport': 'polling'
+            'transport': request.transport if hasattr(request, 'transport') else 'unknown',
+            'recommended_transport': 'polling',
+            'authenticated': auth_verified,
+            'user_id': user_id_from_token
         })
 
 @socketio.on('disconnect')
@@ -1816,13 +1947,26 @@ def handle_disconnect():
 @socketio.on('join_user_room')
 def handle_join_user_room(data):
     """사용자별 방에 참여"""
-    user_id = data.get('user_id')
-    if user_id:
-        join_room(f'user_{user_id}')
-        app.logger.info(f'사용자 {user_id}가 방에 참여했습니다.')
-        print(f'👤 사용자 {user_id}가 방에 참여했습니다.')
-    else:
-        print('❌ 사용자 ID가 없습니다.')
+    requested_user_id = data.get('user_id')
+    
+    # 세션에서 인증된 사용자 ID 확인
+    authenticated_user_id = session.get('user_id')
+    
+    if not authenticated_user_id:
+        app.logger.warning(f'인증되지 않은 사용자의 방 참여 시도: requested={requested_user_id}')
+        emit('join_error', {'message': '인증이 필요합니다'})
+        return
+    
+    # 본인의 방에만 참여 가능
+    if requested_user_id != authenticated_user_id:
+        app.logger.warning(f'다른 사용자의 방 참여 시도: authenticated={authenticated_user_id}, requested={requested_user_id}')
+        emit('join_error', {'message': '권한이 없습니다'})
+        return
+    
+    join_room(f'user_{authenticated_user_id}')
+    app.logger.info(f'사용자 {authenticated_user_id}가 방에 참여했습니다.')
+    print(f'👤 사용자 {authenticated_user_id}가 방에 참여했습니다.')
+    emit('join_success', {'message': f'user_{authenticated_user_id} 방에 참여했습니다'})
 
 @socketio.on('leave_user_room')
 def handle_leave_user_room(data):
@@ -1937,15 +2081,6 @@ def get_user_records():
     try:
         user_id = get_user_id_from_session_or_cookies()
         
-        # Safari 대안: User-Agent로 Safari 감지 시 자동 인증
-        if not user_id:
-            user_agent = request.headers.get('User-Agent', '').lower()
-            if 'safari' in user_agent and 'chrome' not in user_agent:
-                app.logger.info('Safari 브라우저 자동 인증 적용 (records)')
-                user_id = 1  # simadeit@naver.com
-                session['user_id'] = user_id
-                session.permanent = True
-        
         if not user_id:
             return jsonify({'error': '로그인이 필요합니다'}), 401
         
@@ -2058,15 +2193,6 @@ def get_user_stats():
     try:
         user_id = get_user_id_from_session_or_cookies()
         
-        # Safari 대안: User-Agent로 Safari 감지 시 자동 인증
-        if not user_id:
-            user_agent = request.headers.get('User-Agent', '').lower()
-            if 'safari' in user_agent and 'chrome' not in user_agent:
-                app.logger.info('Safari 브라우저 자동 인증 적용 (stats)')
-                user_id = 1  # simadeit@naver.com
-                session['user_id'] = user_id
-                session.permanent = True
-        
         if not user_id:
             return jsonify({'error': '로그인이 필요합니다'}), 401
         
@@ -2137,15 +2263,6 @@ def get_user_goals():
     """사용자의 개인 목표 조회"""
     try:
         user_id = get_user_id_from_session_or_cookies()
-        
-        # Safari 대안: User-Agent로 Safari 감지 시 자동 인증
-        if not user_id:
-            user_agent = request.headers.get('User-Agent', '').lower()
-            if 'safari' in user_agent and 'chrome' not in user_agent:
-                app.logger.info('Safari 브라우저 자동 인증 적용 (goals)')
-                user_id = 1  # simadeit@naver.com
-                session['user_id'] = user_id
-                session.permanent = True
         
         if not user_id:
             return jsonify({'error': '로그인이 필요합니다'}), 401
@@ -2454,6 +2571,23 @@ def get_program_detail(program_id):
         # 참여자 수 조회
         participant_count = ProgramParticipants.query.filter_by(program_id=program_id).filter(ProgramParticipants.status.in_(['pending', 'approved'])).count()
         
+        # expires_at을 직접 SQL 쿼리로 가져오기
+        from sqlalchemy import text
+        expires_at_value = None
+        try:
+            expires_result = db.session.execute(
+                text("SELECT expires_at FROM programs WHERE id = :program_id"),
+                {"program_id": program_id}
+            ).fetchone()
+            if expires_result and expires_result[0]:
+                expires_at_obj = expires_result[0]
+                try:
+                    expires_at_value = expires_at_obj.isoformat() if hasattr(expires_at_obj, 'isoformat') else str(expires_at_obj)
+                except:
+                    expires_at_value = str(expires_at_obj) if expires_at_obj else None
+        except Exception as e:
+            app.logger.warning(f"expires_at 조회 실패 (ID: {program_id}): {str(e)}")
+        
         result = {
             'id': program.id,
             'title': program.title,
@@ -2465,6 +2599,7 @@ def get_program_detail(program_id):
             'max_participants': program.max_participants,
             'is_open': program.is_open,
             'created_at': format_korea_time(program.created_at),
+            'expires_at': expires_at_value,
             'exercises': exercises,
             'workout_pattern': workout_pattern
         }
@@ -2480,15 +2615,6 @@ def get_user_wod_status():
     """사용자의 WOD 현황 조회"""
     try:
         user_id = get_user_id_from_session_or_cookies()
-        
-        # Safari 대안: User-Agent로 Safari 감지 시 자동 인증
-        if not user_id:
-            user_agent = request.headers.get('User-Agent', '').lower()
-            if 'safari' in user_agent and 'chrome' not in user_agent:
-                app.logger.info('Safari 브라우저 자동 인증 적용 (wod-status)')
-                user_id = 1  # simadeit@naver.com
-                session['user_id'] = user_id
-                session.permanent = True
         
         if not user_id:
             return jsonify({'message': '로그인이 필요합니다'}), 401

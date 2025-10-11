@@ -219,14 +219,19 @@ def open_program(program_id):
                 text("""
                     SELECT COUNT(*) FROM programs 
                     WHERE creator_id = :user_id 
-                    AND is_open = 1 
+                    AND is_open = TRUE 
                     AND (expires_at IS NULL OR expires_at > :current_time)
                 """),
                 {"user_id": user_id, "current_time": current_time}
             ).fetchone()
             public_wods = count_result[0] if count_result else 0
-        except Exception:
-            public_wods = Programs.query.filter_by(creator_id=user_id, is_open=True).count()
+        except Exception as e:
+            current_app.logger.warning(f"공개 WOD 개수 확인 실패: {e}")
+            db.session.rollback()  # 트랜잭션 롤백 필수!
+            try:
+                public_wods = Programs.query.filter_by(creator_id=user_id, is_open=True).count()
+            except Exception:
+                public_wods = 0
         
         if public_wods >= 3:
             return jsonify({'message': '공개 WOD 개수 제한에 도달했습니다. (최대 3개)'}), 400
@@ -234,7 +239,7 @@ def open_program(program_id):
         p.is_open = True
         db.session.commit()
         
-        # 만료 시간 설정
+        # 만료 시간 설정 (별도 트랜잭션으로 처리)
         try:
             from utils.timezone import get_korea_time
             expires_at = get_korea_time() + timedelta(days=7)
@@ -246,9 +251,11 @@ def open_program(program_id):
                 {"expires_at": expires_at, "program_id": program_id}
             )
             db.session.commit()
+            current_app.logger.info(f"만료 시간 설정 완료: {expires_at}")
         except Exception as e:
-            current_app.logger.warning(f"expires_at 설정 실패: {e}")
+            current_app.logger.error(f"expires_at 설정 실패: {e}")
             db.session.rollback()
+            # 만료 시간 설정 실패해도 공개는 성공으로 처리
         
         # 브로드캐스트 알림
         try:

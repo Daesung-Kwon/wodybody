@@ -12,6 +12,25 @@ from datetime import datetime, timedelta
 import secrets, logging, os
 from logging.handlers import RotatingFileHandler
 from sqlalchemy import text
+from pathlib import Path
+
+# .env.local 파일 로드 (로컬 PostgreSQL 사용)
+env_file = Path(__file__).parent / '.env.local'
+if env_file.exists():
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(env_file)
+        print(f"✅ Loaded environment from {env_file}")
+    except ImportError:
+        # python-dotenv가 없으면 수동 로드
+        print(f"⚠️  python-dotenv not installed, manually loading .env.local")
+        with open(env_file) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    os.environ[key.strip()] = value.strip()
+        print(f"✅ Manually loaded environment from {env_file}")
 
 # Utils import
 from utils.timezone import format_korea_time, get_korea_time
@@ -163,8 +182,9 @@ CORS(app,
          "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
      }})
 
-# Database 초기화
-db = SQLAlchemy(app)
+# Database 초기화 (config/database.py에서 import)
+from config.database import db
+db.init_app(app)
 
 # Request/Response 로깅
 @app.before_request

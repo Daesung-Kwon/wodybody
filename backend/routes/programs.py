@@ -1,6 +1,7 @@
 """프로그램 관련 라우트"""
 
 from flask import Blueprint, request, jsonify, session, current_app
+from config.database import db
 from models.program import Programs, Registrations, ProgramParticipants
 from models.exercise import ProgramExercises, WorkoutPatterns, ExerciseSets
 from models.notification import Notifications
@@ -21,7 +22,14 @@ def get_programs():
         result = []
         
         for p in programs:
-            creator = db.session.query(db.Model).get(p.creator_id)  # 임시로 수정 필요
+            # Creator 정보 조회 (예외 처리 추가)
+            try:
+                creator = Users.query.get(p.creator_id)
+                creator_name = creator.name if creator else 'Unknown'
+            except Exception as e:
+                current_app.logger.warning(f'Creator 조회 실패 (program_id={p.id}, creator_id={p.creator_id}): {e}')
+                creator_name = 'Unknown'
+            
             # 새로운 참여 시스템 사용
             participant_count = ProgramParticipants.query.filter_by(program_id=p.id, status='approved').count()
             is_registered = False
@@ -79,7 +87,7 @@ def get_programs():
                 'id': p.id,
                 'title': p.title,
                 'description': p.description,
-                'creator_name': creator.name if creator else 'Unknown',
+                'creator_name': creator_name,
                 'workout_type': p.workout_type,
                 'target_value': p.target_value,
                 'difficulty': p.difficulty,
@@ -243,6 +251,275 @@ def create_notification(user_id, notification_type, title, message, program_id=N
         db.session.rollback()
         return None
 
-# 프로그램 수정 API는 app.py에 직접 구현됨 (SQLAlchemy 인스턴스 문제 해결)
+def get_user_id_from_session_or_cookies():
+    """세션 또는 쿠키에서 사용자 ID를 가져오는 함수"""
+    from app import get_user_id_from_session_or_cookies as get_user_id
+    return get_user_id()
 
-# 프로그램 상세 조회 API는 app.py에 직접 구현됨 (SQLAlchemy 인스턴스 문제 해결)
+
+@bp.route('/programs/<int:program_id>', methods=['PUT'])
+def update_program(program_id):
+    """프로그램 수정 (공개 전에만 가능)"""
+    user_id = get_user_id_from_session_or_cookies()
+    if not user_id:
+        return jsonify({'message': '로그인이 필요합니다'}), 401
+    
+    try:
+        program = Programs.query.get(program_id)
+        if not program:
+            return jsonify({'message': '프로그램을 찾을 수 없습니다'}), 404
+        
+        if program.creator_id != user_id:
+            return jsonify({'message': '프로그램을 수정할 권한이 없습니다'}), 403
+        
+        if program.is_open:
+            return jsonify({'message': '공개된 프로그램은 수정할 수 없습니다'}), 400
+        
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({'message': '요청 데이터가 없습니다'}), 400
+        
+        if 'title' not in data or not data['title'].strip():
+            return jsonify({'message': '프로그램 제목은 필수입니다'}), 400
+        
+        # 프로그램 정보 업데이트
+        program.title = data['title'].strip()
+        program.description = (data.get('description') or '').strip()
+        program.target_value = (data.get('target_value') or '').strip()
+        try:
+            program.max_participants = int(data.get('max_participants') or 20)
+        except (ValueError, TypeError):
+            program.max_participants = 20
+        
+        # WOD 패턴 업데이트
+        workout_pattern = data.get('workout_pattern')
+        if workout_pattern:
+            existing_pattern = WorkoutPatterns.query.filter_by(program_id=program_id).first()
+            if existing_pattern:
+                ExerciseSets.query.filter_by(pattern_id=existing_pattern.id).delete()
+                db.session.delete(existing_pattern)
+            
+            pattern_type = workout_pattern.get('type', 'round_based')
+            db_pattern_type = 'time_cap' if pattern_type == 'time_cap' else 'fixed_reps'
+            
+            new_pattern = WorkoutPatterns(
+                program_id=program.id,
+                pattern_type=db_pattern_type,
+                total_rounds=workout_pattern.get('total_rounds', 1),
+                time_cap_per_round=workout_pattern.get('time_cap_per_round'),
+                description=workout_pattern.get('description', '')
+            )
+            db.session.add(new_pattern)
+            db.session.flush()
+            
+            exercises = workout_pattern.get('exercises', [])
+            if isinstance(exercises, list):
+                for idx, exercise_data in enumerate(exercises):
+                    if isinstance(exercise_data, dict) and 'exercise_id' in exercise_data:
+                        exercise_set = ExerciseSets(
+                            pattern_id=new_pattern.id,
+                            exercise_id=exercise_data['exercise_id'],
+                            base_reps=exercise_data.get('base_reps', 1),
+                            progression_type=exercise_data.get('progression_type', 'fixed'),
+                            progression_value=exercise_data.get('progression_value', 0),
+                            order_index=idx
+                        )
+                        db.session.add(exercise_set)
+            
+            ProgramExercises.query.filter_by(program_id=program_id).delete()
+        else:
+            ProgramExercises.query.filter_by(program_id=program_id).delete()
+            
+            exercises_data = data.get('selected_exercises') or data.get('exercises') or []
+            if isinstance(exercises_data, list):
+                for idx, exercise_data in enumerate(exercises_data):
+                    if isinstance(exercise_data, dict) and 'exercise_id' in exercise_data:
+                        program_exercise = ProgramExercises(
+                            program_id=program.id,
+                            exercise_id=exercise_data['exercise_id'],
+                            target_value=exercise_data.get('target_value', ''),
+                            order_index=idx
+                        )
+                        db.session.add(program_exercise)
+            
+            existing_pattern = WorkoutPatterns.query.filter_by(program_id=program_id).first()
+            if existing_pattern:
+                ExerciseSets.query.filter_by(pattern_id=existing_pattern.id).delete()
+                db.session.delete(existing_pattern)
+        
+        db.session.commit()
+        return jsonify({'message': '프로그램이 성공적으로 수정되었습니다'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception('프로그램 수정 중 오류: %s', str(e))
+        return jsonify({'message': '프로그램 수정 중 오류가 발생했습니다'}), 500
+
+
+@bp.route('/programs/<int:program_id>', methods=['DELETE'])
+def delete_program(program_id):
+    """프로그램 삭제"""
+    try:
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id:
+            return jsonify({'message': '로그인이 필요합니다'}), 401
+        
+        program = Programs.query.get(program_id)
+        if not program:
+            return jsonify({'message': '프로그램을 찾을 수 없습니다'}), 404
+        
+        if program.creator_id != user_id:
+            return jsonify({'message': '프로그램을 삭제할 권한이 없습니다'}), 403
+        
+        # 알림용 정보 미리 저장
+        program_title = program.title
+        
+        # 관련 데이터 삭제 (SQL로 직접 처리)
+        from sqlalchemy import text
+        
+        try:
+            # WorkoutPattern 조회 및 삭제
+            pattern_ids = db.session.execute(
+                text("SELECT id FROM workout_patterns WHERE program_id = :pid"),
+                {"pid": program_id}
+            ).fetchall()
+            
+            if pattern_ids:
+                pattern_id_list = [row[0] for row in pattern_ids]
+                if len(pattern_id_list) == 1:
+                    db.session.execute(
+                        text("DELETE FROM exercise_sets WHERE pattern_id = :pid"),
+                        {"pid": pattern_id_list[0]}
+                    )
+                else:
+                    db.session.execute(
+                        text("DELETE FROM exercise_sets WHERE pattern_id IN :pids"),
+                        {"pids": tuple(pattern_id_list)}
+                    )
+            
+            db.session.execute(text("DELETE FROM workout_patterns WHERE program_id = :pid"), {"pid": program_id})
+            db.session.execute(text("DELETE FROM program_exercises WHERE program_id = :pid"), {"pid": program_id})
+            db.session.execute(text("DELETE FROM registrations WHERE program_id = :pid"), {"pid": program_id})
+            db.session.execute(text("DELETE FROM program_participants WHERE program_id = :pid"), {"pid": program_id})
+            db.session.execute(text("DELETE FROM workout_records WHERE program_id = :pid"), {"pid": program_id})
+            db.session.execute(text("DELETE FROM notifications WHERE program_id = :pid"), {"pid": program_id})
+            db.session.execute(text("DELETE FROM programs WHERE id = :pid"), {"pid": program_id})
+            
+            db.session.commit()
+            current_app.logger.info(f"프로그램 {program_id} 삭제 완료")
+            
+            # 삭제 알림 생성
+            try:
+                create_notification(
+                    user_id=user_id,
+                    notification_type='program_deleted',
+                    title='WOD가 삭제되었습니다',
+                    message=f'"{program_title}" WOD가 삭제되었습니다.'
+                )
+            except Exception as notif_error:
+                current_app.logger.warning(f'삭제 알림 생성 실패: {notif_error}')
+            
+            return jsonify({'message': 'WOD가 삭제되었습니다'}), 200
+            
+        except Exception as delete_error:
+            db.session.rollback()
+            current_app.logger.exception(f'프로그램 삭제 중 DB 오류: {delete_error}')
+            return jsonify({'message': '프로그램 삭제 중 오류가 발생했습니다'}), 500
+            
+    except Exception as e:
+        current_app.logger.exception('delete_program error: %s', str(e))
+        return jsonify({'message': '프로그램 삭제 처리 중 오류가 발생했습니다'}), 500
+
+
+@bp.route('/programs/<int:program_id>', methods=['GET'])
+def get_program_detail(program_id):
+    """프로그램 상세 정보 조회"""
+    try:
+        program = Programs.query.get(program_id)
+        if not program:
+            return jsonify({'message': '프로그램을 찾을 수 없습니다'}), 404
+        
+        # Creator 정보
+        try:
+            creator = Users.query.get(program.creator_id)
+            creator_name = creator.name if creator else 'Unknown'
+        except Exception:
+            creator_name = 'Unknown'
+        
+        # 참여자 수
+        participant_count = ProgramParticipants.query.filter_by(
+            program_id=program.id, 
+            status='approved'
+        ).count()
+        
+        # 운동 목록 (기존 방식)
+        program_exercises = ProgramExercises.query.filter_by(
+            program_id=program.id
+        ).order_by(ProgramExercises.order_index).all()
+        
+        exercises = []
+        for pe in program_exercises:
+            if pe.exercise:
+                exercises.append({
+                    'id': pe.exercise.id,
+                    'name': pe.exercise.name,
+                    'description': pe.exercise.description,
+                    'target_value': pe.target_value,
+                    'order': pe.order_index
+                })
+        
+        # WOD 패턴 (새로운 방식)
+        workout_pattern = None
+        workout_patterns = WorkoutPatterns.query.filter_by(program_id=program.id).first()
+        
+        if workout_patterns:
+            exercise_sets = ExerciseSets.query.filter_by(
+                pattern_id=workout_patterns.id
+            ).order_by(ExerciseSets.order_index).all()
+            
+            pattern_exercises = []
+            for es in exercise_sets:
+                if es.exercise:
+                    pattern_exercises.append({
+                        'exercise_id': es.exercise_id,
+                        'exercise_name': es.exercise.name,
+                        'base_reps': es.base_reps,
+                        'progression_type': es.progression_type,
+                        'progression_value': es.progression_value,
+                        'order': es.order_index
+                    })
+            
+            def map_pattern_type(old_type):
+                return 'time_cap' if old_type == 'time_cap' else 'round_based'
+            
+            workout_pattern = {
+                'type': map_pattern_type(workout_patterns.pattern_type),
+                'total_rounds': workout_patterns.total_rounds,
+                'time_cap_per_round': workout_patterns.time_cap_per_round,
+                'description': workout_patterns.description,
+                'exercises': pattern_exercises
+            }
+        
+        return jsonify({
+            'program': {
+                'id': program.id,
+                'title': program.title,
+                'description': program.description,
+                'creator_name': creator_name,
+                'creator_id': program.creator_id,
+                'workout_type': program.workout_type,
+                'target_value': program.target_value,
+                'difficulty': program.difficulty,
+                'participants': participant_count,
+                'max_participants': program.max_participants,
+                'is_open': program.is_open,
+                'created_at': format_korea_time(program.created_at),
+                'expires_at': program.expires_at.isoformat() if program.expires_at else None,
+                'exercises': exercises,
+                'workout_pattern': workout_pattern
+            }
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.exception('get_program_detail error: %s', str(e))
+        return jsonify({'message': '프로그램 상세 조회 중 오류가 발생했습니다'}), 500

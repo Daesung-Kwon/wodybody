@@ -37,7 +37,20 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
             const authToken = localStorage.getItem('access_token');
             console.log('모바일 Safari 감지:', isMobileSafari, '| 인증 토큰:', authToken ? '있음' : '없음');
 
-            const newSocket = io(process.env.REACT_APP_API_URL || 'https://wodybody-production.up.railway.app', {
+            // API Base URL 결정 (로컬/프로덕션 환경)
+            const apiBaseUrl = (() => {
+                if (typeof window !== 'undefined') {
+                    const host = window.location.hostname;
+                    if (host === 'localhost' || host === '127.0.0.1') {
+                        return 'http://localhost:5001';
+                    }
+                }
+                return process.env.REACT_APP_API_URL || 'https://wodybody-production.up.railway.app';
+            })();
+            
+            console.log('WebSocket 연결 URL:', apiBaseUrl);
+            
+            const newSocket = io(apiBaseUrl, {
                 transports: isMobileSafari ? ['polling', 'websocket'] : ['websocket', 'polling'],
                 autoConnect: true,
                 reconnection: true,

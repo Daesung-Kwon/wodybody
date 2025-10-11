@@ -39,6 +39,17 @@ const MuiLoginPage: React.FC<LoginPageProps> = ({ setUser, goRegister, goProgram
 
         try {
             const data = await userApi.login({ email, password });
+            
+            // 토큰 저장 확인 (타이밍 이슈 방지)
+            await new Promise(resolve => setTimeout(resolve, 100));
+            const token = localStorage.getItem('access_token');
+            console.log('[Login] Token saved:', token ? 'Yes' : 'No');
+            
+            if (!token) {
+                console.warn('[Login] Token not saved, waiting...');
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            
             const user: User = {
                 id: data.user_id,
                 email,

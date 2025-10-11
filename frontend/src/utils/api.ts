@@ -119,6 +119,12 @@ async function apiRequest<T>(
     const accessToken = getAccessToken();
     if (accessToken) {
         headers['Authorization'] = `Bearer ${accessToken}`;
+        // 디버깅: 토큰이 제대로 전달되는지 확인
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`[API] ${endpoint} - Token: ${accessToken.substring(0, 20)}...`);
+        }
+    } else if (process.env.NODE_ENV === 'development') {
+        console.warn(`[API] ${endpoint} - No token!`);
     }
 
     // Safari 브라우저를 위한 추가 헤더 설정 (Cache-Control 제거)
@@ -199,6 +205,15 @@ export const userApi = {
         if (response.access_token) {
             console.log('[auth] access_token received, storing to localStorage');
             setAccessToken(response.access_token);
+            
+            // 저장 확인 (타이밍 이슈 방지)
+            await new Promise(resolve => setTimeout(resolve, 50));
+            const stored = getAccessToken();
+            if (stored) {
+                console.log('[auth] Token successfully stored:', stored.substring(0, 20) + '...');
+            } else {
+                console.error('[auth] Token storage failed!');
+            }
         } else {
             console.log('[auth] no access_token in login response');
         }

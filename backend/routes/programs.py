@@ -18,7 +18,8 @@ def get_programs():
     """프로그램 목록 조회"""
     try:
         programs = Programs.query.filter_by(is_open=True).order_by(Programs.created_at.desc()).all()
-        current_user_id = session.get('user_id')  # 비로그인 시 None
+        # 비로그인도 허용하지만, 로그인한 경우 참여 상태 확인
+        current_user_id = get_user_id_from_session_or_cookies()  # Authorization 헤더에서도 가져옴
         result = []
         
         for p in programs:

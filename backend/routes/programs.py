@@ -8,7 +8,7 @@ from models.notification import Notifications
 from models.user import Users
 from utils.validators import validate_program
 from utils.timezone import format_korea_time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # 블루프린트 생성
 bp = Blueprint('programs', __name__, url_prefix='/api')
@@ -523,3 +523,61 @@ def get_program_detail(program_id):
     except Exception as e:
         current_app.logger.exception('get_program_detail error: %s', str(e))
         return jsonify({'message': '프로그램 상세 조회 중 오류가 발생했습니다'}), 500
+
+
+@bp.route('/user/wod-status', methods=['GET'])
+def get_user_wod_status():
+    """사용자의 WOD 현황 조회"""
+    try:
+        user_id = get_user_id_from_session_or_cookies()
+        
+        if not user_id:
+            return jsonify({'message': '로그인이 필요합니다'}), 401
+        
+        # 전체 WOD 개수
+        total_wods = Programs.query.filter_by(creator_id=user_id).count()
+        
+        # 공개 WOD 개수 (만료되지 않은 것만 카운트)
+        try:
+            from utils.timezone import get_korea_time
+            public_wods = Programs.query.filter_by(creator_id=user_id, is_open=True).filter(
+                (Programs.expires_at.is_(None)) | (Programs.expires_at > get_korea_time())
+            ).count()
+        except AttributeError:
+            # expires_at 필드가 없는 경우 모든 공개 WOD 카운트
+            public_wods = Programs.query.filter_by(creator_id=user_id, is_open=True).count()
+        
+        # 만료 예정인 공개 WOD (3일 이내)
+        try:
+            from utils.timezone import get_korea_time
+            expiring_soon = Programs.query.filter_by(creator_id=user_id, is_open=True).filter(
+                Programs.expires_at.isnot(None),
+                Programs.expires_at <= get_korea_time() + timedelta(days=3),
+                Programs.expires_at > get_korea_time()
+            ).count()
+            
+            # 만료된 WOD 개수
+            expired_wods = Programs.query.filter_by(creator_id=user_id, is_open=True).filter(
+                Programs.expires_at.isnot(None),
+                Programs.expires_at <= get_korea_time()
+            ).count()
+        except AttributeError:
+            expiring_soon = 0
+            expired_wods = 0
+        
+        result = {
+            'total_wods': total_wods,
+            'max_total_wods': 5,
+            'public_wods': public_wods,
+            'max_public_wods': 3,
+            'expiring_soon': expiring_soon,
+            'expired_wods': expired_wods,
+            'can_create_wod': total_wods < 5,
+            'can_create_public_wod': public_wods < 3
+        }
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        current_app.logger.exception('WOD 현황 조회 중 오류: %s', str(e))
+        return jsonify({'message': 'WOD 현황 조회 중 오류가 발생했습니다'}), 500

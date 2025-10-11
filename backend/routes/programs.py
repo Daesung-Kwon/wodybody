@@ -192,32 +192,394 @@ def create_program():
         db.session.rollback()
         return jsonify({'message': '프로그램 생성 중 오류가 발생했습니다'}), 500
 
+@bp.route('/programs/<int:program_id>/open', methods=['POST'])
+def open_program(program_id):
+    """프로그램 공개"""
+    try:
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id:
+            return jsonify({'message': '로그인이 필요합니다'}), 401
+        
+        p = Programs.query.get(program_id)
+        if not p:
+            return jsonify({'message': '프로그램을 찾을 수 없습니다'}), 404
+        if p.creator_id != user_id:
+            return jsonify({'message': '프로그램을 공개할 권한이 없습니다'}), 403
+        
+        # 공개 WOD 개수 제한 확인
+        from sqlalchemy import text
+        from utils.timezone import get_korea_time
+        current_time = get_korea_time()
+        if hasattr(current_time, 'replace'):
+            current_time = current_time.replace(tzinfo=None)
+        
+        try:
+            count_result = db.session.execute(
+                text("""
+                    SELECT COUNT(*) FROM programs 
+                    WHERE creator_id = :user_id 
+                    AND is_open = 1 
+                    AND (expires_at IS NULL OR expires_at > :current_time)
+                """),
+                {"user_id": user_id, "current_time": current_time}
+            ).fetchone()
+            public_wods = count_result[0] if count_result else 0
+        except Exception:
+            public_wods = Programs.query.filter_by(creator_id=user_id, is_open=True).count()
+        
+        if public_wods >= 3:
+            return jsonify({'message': '공개 WOD 개수 제한에 도달했습니다. (최대 3개)'}), 400
+        
+        p.is_open = True
+        db.session.commit()
+        
+        # 만료 시간 설정
+        try:
+            from utils.timezone import get_korea_time
+            expires_at = get_korea_time() + timedelta(days=7)
+            if hasattr(expires_at, 'replace'):
+                expires_at = expires_at.replace(tzinfo=None)
+            
+            db.session.execute(
+                text("UPDATE programs SET expires_at = :expires_at WHERE id = :program_id"),
+                {"expires_at": expires_at, "program_id": program_id}
+            )
+            db.session.commit()
+        except Exception as e:
+            current_app.logger.warning(f"expires_at 설정 실패: {e}")
+            db.session.rollback()
+        
+        # 브로드캐스트 알림
+        try:
+            broadcast_program_notification(
+                program_id=p.id,
+                notification_type='program_opened',
+                title='새로운 프로그램이 공개되었습니다',
+                message=f'새로운 "{p.title}" 프로그램이 공개되었습니다.'
+            )
+        except Exception:
+            pass
+        
+        return jsonify({'message': '프로그램이 공개되었습니다'}), 200
+    except Exception as e:
+        current_app.logger.exception('open_program error: %s', str(e))
+        db.session.rollback()
+        return jsonify({'message': '프로그램 공개 중 오류가 발생했습니다'}), 500
+
+
+@bp.route('/programs/<int:program_id>/join', methods=['POST'])
+def join_program(program_id):
+    """프로그램 참여 신청"""
+    try:
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id:
+            return jsonify({'message': '로그인이 필요합니다'}), 401
+        
+        program = Programs.query.get(program_id)
+        if not program or not program.is_open:
+            return jsonify({'message': '참여할 수 없는 프로그램입니다'}), 400
+        
+        # 기존 참여 확인
+        existing = ProgramParticipants.query.filter_by(
+            program_id=program_id, user_id=user_id
+        ).first()
+        
+        if existing:
+            if existing.status == 'left':
+                existing.status = 'pending'
+                existing.joined_at = datetime.utcnow()
+                db.session.commit()
+                return jsonify({'message': '프로그램 참여가 재신청되었습니다'}), 200
+            return jsonify({'message': '이미 신청한 프로그램입니다'}), 400
+        
+        # 새 참여 생성
+        participant = ProgramParticipants(
+            program_id=program_id,
+            user_id=user_id,
+            status='pending'
+        )
+        db.session.add(participant)
+        db.session.commit()
+        
+        # 크리에이터에게 알림
+        try:
+            user = Users.query.get(user_id)
+            create_notification(
+                user_id=program.creator_id,
+                notification_type='join_request',
+                title='새로운 참여 신청',
+                message=f'{user.name if user else "사용자"}님이 "{program.title}" 프로그램에 참여 신청했습니다.',
+                program_id=program_id
+            )
+        except Exception:
+            pass
+        
+        return jsonify({'message': '프로그램 참여 신청이 완료되었습니다'}), 200
+    except Exception as e:
+        current_app.logger.exception('join_program error: %s', str(e))
+        db.session.rollback()
+        return jsonify({'message': '참여 신청 중 오류가 발생했습니다'}), 500
+
+
+@bp.route('/programs/<int:program_id>/leave', methods=['DELETE'])
+def leave_program(program_id):
+    """프로그램 참여 취소"""
+    try:
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id:
+            return jsonify({'message': '로그인이 필요합니다'}), 401
+        
+        participant = ProgramParticipants.query.filter_by(
+            program_id=program_id, user_id=user_id
+        ).first()
+        
+        if not participant:
+            return jsonify({'message': '참여 내역이 없습니다'}), 400
+        
+        participant.status = 'left'
+        db.session.commit()
+        
+        return jsonify({'message': '프로그램 참여가 취소되었습니다'}), 200
+    except Exception as e:
+        current_app.logger.exception('leave_program error: %s', str(e))
+        db.session.rollback()
+        return jsonify({'message': '참여 취소 중 오류가 발생했습니다'}), 500
+
+
+@bp.route('/programs/<int:program_id>/participants', methods=['GET'])
+def get_program_participants(program_id):
+    """프로그램 참여자 목록 조회"""
+    try:
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id:
+            return jsonify({'message': '로그인이 필요합니다'}), 401
+        
+        program = Programs.query.get(program_id)
+        if not program:
+            return jsonify({'message': '프로그램을 찾을 수 없습니다'}), 404
+        
+        if program.creator_id != user_id:
+            return jsonify({'message': '권한이 없습니다'}), 403
+        
+        participants = ProgramParticipants.query.filter_by(program_id=program_id).all()
+        approved_count = ProgramParticipants.query.filter_by(
+            program_id=program_id, status='approved'
+        ).count()
+        
+        result = []
+        for p in participants:
+            user = Users.query.get(p.user_id)
+            result.append({
+                'id': p.id,
+                'user_id': p.user_id,
+                'user_name': user.name if user else 'Unknown',
+                'status': p.status,
+                'joined_at': p.joined_at.isoformat()
+            })
+        
+        return jsonify({
+            'participants': result,
+            'approved_count': approved_count
+        }), 200
+    except Exception as e:
+        current_app.logger.exception('get_program_participants error: %s', str(e))
+        return jsonify({'message': '참여자 조회 중 오류가 발생했습니다'}), 500
+
+
+@bp.route('/programs/<int:program_id>/participants/<int:user_id>/approve', methods=['PUT'])
+def approve_participant(program_id, user_id):
+    """참여자 승인/거부"""
+    try:
+        creator_id = get_user_id_from_session_or_cookies()
+        if not creator_id:
+            return jsonify({'message': '로그인이 필요합니다'}), 401
+        
+        program = Programs.query.get(program_id)
+        if not program or program.creator_id != creator_id:
+            return jsonify({'message': '권한이 없습니다'}), 403
+        
+        data = request.get_json() or {}
+        action = data.get('action')
+        
+        if action not in ['approve', 'reject']:
+            return jsonify({'message': '유효하지 않은 액션입니다'}), 400
+        
+        participant = ProgramParticipants.query.filter_by(
+            program_id=program_id, user_id=user_id
+        ).first()
+        
+        if not participant:
+            return jsonify({'message': '참여자를 찾을 수 없습니다'}), 404
+        
+        if action == 'approve':
+            # 정원 확인
+            approved_count = ProgramParticipants.query.filter_by(
+                program_id=program_id, status='approved'
+            ).count()
+            
+            if approved_count >= program.max_participants:
+                return jsonify({'message': '정원이 가득 찼습니다'}), 400
+            
+            participant.status = 'approved'
+        else:
+            participant.status = 'rejected'
+        
+        db.session.commit()
+        
+        # 알림 전송
+        try:
+            user = Users.query.get(user_id)
+            create_notification(
+                user_id=user_id,
+                notification_type='participation_' + action + 'd',
+                title='참여 신청 ' + ('승인' if action == 'approve' else '거부'),
+                message=f'"{program.title}" 프로그램 참여가 ' + ('승인되었습니다' if action == 'approve' else '거부되었습니다'),
+                program_id=program_id
+            )
+        except Exception:
+            pass
+        
+        return jsonify({'message': f'참여자가 {action}되었습니다'}), 200
+    except Exception as e:
+        current_app.logger.exception('approve_participant error: %s', str(e))
+        db.session.rollback()
+        return jsonify({'message': '처리 중 오류가 발생했습니다'}), 500
+
+
+@bp.route('/programs/<int:program_id>/results', methods=['GET'])
+def program_results(program_id):
+    """프로그램 결과 조회"""
+    try:
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id:
+            return jsonify({'message': '로그인이 필요합니다'}), 401
+        
+        program = Programs.query.get(program_id)
+        if not program or program.creator_id != user_id:
+            return jsonify({'message': '권한이 없습니다'}), 403
+        
+        participants = ProgramParticipants.query.filter_by(program_id=program_id).all()
+        
+        out = []
+        for participant in participants:
+            u = Users.query.get(participant.user_id)
+            out.append({
+                'user_name': u.name if u else 'Unknown',
+                'result': '',
+                'completed': participant.status == 'approved',
+                'registered_at': participant.joined_at.strftime('%Y-%m-%d %H:%M'),
+                'status': participant.status
+            })
+        
+        return jsonify({
+            'program_title': program.title,
+            'total_registrations': len(participants),
+            'completed_count': len([p for p in participants if p.status == 'approved']),
+            'results': out
+        }), 200
+    except Exception as e:
+        current_app.logger.exception('program_results error: %s', str(e))
+        return jsonify({'message': '결과 조회 중 오류가 발생했습니다'}), 500
+
+
 @bp.route('/user/programs', methods=['GET'])
 def my_programs():
     """내 프로그램 목록 조회"""
     try:
-        if 'user_id' not in session:
+        user_id = get_user_id_from_session_or_cookies()
+        if not user_id:
             return jsonify({'message': '로그인이 필요합니다'}), 401
         
-        mine = Programs.query.filter_by(creator_id=session['user_id']).order_by(Programs.created_at.desc()).all()
-        out = []
+        mine = Programs.query.filter_by(creator_id=user_id).order_by(Programs.created_at.desc()).all()
         
+        # expires_at 일괄 조회
+        from sqlalchemy import text
+        expires_dict = {}
+        try:
+            expires_result = db.session.execute(
+                text("SELECT id, expires_at FROM programs WHERE creator_id = :user_id"),
+                {"user_id": user_id}
+            )
+            for row in expires_result:
+                if row[1]:
+                    expires_dict[row[0]] = row[1]
+        except Exception:
+            pass
+        
+        out = []
         for p in mine:
-            cnt = Registrations.query.filter_by(program_id=p.id).count()
+            # 새로운 참여 시스템 사용
+            cnt = ProgramParticipants.query.filter_by(program_id=p.id).filter(
+                ProgramParticipants.status.in_(['pending', 'approved'])
+            ).count()
+            
+            # 운동 목록
+            program_exercises = ProgramExercises.query.filter_by(
+                program_id=p.id
+            ).order_by(ProgramExercises.order_index).all()
+            exercises = []
+            for pe in program_exercises:
+                exercises.append({
+                    'id': pe.exercise_id,
+                    'name': pe.exercise.name if pe.exercise else '알 수 없는 운동',
+                    'target_value': pe.target_value,
+                    'order': pe.order_index
+                })
+            
+            # WOD 패턴
+            workout_pattern = None
+            workout_patterns = WorkoutPatterns.query.filter_by(program_id=p.id).first()
+            if workout_patterns:
+                exercise_sets = ExerciseSets.query.filter_by(
+                    pattern_id=workout_patterns.id
+                ).order_by(ExerciseSets.order_index).all()
+                pattern_exercises = []
+                for es in exercise_sets:
+                    pattern_exercises.append({
+                        'exercise_id': es.exercise_id,
+                        'exercise_name': es.exercise.name if es.exercise else '',
+                        'base_reps': es.base_reps,
+                        'progression_type': es.progression_type,
+                        'progression_value': es.progression_value,
+                        'order': es.order_index
+                    })
+                
+                workout_pattern = {
+                    'type': workout_patterns.pattern_type,
+                    'total_rounds': workout_patterns.total_rounds,
+                    'time_cap_per_round': workout_patterns.time_cap_per_round,
+                    'description': workout_patterns.description,
+                    'exercises': pattern_exercises
+                }
+            
+            # expires_at 처리
+            expires_at_obj = expires_dict.get(p.id)
+            expires_at_value = None
+            if expires_at_obj:
+                try:
+                    expires_at_value = expires_at_obj.isoformat() if hasattr(expires_at_obj, 'isoformat') else str(expires_at_obj)
+                except:
+                    expires_at_value = str(expires_at_obj) if expires_at_obj else None
+            
             out.append({
                 'id': p.id,
                 'title': p.title,
                 'description': p.description,
+                'workout_type': p.workout_type,
+                'target_value': p.target_value,
+                'difficulty': p.difficulty,
                 'is_open': p.is_open,
                 'participants': cnt,
                 'max_participants': p.max_participants,
-                'created_at': p.created_at.strftime('%Y-%m-%d %H:%M')
+                'created_at': format_korea_time(p.created_at),
+                'expires_at': expires_at_value,
+                'exercises': exercises,
+                'workout_pattern': workout_pattern
             })
         
         return jsonify({'programs': out}), 200
         
     except Exception as e:
-        from flask import current_app
         current_app.logger.exception('my_programs error: %s', str(e))
         return jsonify({'message': '프로그램 조회 중 오류가 발생했습니다'}), 500
 

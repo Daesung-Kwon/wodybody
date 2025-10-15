@@ -47,9 +47,9 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
                 }
                 return process.env.REACT_APP_API_URL || 'https://wodybody-production.up.railway.app';
             })();
-            
+
             console.log('WebSocket 연결 URL:', apiBaseUrl);
-            
+
             const newSocket = io(apiBaseUrl, {
                 transports: isMobileSafari ? ['polling', 'websocket'] : ['websocket', 'polling'],
                 autoConnect: true,
@@ -88,16 +88,16 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
                     newSocket.connect();
                 }
             });
-            
+
             // 방 참여 성공/실패 이벤트
             newSocket.on('join_success', (data) => {
                 console.log('✅ 방 참여 성공:', data);
             });
-            
+
             newSocket.on('join_error', (data) => {
                 console.error('❌ 방 참여 오류:', data);
             });
-            
+
             // 모바일 Safari 정보
             newSocket.on('mobile_safari_info', (data) => {
                 console.log('📱 모바일 Safari 정보:', data);

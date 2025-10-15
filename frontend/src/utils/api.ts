@@ -205,7 +205,7 @@ export const userApi = {
         if (response.access_token) {
             console.log('[auth] access_token received, storing to localStorage');
             setAccessToken(response.access_token);
-            
+
             // 저장 확인 (타이밍 이슈 방지)
             await new Promise(resolve => setTimeout(resolve, 50));
             const stored = getAccessToken();

@@ -16,6 +16,7 @@ import { LoginPageProps, User } from '../types';
 import { userApi } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../theme/ThemeProvider';
+import WodyBodyLogo from './WodyBodyLogo';
 
 const MuiLoginPage: React.FC<LoginPageProps> = ({ setUser, goRegister, goPrograms }) => {
     const { setUser: setAuthUser } = useAuth();
@@ -38,6 +39,17 @@ const MuiLoginPage: React.FC<LoginPageProps> = ({ setUser, goRegister, goProgram
 
         try {
             const data = await userApi.login({ email, password });
+
+            // 토큰 저장 확인 (타이밍 이슈 방지)
+            await new Promise(resolve => setTimeout(resolve, 100));
+            const token = localStorage.getItem('access_token');
+            console.log('[Login] Token saved:', token ? 'Yes' : 'No');
+
+            if (!token) {
+                console.warn('[Login] Token not saved, waiting...');
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+
             const user: User = {
                 id: data.user_id,
                 email,
@@ -91,24 +103,14 @@ const MuiLoginPage: React.FC<LoginPageProps> = ({ setUser, goRegister, goProgram
                 >
                     <CardContent sx={{ p: 4 }}>
                         {/* 헤더 */}
-                        <Box sx={{ textAlign: 'center', mb: 4 }}>
-                            <Typography
-                                variant="h4"
-                                component="h1"
-                                sx={{
-                                    fontWeight: 'bold',
-                                    background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
-                                    backgroundClip: 'text',
-                                    WebkitBackgroundClip: 'text',
-                                    WebkitTextFillColor: 'transparent',
-                                    mb: 1,
-                                }}
-                            >
-                                CrossFit WOD
-                            </Typography>
-                            <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 500 }}>
-                                관리 시스템
-                            </Typography>
+                        {/* 브랜드 로고 */}
+                        <Box sx={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            mb: 4
+                        }}>
+                            <WodyBodyLogo variant="detailed" size="large" />
                         </Box>
 
                         {/* 성공 메시지 */}
@@ -199,19 +201,35 @@ const MuiLoginPage: React.FC<LoginPageProps> = ({ setUser, goRegister, goProgram
                             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                                 계정이 없으신가요?
                             </Typography>
-                            <Button
-                                variant="outlined"
-                                onClick={goRegister}
-                                disabled={busy}
-                                sx={{
-                                    borderRadius: 2,
-                                    px: 3,
-                                    py: 1,
-                                    fontWeight: 500,
-                                }}
-                            >
-                                회원가입
-                            </Button>
+                            <Stack direction="row" spacing={2} justifyContent="center">
+                                <Button
+                                    variant="outlined"
+                                    onClick={goRegister}
+                                    disabled={busy}
+                                    sx={{
+                                        borderRadius: 2,
+                                        px: 3,
+                                        py: 1,
+                                        fontWeight: 500,
+                                    }}
+                                >
+                                    회원가입
+                                </Button>
+                                <Button
+                                    variant="text"
+                                    onClick={() => window.location.hash = '#keypad-demo'}
+                                    disabled={busy}
+                                    sx={{
+                                        borderRadius: 2,
+                                        px: 3,
+                                        py: 1,
+                                        fontWeight: 500,
+                                        color: 'primary.main',
+                                    }}
+                                >
+                                    🔒 보안 키패드 데모
+                                </Button>
+                            </Stack>
                         </Box>
                     </CardContent>
                 </Card>

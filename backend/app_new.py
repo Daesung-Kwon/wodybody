@@ -1,112 +1,403 @@
-import os
-import logging
-from logging.handlers import RotatingFileHandler
-from flask import Flask
+"""
+Flask Application - Refactored Version (v2)
+Backend + Frontend 머지 후 최신 develop 기반
+"""
+
+from flask import Flask, request, jsonify, session
+from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+from flask_socketio import SocketIO
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, timedelta
+import secrets, logging, os
+from logging.handlers import RotatingFileHandler
+from sqlalchemy import text
 
-# 설정 및 데이터베이스 임포트
-from config.settings import config
-from config.database import init_database
+# Utils import
+from utils.timezone import format_korea_time, get_korea_time
 
-# 모델 임포트 (테이블 생성을 위해)
-from models import *
+# ==================================================================
+# 인증 헬퍼 함수 (다른 모듈에서 import하므로 여기 유지)
+# ==================================================================
 
-def create_app(config_name=None):
-    """Flask 애플리케이션 팩토리"""
+def get_user_id_from_session_or_cookies():
+    """세션 또는 쿠키에서 사용자 ID를 가져오는 함수 (Safari 호환)"""
+    # 0) Authorization: Bearer <token>
+    auth_header = request.headers.get('Authorization') or request.headers.get('authorization')
+    if auth_header and isinstance(auth_header, str) and auth_header.lower().startswith('bearer '):
+        token = auth_header.split(' ', 1)[1].strip()
+        try:
+            from utils.token import verify_access_token
+            user_id_from_token = verify_access_token(token)
+            if user_id_from_token:
+                session['user_id'] = user_id_from_token
+                session.permanent = True
+                app.logger.info(f'Authorization 토큰에서 사용자 ID 확인: {user_id_from_token}')
+                return user_id_from_token
+        except Exception as e:
+            app.logger.info(f'Authorization 토큰 검증 실패: {e}')
     
-    # 설정 이름 결정
-    if config_name is None:
-        config_name = os.environ.get('FLASK_ENV', 'default')
+    # 세션에서 확인
+    user_id = session.get('user_id')
+    if user_id:
+        app.logger.info(f'세션에서 사용자 ID 확인: {user_id}')
+        return user_id
     
-    # Flask 앱 생성
-    app = Flask(__name__)
-    app.config.from_object(config[config_name])
+    # Safari 대안: URL 파라미터
+    user_id_param = request.args.get('user_id')
+    if not user_id_param:
+        query_string = request.query_string.decode('utf-8')
+        if 'user_id=' in query_string:
+            try:
+                user_id_param = query_string.split('user_id=')[1].split('&')[0]
+            except Exception:
+                pass
     
-    # CORS 설정
-    CORS(app,
-         resources={r"/api/*": {
-             "origins": app.config['CORS_ORIGINS'],
-             "supports_credentials": app.config['CORS_SUPPORTS_CREDENTIALS'],
-             "allow_headers": app.config['CORS_ALLOW_HEADERS'],
-             "methods": app.config['CORS_METHODS']
-         }})
-    
-    # 로깅 설정
-    setup_logging(app)
-    
-    # 데이터베이스 초기화
-    db, socketio = init_database(app)
-    
-    # 라우트 등록
-    register_routes(app)
-    
-    # 미들웨어 등록
-    register_middleware(app)
-    
-    return app, db, socketio
+    if user_id_param:
+        try:
+            user_id = int(user_id_param)
+            session['user_id'] = user_id
+            session.permanent = True
+            return user_id
+        except (ValueError, TypeError):
+            pass
 
-def setup_logging(app):
-    """로깅 설정"""
-    if not app.debug and not app.testing:
-        # 로그 디렉토리 생성
-        os.makedirs('logs', exist_ok=True)
-        
-        # 파일 핸들러 설정
-        file_handler = RotatingFileHandler(
-            app.config['LOG_FILE'],
-            maxBytes=app.config['LOG_MAX_BYTES'],
-            backupCount=app.config['LOG_BACKUP_COUNT'],
-            encoding='utf-8'
-        )
-        
-        file_handler.setFormatter(logging.Formatter(
-            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-        ))
-        
-        file_handler.setLevel(getattr(logging, app.config['LOG_LEVEL']))
-        app.logger.addHandler(file_handler)
-        app.logger.setLevel(getattr(logging, app.config['LOG_LEVEL']))
-        app.logger.info('CrossFit System startup')
+    # Safari 대안 인증 헤더
+    safari_auth_header = (request.headers.get('X-Safari-Auth-Token') or 
+                         request.headers.get('X-SAFARI-AUTH-TOKEN'))
+    
+    if safari_auth_header:
+        try:
+            import base64
+            from models.user import Users as User
+            parts = safari_auth_header.rsplit('_', 2)
+            if len(parts) >= 2:
+                email = base64.b64decode(parts[0]).decode('utf-8')
+                user = User.query.filter_by(email=email).first()
+                if user:
+                    session['user_id'] = user.id
+                    session.permanent = True
+                    return user.id
+        except Exception:
+            pass
 
-def register_routes(app):
-    """라우트 등록"""
-    # 기본 테스트 라우트
-    @app.route('/api/test', methods=['GET'])
-    def test():
-        from datetime import datetime
-        from flask import jsonify
+    # Safari 쿠키들
+    for cookie_name in ['safari_auth', 'safari_session_backup', 'mobile_safari_auth']:
+        cookie_value = request.cookies.get(cookie_name)
+        if cookie_value:
+            try:
+                parts = cookie_value.split('_')
+                if len(parts) >= 2:
+                    user_id = int(parts[1])
+                    session['user_id'] = user_id
+                    session.permanent = True
+                    return user_id
+            except (ValueError, IndexError):
+                pass
+
+    # Safari 브라우저 자동 인증
+    user_agent = request.headers.get('User-Agent', '').lower()
+    is_safari = 'safari' in user_agent and 'chrome' not in user_agent
+    if is_safari:
+        safari_user_id = session.get('safari_user_id')
+        if safari_user_id:
+            session['user_id'] = safari_user_id
+            session.permanent = True
+            return safari_user_id
+
+    return None
+
+
+# ==================================================================
+# Flask App 초기화
+# ==================================================================
+
+app = Flask(__name__)
+
+# SocketIO 초기화
+socketio = SocketIO(app, 
+    logger=True,
+    engineio_logger=True,
+    cors_allowed_origins="*",
+    cors_credentials=True
+)
+
+# 로깅 설정
+os.makedirs('logs', exist_ok=True)
+fh = RotatingFileHandler('logs/crossfit.log', maxBytes=1024*1024, backupCount=10, encoding='utf-8')
+fh.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
+fh.setLevel(logging.INFO)
+app.logger.addHandler(fh)
+app.logger.setLevel(logging.INFO)
+
+# Config
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///crossfit.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+
+# Railway 환경 감지
+IS_RAILWAY = os.environ.get('RAILWAY_ENVIRONMENT') is not None
+if IS_RAILWAY:
+    app.logger.info("Railway 환경에서 실행 중")
+
+# 세션 쿠키 설정 (Safari 호환)
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_DOMAIN'] = None
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
+app.config['SESSION_COOKIE_PATH'] = '/'
+
+# CORS 설정
+cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:3000').split(',')
+CORS(app,
+     resources={r"/api/*": {
+         "origins": cors_origins,
+         "supports_credentials": True,
+         "allow_headers": [
+             "Content-Type", "Authorization", "X-Requested-With", 
+             "Cache-Control", "Accept", "Accept-Language",
+             "Sec-Fetch-Site", "Sec-Fetch-Mode", "Sec-Fetch-Dest",
+             "Origin", "X-Safari-Auth-Token", "User-Agent"
+         ],
+         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+     }})
+
+# Database 초기화
+db = SQLAlchemy(app)
+
+# Request/Response 로깅
+@app.before_request
+def _before():
+    app.logger.info('Request: %s %s', request.method, request.url)
+
+@app.after_request
+def _after(resp):
+    app.logger.info('Response: %s %s', resp.status_code, resp.status)
+    return resp
+
+
+# ==================================================================
+# 모델 Import (models/ 폴더에서)
+# ==================================================================
+
+from models.user import Users
+from models.program import Programs, Registrations, ProgramParticipants, PersonalGoals
+from models.exercise import Exercises, ExerciseCategories, ProgramExercises, WorkoutPatterns, ExerciseSets
+from models.notification import Notifications
+from models.workout_record import WorkoutRecords
+
+
+# ==================================================================
+# Health Check & Debug Routes (여기 유지)
+# ==================================================================
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """서비스 상태 확인"""
+    try:
+        db.session.execute(text('SELECT 1'))
         return jsonify({
-            'message': '서버 연결 정상',
-            'timestamp': datetime.utcnow().isoformat()
+            'status': 'healthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'database': 'connected',
+            'version': '2.0.0-refactored-v2'
         }), 200
-    
-    # 향후 라우트 모듈들을 여기에 임포트할 예정
-    # from routes import auth, programs, exercises, admin
-    # app.register_blueprint(auth.bp)
-    # app.register_blueprint(programs.bp)
-    # app.register_blueprint(exercises.bp)
-    # app.register_blueprint(admin.bp)
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'error': str(e)
+        }), 500
 
-def register_middleware(app):
-    """미들웨어 등록"""
-    from flask import request
-    
-    @app.before_request
-    def log_request_info():
-        app.logger.info('Request: %s %s', request.method, request.url)
-    
-    @app.after_request
-    def log_response_info(response):
-        app.logger.info('Response: %s %s', response.status_code, response.status)
-        return response
+
+@app.route('/api/test', methods=['GET'])
+def test():
+    return jsonify({'message': 'Test successful', 'timestamp': datetime.utcnow().isoformat()}), 200
+
+
+@app.route('/api/test-params', methods=['GET'])
+def test_params():
+    """쿼리 파라미터 테스트"""
+    user_id = request.args.get('user_id')
+    query_string = request.query_string.decode('utf-8')
+    return jsonify({
+        'user_id': user_id,
+        'query_string': query_string,
+        'all_args': dict(request.args)
+    }), 200
+
+
+@app.route('/api/test-headers', methods=['GET'])
+def test_headers():
+    """헤더 테스트"""
+    return jsonify({
+        'headers': dict(request.headers),
+        'safari_headers': {k: v for k, v in request.headers.items() if 'safari' in k.lower()}
+    }), 200
+
+
+@app.route('/api/safari-auth', methods=['GET'])
+def safari_auth():
+    """Safari 인증 테스트"""
+    user_id = get_user_id_from_session_or_cookies()
+    return jsonify({
+        'user_id': user_id,
+        'session': dict(session),
+        'cookies': dict(request.cookies),
+        'user_agent': request.headers.get('User-Agent')
+    }), 200
+
+
+@app.route('/api/debug/session', methods=['GET'])
+def debug_session():
+    """세션 디버깅"""
+    return jsonify({
+        'session': dict(session),
+        'cookies': dict(request.cookies),
+        'headers': {k: v for k, v in request.headers.items() if k.startswith('X-') or k in ['User-Agent', 'Authorization']},
+        'user_id': get_user_id_from_session_or_cookies()
+    }), 200
+
+
+@app.route('/api/debug/test-login', methods=['POST'])
+def debug_test_login():
+    """테스트 로그인"""
+    data = request.get_json() or {}
+    test_user_id = data.get('user_id', 1)
+    session['user_id'] = test_user_id
+    session.permanent = True
+    return jsonify({
+        'message': 'Test login successful',
+        'user_id': test_user_id,
+        'session': dict(session)
+    }), 200
+
+
+# ==================================================================
+# 운동 데이터 시드 함수 (여기 유지)
+# ==================================================================
+
+def seed_exercise_data():
+    """운동 카테고리와 운동 종류 시드 데이터 생성"""
+    try:
+        if ExerciseCategories.query.first():
+            return
+        
+        categories = [
+            {'name': '맨몸운동', 'description': '기구 없이 할 수 있는 운동'},
+            {'name': '덤벨', 'description': '덤벨을 사용한 운동'},
+            {'name': '케틀벨', 'description': '케틀벨을 사용한 운동'},
+            {'name': '바벨', 'description': '바벨을 사용한 운동'},
+            {'name': '기타', 'description': '기타 운동'}
+        ]
+        
+        for cat_data in categories:
+            category = ExerciseCategories(**cat_data)
+            db.session.add(category)
+        
+        db.session.flush()
+        
+        exercises = [
+            # 맨몸운동
+            {'category_id': 1, 'name': '버핏', 'description': '버피 테스트 - 전신 운동'},
+            {'category_id': 1, 'name': '스쿼트', 'description': '하체 근력 운동'},
+            {'category_id': 1, 'name': '런지', 'description': '하체 균형 운동'},
+            {'category_id': 1, 'name': '점프 스쿼트', 'description': '폭발적 하체 운동'},
+            {'category_id': 1, 'name': '푸시업', 'description': '상체 근력 운동'},
+            {'category_id': 1, 'name': '플랭크', 'description': '코어 안정성 운동'},
+            {'category_id': 1, 'name': '마운틴 클라이머', 'description': '전신 유산소 운동'},
+            {'category_id': 1, 'name': '점프 잭', 'description': '전신 유산소 운동'},
+            {'category_id': 1, 'name': '하이 니즈', 'description': '하체 유산소 운동'},
+            {'category_id': 1, 'name': '버피', 'description': '전신 복합 운동'},
+            # 덤벨
+            {'category_id': 2, 'name': '덤벨 스쿼트', 'description': '덤벨을 이용한 스쿼트'},
+            {'category_id': 2, 'name': '덤벨 런지', 'description': '덤벨을 이용한 런지'},
+            {'category_id': 2, 'name': '덤벨 프레스', 'description': '어깨 근력 운동'},
+            {'category_id': 2, 'name': '덤벨 로우', 'description': '등 근력 운동'},
+            {'category_id': 2, 'name': '덤벨 컬', 'description': '이두근 운동'},
+            # 케틀벨
+            {'category_id': 3, 'name': '케틀벨 스윙', 'description': '케틀벨 기본 운동'},
+            {'category_id': 3, 'name': '케틀벨 고블릿 스쿼트', 'description': '케틀벨을 이용한 스쿼트'},
+            {'category_id': 3, 'name': '케틀벨 터키시 겟업', 'description': '전신 복합 운동'},
+            # 바벨
+            {'category_id': 4, 'name': '바벨 스쿼트', 'description': '바벨을 이용한 스쿼트'},
+            {'category_id': 4, 'name': '데드리프트', 'description': '전신 근력 운동'},
+            {'category_id': 4, 'name': '벤치 프레스', 'description': '상체 근력 운동'},
+            {'category_id': 4, 'name': '오버헤드 프레스', 'description': '어깨 근력 운동'},
+        ]
+        
+        for ex_data in exercises:
+            exercise = Exercises(**ex_data)
+            db.session.add(exercise)
+        
+        db.session.commit()
+        print("✅ Exercise data seeded successfully!")
+    except Exception as e:
+        print(f"❌ Error seeding exercise data: {e}")
+        db.session.rollback()
+
+
+# ==================================================================
+# 블루프린트 등록
+# ==================================================================
+
+# Auth 라우트
+from routes import auth
+app.register_blueprint(auth.bp)
+
+# Programs 라우트
+from routes import programs
+app.register_blueprint(programs.bp)
+
+# Notifications 라우트
+from routes import notifications
+app.register_blueprint(notifications.bp)
+
+# Workout Records 라우트
+from routes import workout_records
+app.register_blueprint(workout_records.bp)
+
+# Exercises 라우트
+from routes import exercises
+app.register_blueprint(exercises.bp)
+
+# Goals 라우트
+from routes import goals
+app.register_blueprint(goals.bp)
+
+# WebSocket 이벤트 핸들러 등록
+from routes.websocket import register_socketio_events
+register_socketio_events(socketio)
+
+print("✅ All blueprints registered successfully!")
+
+
+# ==================================================================
+# 애플리케이션 실행
+# ==================================================================
 
 if __name__ == '__main__':
-    app, db, socketio = create_app()
-    
-    # 운동 데이터 시드 (기존 함수를 임포트해야 함)
-    # from utils.seed_data import seed_exercise_data
-    # with app.app_context():
-    #     seed_exercise_data()
-    
-    print("🚀 http://localhost:5001")
-    socketio.run(app, debug=True, port=5001, host='0.0.0.0')
+    try:
+        with app.app_context():
+            # 데이터베이스 초기화
+            try:
+                db.session.execute(text("SELECT 1 FROM users LIMIT 1"))
+                print("✅ Database tables already exist")
+            except Exception:
+                print("🔨 Creating database tables...")
+                db.create_all()
+                print("🌱 Seeding exercise data...")
+                seed_exercise_data()
+                print("✅ Database initialization complete!")
+        
+        port = int(os.environ.get('PORT', 5001))
+        print(f"🚀 Server starting on port {port}")
+        print(f"📦 Total lines in app.py: ~405 (was 2,703)")
+        print(f"📈 Reduction: 85% smaller!")
+        socketio.run(app, debug=False, port=port, host='0.0.0.0', allow_unsafe_werkzeug=True)
+    except Exception as e:
+        print(f"❌ ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        raise

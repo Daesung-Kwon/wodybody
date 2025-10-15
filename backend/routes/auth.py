@@ -74,13 +74,29 @@ def login():
             user.last_login_at = datetime.utcnow()
             from config.database import db
             db.session.commit()
-            
+
+            # 세션도 유지하되, 헤더 기반 토큰도 함께 발급
             session['user_id'] = user.id
+
+            # access_token 발급 (itsdangerous)
+            try:
+                from utils.token import generate_access_token
+                access_token = generate_access_token(user.id)
+                try:
+                    from flask import current_app
+                    masked = access_token[:8] + '...' if access_token else 'None'
+                    current_app.logger.info(f'login success → access_token issued (user_id={user.id}, token={masked})')
+                except Exception:
+                    pass
+            except Exception:
+                access_token = None
+
             return jsonify({
                 'message': '로그인 성공',
                 'user_id': user.id,
                 'name': user.name,
-                'role': user.role
+                'role': user.role,
+                'access_token': access_token
             }), 200
         
         return jsonify({'message': '잘못된 인증정보입니다'}), 401

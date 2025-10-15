@@ -458,9 +458,24 @@ const MuiWODBuilder: React.FC<MuiWODBuilderProps> = ({ workoutPattern, onPattern
 
                                                     <CardContent sx={{ p: 2, pr: 5 }}>
                                                         <Stack spacing={1}>
-                                                            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                                                                {exercise.name}
-                                                            </Typography>
+                                                            <Stack direction="row" alignItems="center" spacing={1}>
+                                                                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                                                                    {exercise.name}
+                                                                </Typography>
+                                                                {exercise.category_name && (
+                                                                    <Chip
+                                                                        label={exercise.category_name}
+                                                                        size="small"
+                                                                        color="primary"
+                                                                        variant="outlined"
+                                                                        sx={{
+                                                                            height: 20,
+                                                                            fontSize: '0.7rem',
+                                                                            fontWeight: 500
+                                                                        }}
+                                                                    />
+                                                                )}
+                                                            </Stack>
                                                             <Typography variant="body2" color="text.secondary" sx={{
                                                                 display: '-webkit-box',
                                                                 WebkitLineClamp: 2,

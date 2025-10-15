@@ -29,15 +29,18 @@ import { useTheme } from '../theme/ThemeProvider';
 interface MuiExerciseSelectorProps {
     selectedExercises: SelectedExercise[];
     onExercisesChange: (exercises: SelectedExercise[]) => void;
+    showCategorySelector?: boolean; // 카테고리 선택기 표시 여부 (기본값: true)
 }
 
 const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
     selectedExercises,
-    onExercisesChange
+    onExercisesChange,
+    showCategorySelector = true
 }) => {
     const { isDarkMode } = useTheme();
     const [categories, setCategories] = useState<ExerciseCategory[]>([]);
     const [exercises, setExercises] = useState<Exercise[]>([]);
+    const [allExercises, setAllExercises] = useState<Exercise[]>([]); // 모든 운동 저장
     const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [searchTerm, setSearchTerm] = useState<string>('');
@@ -68,9 +71,33 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
         loadCategories();
     }, []);
 
-    // 선택된 카테고리의 운동들 로드
+    // 카테고리 선택기가 비활성화된 경우 모든 운동 로드
     useEffect(() => {
-        if (selectedCategoryId) {
+        if (!showCategorySelector) {
+            // 검색어 및 카테고리 ID 초기화
+            setSearchTerm('');
+            setSelectedCategoryId(null);
+            
+            const loadAllExercises = async () => {
+                setLoading(true);
+                try {
+                    const data = await exerciseApi.getExercises(); // 카테고리 ID 없이 모든 운동 조회
+                    console.log('Loaded all exercises:', data.exercises.length, 'exercises');
+                    setExercises(data.exercises);
+                    setAllExercises(data.exercises); // 모든 운동도 저장
+                } catch (error) {
+                    console.error('전체 운동 로딩 실패:', error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+            loadAllExercises();
+        }
+    }, [showCategorySelector]);
+
+    // 선택된 카테고리의 운동들 로드 (카테고리 선택기가 활성화된 경우에만)
+    useEffect(() => {
+        if (showCategorySelector && selectedCategoryId) {
             const loadExercises = async () => {
                 setLoading(true);
                 try {
@@ -84,7 +111,7 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
             };
             loadExercises();
         }
-    }, [selectedCategoryId]);
+    }, [selectedCategoryId, showCategorySelector]);
 
     // 운동 추가
     const addExercise = (exercise: Exercise) => {
@@ -101,6 +128,7 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
 
         const newExercise: SelectedExercise = {
             exercise_id: exercise.id,
+            name: exercise.name, // 운동 이름도 함께 저장
             target_value: '',
             order: selectedExercises.length
         };
@@ -126,10 +154,13 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
     };
 
     // 운동 검색 필터링
-    const filteredExercises = exercises.filter(exercise =>
-        exercise.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        exercise.description.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredExercises = exercises.filter(exercise => {
+        // 검색어가 없으면 모든 운동 표시
+        if (!searchTerm.trim()) return true;
+
+        return exercise.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            exercise.description.toLowerCase().includes(searchTerm.toLowerCase());
+    });
 
     // 운동 순서 변경
     const moveExercise = (index: number, direction: 'up' | 'down') => {
@@ -156,44 +187,46 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
     return (
         <>
             <Box>
-                {/* 카테고리 선택 */}
-                <Paper sx={{
-                    p: { xs: 2, sm: 3 },
-                    mb: { xs: 2, sm: 3 },
-                    borderRadius: 2
-                }}>
-                    <Typography variant="h6" sx={{
-                        mb: { xs: 1.5, sm: 2 },
-                        fontWeight: 600,
-                        fontSize: { xs: '1.1rem', sm: '1.25rem' }
+                {/* 카테고리 선택 (조건부 렌더링) */}
+                {showCategorySelector && (
+                    <Paper sx={{
+                        p: { xs: 2, sm: 3 },
+                        mb: { xs: 2, sm: 3 },
+                        borderRadius: 2
                     }}>
-                        📂 카테고리 선택
-                    </Typography>
-                    <FormControl fullWidth>
-                        <InputLabel>운동 카테고리</InputLabel>
-                        <Select
-                            value={selectedCategoryId || ''}
-                            label="운동 카테고리"
-                            onChange={(e) => setSelectedCategoryId(Number(e.target.value))}
-                            startAdornment={<CategoryIcon sx={{ mr: 1, color: 'text.secondary' }} />}
-                            sx={{
-                                borderRadius: 2,
-                                '& .MuiSelect-select': {
-                                    minHeight: { xs: '48px', sm: 'auto' }
-                                }
-                            }}
-                        >
-                            {categories.map(category => (
-                                <MenuItem key={category.id} value={category.id}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <FitnessCenterIcon sx={{ fontSize: 20 }} />
-                                        {category.name}
-                                    </Box>
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                </Paper>
+                        <Typography variant="h6" sx={{
+                            mb: { xs: 1.5, sm: 2 },
+                            fontWeight: 600,
+                            fontSize: { xs: '1.1rem', sm: '1.25rem' }
+                        }}>
+                            📂 카테고리 선택
+                        </Typography>
+                        <FormControl fullWidth>
+                            <InputLabel>운동 카테고리</InputLabel>
+                            <Select
+                                value={selectedCategoryId || ''}
+                                label="운동 카테고리"
+                                onChange={(e) => setSelectedCategoryId(Number(e.target.value))}
+                                startAdornment={<CategoryIcon sx={{ mr: 1, color: 'text.secondary' }} />}
+                                sx={{
+                                    borderRadius: 2,
+                                    '& .MuiSelect-select': {
+                                        minHeight: { xs: '48px', sm: 'auto' }
+                                    }
+                                }}
+                            >
+                                {categories.map(category => (
+                                    <MenuItem key={category.id} value={category.id}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <FitnessCenterIcon sx={{ fontSize: 20 }} />
+                                            {category.name}
+                                        </Box>
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Paper>
+                )}
 
                 {/* 운동 검색 및 선택 */}
                 <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
@@ -310,9 +343,26 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
 
                                             <CardContent sx={{ p: 2, pr: 5 }}>
                                                 <Stack spacing={1}>
-                                                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                                                        {exercise.name}
-                                                    </Typography>
+                                                    {/* 운동명과 카테고리 chip을 같은 줄에 표시 */}
+                                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                                                            {exercise.name}
+                                                        </Typography>
+                                                        {/* 카테고리 선택기가 비활성화된 경우 카테고리 정보 표시 */}
+                                                        {!showCategorySelector && exercise.category_name && (
+                                                            <Chip
+                                                                label={exercise.category_name}
+                                                                size="small"
+                                                                color="primary"
+                                                                variant="outlined"
+                                                                sx={{
+                                                                    height: 20,
+                                                                    fontSize: '0.7rem',
+                                                                    fontWeight: 500
+                                                                }}
+                                                            />
+                                                        )}
+                                                    </Stack>
                                                     <Typography variant="body2" color="text.secondary" sx={{
                                                         display: '-webkit-box',
                                                         WebkitLineClamp: 2,
@@ -326,7 +376,7 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
                                                             label="추가됨"
                                                             color="success"
                                                             size="small"
-                                                            icon={<CheckCircleIcon />}
+                                                            icon={<FitnessCenterIcon />}
                                                             sx={{ alignSelf: 'flex-start' }}
                                                         />
                                                     )}
@@ -377,7 +427,23 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
                             <Fade in={showSelectedExercises} timeout={500}>
                                 <Stack spacing={2}>
                                     {selectedExercises.map((selectedEx, index) => {
-                                        const exercise = exercises.find(ex => ex.id === selectedEx.exercise_id);
+                                        // 모든 가능한 소스에서 운동 찾기
+                                        let exercise = exercises.find(ex => ex.id === selectedEx.exercise_id);
+                                        if (!exercise) {
+                                            exercise = allExercises.find(ex => ex.id === selectedEx.exercise_id);
+                                        }
+                                        
+                                        // 디버깅 정보
+                                        console.log('Selected exercise lookup:', {
+                                            selectedEx,
+                                            exercise,
+                                            showCategorySelector,
+                                            exercisesCount: exercises.length,
+                                            allExercisesCount: allExercises.length,
+                                            foundInExercises: exercises.find(ex => ex.id === selectedEx.exercise_id),
+                                            foundInAllExercises: allExercises.find(ex => ex.id === selectedEx.exercise_id)
+                                        });
+                                        
                                         return (
                                             <Accordion
                                                 key={`${selectedEx.exercise_id}-${index}`}
@@ -410,11 +476,20 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
 
                                                     <Box sx={{ flex: 1 }}>
                                                         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                                                            {exercise?.name || '알 수 없는 운동'}
+                                                            {(() => {
+                                                                const displayName = exercise?.name || selectedEx.name || `운동 #${selectedEx.exercise_id}`;
+                                                                console.log('Display name for exercise:', {
+                                                                    exerciseId: selectedEx.exercise_id,
+                                                                    exerciseName: exercise?.name,
+                                                                    selectedExName: selectedEx.name,
+                                                                    finalDisplayName: displayName
+                                                                });
+                                                                return displayName;
+                                                            })()}
                                                         </Typography>
                                                         <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
                                                             <Chip
-                                                                label={getCategoryName(selectedCategoryId || 0)}
+                                                                label={exercise?.category_name || getCategoryName(exercise?.category_id || 0)}
                                                                 size="small"
                                                                 color="info"
                                                                 variant="outlined"
@@ -443,39 +518,73 @@ const MuiExerciseSelector: React.FC<MuiExerciseSelectorProps> = ({
                                                     </Box>
 
                                                     <Stack direction="row" spacing={1}>
-                                                        <IconButton
-                                                            size="small"
+                                                        <Box
+                                                            component="div"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 moveExercise(index, 'up');
                                                             }}
-                                                            disabled={index === 0}
-                                                            sx={{ borderRadius: 1 }}
+                                                            sx={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                width: 32,
+                                                                height: 32,
+                                                                borderRadius: 1,
+                                                                cursor: index === 0 ? 'default' : 'pointer',
+                                                                opacity: index === 0 ? 0.3 : 1,
+                                                                '&:hover': index === 0 ? {} : {
+                                                                    backgroundColor: 'action.hover'
+                                                                }
+                                                            }}
                                                         >
                                                             <ArrowUpIcon />
-                                                        </IconButton>
-                                                        <IconButton
-                                                            size="small"
+                                                        </Box>
+                                                        <Box
+                                                            component="div"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 moveExercise(index, 'down');
                                                             }}
-                                                            disabled={index === selectedExercises.length - 1}
-                                                            sx={{ borderRadius: 1 }}
+                                                            sx={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                width: 32,
+                                                                height: 32,
+                                                                borderRadius: 1,
+                                                                cursor: index === selectedExercises.length - 1 ? 'default' : 'pointer',
+                                                                opacity: index === selectedExercises.length - 1 ? 0.3 : 1,
+                                                                '&:hover': index === selectedExercises.length - 1 ? {} : {
+                                                                    backgroundColor: 'action.hover'
+                                                                }
+                                                            }}
                                                         >
                                                             <ArrowDownIcon />
-                                                        </IconButton>
-                                                        <IconButton
-                                                            size="small"
+                                                        </Box>
+                                                        <Box
+                                                            component="div"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 removeExercise(index);
                                                             }}
-                                                            color="error"
-                                                            sx={{ borderRadius: 1 }}
+                                                            sx={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                width: 32,
+                                                                height: 32,
+                                                                borderRadius: 1,
+                                                                cursor: 'pointer',
+                                                                color: 'error.main',
+                                                                '&:hover': {
+                                                                    backgroundColor: 'error.light',
+                                                                    color: 'error.dark'
+                                                                }
+                                                            }}
                                                         >
                                                             <DeleteIcon />
-                                                        </IconButton>
+                                                        </Box>
                                                     </Stack>
                                                 </AccordionSummary>
 

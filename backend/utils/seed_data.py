@@ -25,10 +25,9 @@ def seed_exercise_data():
         
         db.session.flush()  # 카테고리 ID를 얻기 위해
         
-        # 운동 종류 생성
+        # 운동 종류 생성 (중복 방지 로직 포함)
         exercises = [
             # 맨몸운동
-            {'category_id': 1, 'name': '버핏', 'description': '버피 테스트 - 전신 운동'},
             {'category_id': 1, 'name': '스쿼트', 'description': '하체 근력 운동'},
             {'category_id': 1, 'name': '런지', 'description': '하체 균형 운동'},
             {'category_id': 1, 'name': '점프 스쿼트', 'description': '폭발적 하체 운동'},
@@ -38,6 +37,12 @@ def seed_exercise_data():
             {'category_id': 1, 'name': '점프 잭', 'description': '전신 유산소 운동'},
             {'category_id': 1, 'name': '하이 니즈', 'description': '하체 유산소 운동'},
             {'category_id': 1, 'name': '버피', 'description': '전신 복합 운동'},
+            {'category_id': 1, 'name': '풀업', 'description': '턱걸이 - 상체 당기기 운동'},
+            {'category_id': 1, 'name': '딥스', 'description': '평행봉 내리기 - 상체 밀기 운동'},
+            {'category_id': 1, 'name': '시트업', 'description': '복근 강화 운동'},
+            {'category_id': 1, 'name': '레그레이즈', 'description': '하복부 강화 운동'},
+            {'category_id': 1, 'name': '박스 점프', 'description': '상자 위로 점프하기'},
+            {'category_id': 1, 'name': '월 볼', 'description': '벽에 공 던지기 운동'},
             
             # 덤벨 운동
             {'category_id': 2, 'name': '덤벨 스쿼트', 'description': '덤벨을 이용한 스쿼트'},
@@ -46,6 +51,12 @@ def seed_exercise_data():
             {'category_id': 2, 'name': '덤벨 로우', 'description': '등 근력 운동'},
             {'category_id': 2, 'name': '덤벨 컬', 'description': '이두근 운동'},
             {'category_id': 2, 'name': '덤벨 트라이셉스 익스텐션', 'description': '삼두근 운동'},
+            {'category_id': 2, 'name': '덤벨 데드리프트', 'description': '덤벨로 하는 데드리프트'},
+            {'category_id': 2, 'name': '덤벨 플라이', 'description': '가슴 운동'},
+            {'category_id': 2, 'name': '덤벨 숄더 프레스', 'description': '어깨 운동'},
+            {'category_id': 2, 'name': '덤벨 스러스터', 'description': '스쿼트 + 숄더프레스 복합 운동'},
+            {'category_id': 2, 'name': '덤벨 런지 워크', 'description': '걸으며 하는 런지'},
+            {'category_id': 2, 'name': '덤벨 스내치', 'description': '폭발적인 전신 운동'},
             
             # 케틀벨 운동
             {'category_id': 3, 'name': '케틀벨 스윙', 'description': '케틀벨 기본 운동'},
@@ -53,6 +64,10 @@ def seed_exercise_data():
             {'category_id': 3, 'name': '케틀벨 터키시 겟업', 'description': '전신 복합 운동'},
             {'category_id': 3, 'name': '케틀벨 클린', 'description': '폭발적 상체 운동'},
             {'category_id': 3, 'name': '케틀벨 스내치', 'description': '고급 전신 운동'},
+            {'category_id': 3, 'name': '케틀벨 데드리프트', 'description': '케틀벨로 하는 데드리프트'},
+            {'category_id': 3, 'name': '케틀벨 프레스', 'description': '어깨 운동'},
+            {'category_id': 3, 'name': '케틀벨 로우', 'description': '등 운동'},
+            {'category_id': 3, 'name': '케틀벨 런지', 'description': '하체 운동'},
             
             # 바벨 운동
             {'category_id': 4, 'name': '바벨 스쿼트', 'description': '바벨을 이용한 스쿼트'},
@@ -60,11 +75,32 @@ def seed_exercise_data():
             {'category_id': 4, 'name': '벤치 프레스', 'description': '상체 근력 운동'},
             {'category_id': 4, 'name': '오버헤드 프레스', 'description': '어깨 근력 운동'},
             {'category_id': 4, 'name': '바벨 로우', 'description': '등 근력 운동'},
+            {'category_id': 4, 'name': '바벨 프론트 스쿼트', 'description': '앞에서 바벨을 잡고 하는 스쿼트'},
+            {'category_id': 4, 'name': '바벨 클린', 'description': '폭발적으로 바벨을 들어올리는 운동'},
+            {'category_id': 4, 'name': '바벨 스내치', 'description': '바벨을 머리 위로 들어올리는 운동'},
+            {'category_id': 4, 'name': '바벨 런지', 'description': '바벨을 메고 하는 런지'},
+            {'category_id': 4, 'name': '바벨 스러스터', 'description': '프론트 스쿼트 + 푸시프레스'},
+            
+            # 기타 (유산소 및 장비)
+            {'category_id': 5, 'name': '로잉 머신', 'description': '조정 운동 - 전신 유산소'},
+            {'category_id': 5, 'name': '에어 바이크', 'description': '전신 자전거 운동'},
+            {'category_id': 5, 'name': '로프 클라이밍', 'description': '로프 타기'},
+            {'category_id': 5, 'name': '더블 언더', 'description': '줄넘기 2회전'},
+            {'category_id': 5, 'name': '싱글 언더', 'description': '줄넘기 1회전'},
+            {'category_id': 5, 'name': '러닝', 'description': '달리기 운동'},
+            {'category_id': 5, 'name': '배틀 로프', 'description': '전투 로프 운동'},
         ]
         
+        # 중복 방지: 이름+카테고리로 체크 후 없을 때만 추가
         for ex_data in exercises:
-            exercise = Exercises(**ex_data)
-            db.session.add(exercise)
+            existing = Exercises.query.filter_by(
+                name=ex_data['name'], 
+                category_id=ex_data['category_id']
+            ).first()
+            
+            if not existing:
+                exercise = Exercises(**ex_data)
+                db.session.add(exercise)
         
         db.session.commit()
         print("✅ 운동 데이터 시드 완료")

@@ -28,7 +28,8 @@
         "deploymentEnabled": {
             "frontend": true,
             "main": false,
-            "backend": false
+            "backend": false,
+            "develop": false
         }
     }
 }

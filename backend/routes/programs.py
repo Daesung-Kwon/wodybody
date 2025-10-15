@@ -109,6 +109,105 @@ def get_programs():
         current_app.logger.exception('get_programs error: %s', str(e))
         return jsonify({'message': '프로그램 조회 중 오류가 발생했습니다'}), 500
 
+@bp.route('/programs/<int:program_id>', methods=['GET'])
+def get_program_detail(program_id):
+    """프로그램 상세 조회 (비로그인 허용 - 공개 프로그램만)"""
+    try:
+        # 공개된 프로그램만 조회 가능
+        program = Programs.query.filter_by(id=program_id, is_open=True).first()
+        if not program:
+            return jsonify({'message': '프로그램을 찾을 수 없습니다'}), 404
+        
+        # 비로그인도 허용하지만, 로그인한 경우 참여 상태 확인
+        current_user_id = get_user_id_from_session_or_cookies()
+        
+        # Creator 정보 조회
+        try:
+            creator = Users.query.get(program.creator_id)
+            creator_name = creator.name if creator else 'Unknown'
+        except Exception as e:
+            current_app.logger.warning(f'Creator 조회 실패 (program_id={program.id}, creator_id={program.creator_id}): {e}')
+            creator_name = 'Unknown'
+        
+        # 참여자 수 및 참여 상태 확인
+        participant_count = ProgramParticipants.query.filter_by(program_id=program.id, status='approved').count()
+        is_registered = False
+        participation_status = None
+        
+        if current_user_id:
+            participation = ProgramParticipants.query.filter_by(program_id=program.id, user_id=current_user_id).first()
+            if participation:
+                is_registered = participation.status in ['pending', 'approved']
+                participation_status = participation.status
+        
+        # 프로그램에 포함된 운동들 조회 (기존 방식)
+        program_exercises = ProgramExercises.query.filter_by(program_id=program.id).order_by(ProgramExercises.order_index).all()
+        exercises = []
+        for pe in program_exercises:
+            exercises.append({
+                'id': pe.exercise_id,
+                'name': pe.exercise.name if pe.exercise else '알 수 없는 운동',
+                'target_value': pe.target_value,
+                'order': pe.order_index
+            })
+        
+        # WOD 패턴 조회 (새로운 방식)
+        workout_pattern = None
+        workout_patterns = WorkoutPatterns.query.filter_by(program_id=program.id).first()
+        if workout_patterns:
+            exercise_sets = ExerciseSets.query.filter_by(pattern_id=workout_patterns.id).order_by(ExerciseSets.order_index).all()
+            pattern_exercises = []
+            for es in exercise_sets:
+                pattern_exercises.append({
+                    'exercise_id': es.exercise_id,
+                    'exercise_name': es.exercise.name if es.exercise else '',
+                    'base_reps': es.base_reps,
+                    'progression_type': es.progression_type,
+                    'progression_value': es.progression_value,
+                    'order': es.order_index
+                })
+            
+            # 기존 패턴 타입을 새로운 타입으로 매핑
+            def map_pattern_type(old_type):
+                if old_type == 'time_cap':
+                    return 'time_cap'
+                else:
+                    return 'round_based'
+            
+            workout_pattern = {
+                'type': map_pattern_type(workout_patterns.pattern_type),
+                'total_rounds': workout_patterns.total_rounds,
+                'time_cap_per_round': workout_patterns.time_cap_per_round,
+                'description': workout_patterns.description,
+                'exercises': pattern_exercises
+            }
+        
+        result = {
+            'id': program.id,
+            'title': program.title,
+            'description': program.description,
+            'creator_name': creator_name,
+            'creator_id': program.creator_id,
+            'workout_type': program.workout_type,
+            'target_value': program.target_value,
+            'difficulty': program.difficulty,
+            'participants': participant_count,
+            'max_participants': program.max_participants,
+            'created_at': format_korea_time(program.created_at),
+            'expires_at': program.expires_at.isoformat() if program.expires_at else None,
+            'is_open': program.is_open,
+            'is_registered': is_registered,
+            'participation_status': participation_status,
+            'exercises': exercises,
+            'workout_pattern': workout_pattern
+        }
+        
+        return jsonify({'program': result}), 200
+        
+    except Exception as e:
+        current_app.logger.exception('get_program_detail error: %s', str(e))
+        return jsonify({'message': '프로그램 조회 중 오류가 발생했습니다'}), 500
+
 @bp.route('/programs', methods=['POST'])
 def create_program():
     """프로그램 생성"""

@@ -43,13 +43,13 @@ import { Program, ProgramWithParticipation, CreateWorkoutRecordRequest, ProgramD
 import { programApi, participationApi, workoutRecordsApi } from '../utils/api';
 import MuiLoadingSpinner from './MuiLoadingSpinner';
 import MuiWorkoutTimer from './MuiWorkoutTimer';
-import MuiWorkoutTimerEnhanced from './MuiWorkoutTimerEnhanced';
+// import MuiWorkoutTimerEnhanced from './MuiWorkoutTimerEnhanced'; // 별도 배포 예정
 import MuiWorkoutRecordModal from './MuiWorkoutRecordModal';
 import { useTheme } from '../theme/ThemeProvider';
 import { Snackbar, Alert } from './common/MuiComponents';
 
 // 🎛️ 타이머 설정: true = 신규 타이머, false = 기존 타이머
-const USE_ENHANCED_TIMER = true;
+const USE_ENHANCED_TIMER = false; // 신규 타이머는 별도 배포 예정
 
 // 만료 기한 관련 유틸리티 함수
 const getExpiryInfo = (expiresAt?: string) => {

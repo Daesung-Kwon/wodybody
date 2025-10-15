@@ -14,7 +14,7 @@ import MuiPersonalRecordsPage from './components/MuiPersonalRecordsPage';
 import MuiStepBasedCreateProgramPage from './components/MuiStepBasedCreateProgramPage';
 import MuiNotificationsPage from './components/MuiNotificationsPage';
 import MuiWebSocketDebugger from './components/MuiWebSocketDebugger';
-import SecureKeypadShowcase from './components/SecureKeypadShowcase';
+// import SecureKeypadShowcase from './components/SecureKeypadShowcase'; // 별도 배포 예정
 import MuiSharedProgramPage from './components/MuiSharedProgramPage';
 // import MuiExample from './components/common/MuiExample'; // 임시 숨김
 
@@ -48,9 +48,10 @@ const AppContent: React.FC = () => {
         } else {
             // URL hash 체크
             const hash = window.location.hash.substring(1);
-            if (hash === 'keypad-demo') {
-                setPage('keypad-demo');
-            } else if (hash.startsWith('share/')) {
+            // if (hash === 'keypad-demo') {
+            //     setPage('keypad-demo');
+            // } else 
+            if (hash.startsWith('share/')) {
                 // 공유 URL 처리
                 const programId = parseInt(hash.split('/')[1]);
                 if (!isNaN(programId)) {
@@ -66,9 +67,10 @@ const AppContent: React.FC = () => {
     useEffect(() => {
         const handleHashChange = () => {
             const hash = window.location.hash.substring(1);
-            if (hash === 'keypad-demo' && !user) {
-                setPage('keypad-demo');
-            } else if (hash.startsWith('share/') && !user) {
+            // if (hash === 'keypad-demo' && !user) {
+            //     setPage('keypad-demo');
+            // } else 
+            if (hash.startsWith('share/') && !user) {
                 // 공유 URL 처리
                 const programId = parseInt(hash.split('/')[1]);
                 if (!isNaN(programId)) {
@@ -164,9 +166,10 @@ const AppWithNotifications: React.FC<{
                     )}
                 </>
             ) : (
-                page === 'keypad-demo' ? (
-                    <SecureKeypadShowcase />
-                ) : page === 'login' ? (
+                // page === 'keypad-demo' ? (
+                //     <SecureKeypadShowcase />
+                // ) : 
+                page === 'login' ? (
                     <MuiLoginPage
                         setUser={() => { }} // AuthProvider에서 관리하므로 빈 함수
                         goRegister={() => setPage('register')}

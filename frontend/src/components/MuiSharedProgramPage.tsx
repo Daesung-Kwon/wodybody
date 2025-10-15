@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     Box,
     Card,
@@ -49,11 +49,7 @@ const MuiSharedProgramPage: React.FC<MuiSharedProgramPageProps> = ({ programId, 
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string>('');
 
-    useEffect(() => {
-        loadProgram();
-    }, [programId]);
-
-    const loadProgram = async () => {
+    const loadProgram = useCallback(async () => {
         setLoading(true);
         try {
             const response = await programApi.getProgramDetail(programId);
@@ -64,7 +60,11 @@ const MuiSharedProgramPage: React.FC<MuiSharedProgramPageProps> = ({ programId, 
         } finally {
             setLoading(false);
         }
-    };
+    }, [programId]);
+
+    useEffect(() => {
+        loadProgram();
+    }, [loadProgram]);
 
     const getDifficultyColor = (difficulty: string) => {
         switch (difficulty) {

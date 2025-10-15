@@ -1,6 +1,6 @@
 """
-Flask Application - Refactored Version (v2)
-Backend + Frontend 머지 후 최신 develop 기반
+Flask Application - Refactored Version
+모든 라우트는 블루프린트로 분리되었습니다.
 """
 
 from flask import Flask, request, jsonify, session
@@ -201,7 +201,7 @@ def health_check():
             'status': 'healthy',
             'timestamp': datetime.utcnow().isoformat(),
             'database': 'connected',
-            'version': '2.0.0-refactored-v2'
+            'version': '2.0.0-refactored'
         }), 200
     except Exception as e:
         return jsonify({
@@ -393,11 +393,12 @@ if __name__ == '__main__':
         
         port = int(os.environ.get('PORT', 5001))
         print(f"🚀 Server starting on port {port}")
-        print(f"📦 Total lines in app.py: ~405 (was 2,703)")
-        print(f"📈 Reduction: 85% smaller!")
+        print(f"📦 Total lines in app.py: ~350 (was 2,577)")
+        print(f"📈 Reduction: 86% smaller!")
         socketio.run(app, debug=False, port=port, host='0.0.0.0', allow_unsafe_werkzeug=True)
     except Exception as e:
         print(f"❌ ERROR: {e}")
         import traceback
         traceback.print_exc()
         raise
+

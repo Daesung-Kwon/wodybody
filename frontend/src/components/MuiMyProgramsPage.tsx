@@ -28,6 +28,26 @@ import MuiLoadingSpinner from './MuiLoadingSpinner';
 import MuiAlertDialog from './MuiAlertDialog';
 import { useTheme } from '../theme/ThemeProvider';
 
+// 만료 기한 관련 유틸리티 함수
+const getExpiryInfo = (expiresAt?: string) => {
+    if (!expiresAt) return null;
+
+    const now = new Date();
+    const expiry = new Date(expiresAt);
+    const diffMs = expiry.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMs <= 0) {
+        return { status: 'expired', days: 0, text: '만료됨' };
+    } else if (diffDays <= 1) {
+        return { status: 'urgent', days: diffDays, text: '오늘 만료' };
+    } else if (diffDays <= 3) {
+        return { status: 'warning', days: diffDays, text: `${diffDays}일 후 만료` };
+    } else {
+        return { status: 'normal', days: diffDays, text: `${diffDays}일 후 만료` };
+    }
+};
+
 const MuiMyProgramsPage: React.FC = () => {
     const { isDarkMode } = useTheme();
     const [mine, setMine] = useState<MyProgram[]>([]);
@@ -461,6 +481,35 @@ const MuiMyProgramsPage: React.FC = () => {
                                             sx={{ fontWeight: 600 }}
                                         />
                                     </Stack>
+
+                                    {/* 만료 기한 정보 (공개된 WOD만) */}
+                                    {program.is_open && program.expires_at && (() => {
+                                        const expiryInfo = getExpiryInfo(program.expires_at);
+                                        if (!expiryInfo) return null;
+
+                                        const getChipColor = () => {
+                                            switch (expiryInfo.status) {
+                                                case 'expired': return 'error';
+                                                case 'urgent': return 'error';
+                                                case 'warning': return 'warning';
+                                                default: return 'default';
+                                            }
+                                        };
+
+                                        return (
+                                            <Box sx={{ mb: 2 }}>
+                                                <Chip
+                                                    label={expiryInfo.text}
+                                                    size="small"
+                                                    color={getChipColor()}
+                                                    variant={expiryInfo.status === 'expired' ? 'filled' : 'outlined'}
+                                                    sx={{
+                                                        fontWeight: expiryInfo.status === 'urgent' || expiryInfo.status === 'expired' ? 600 : 400,
+                                                    }}
+                                                />
+                                            </Box>
+                                        );
+                                    })()}
 
                                     {/* 운동 정보 - 공개 WOD와 동일한 로직 적용 */}
                                     {program.workout_pattern?.exercises && program.workout_pattern.exercises.length > 0 && (

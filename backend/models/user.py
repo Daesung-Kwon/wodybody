@@ -11,10 +11,10 @@ class Users(db.Model):
     email = db.Column(db.String(150), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     name = db.Column(db.String(100), nullable=False)
-    role = db.Column(db.String(20), default='user')  # 향후 관리자 시스템을 위해 추가
-    is_active = db.Column(db.Boolean, default=True)  # 향후 관리자 시스템을 위해 추가
     created_at = db.Column(db.DateTime, default=get_korea_time)
-    last_login_at = db.Column(db.DateTime)  # 향후 관리자 시스템을 위해 추가
+    role = db.Column(db.String(20), default='user')
+    is_active = db.Column(db.Boolean, default=True)
+    last_login_at = db.Column(db.DateTime)
     
     def set_password(self, password):
         """비밀번호 해시화"""

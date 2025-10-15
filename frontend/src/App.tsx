@@ -14,6 +14,8 @@ import MuiPersonalRecordsPage from './components/MuiPersonalRecordsPage';
 import MuiStepBasedCreateProgramPage from './components/MuiStepBasedCreateProgramPage';
 import MuiNotificationsPage from './components/MuiNotificationsPage';
 import MuiWebSocketDebugger from './components/MuiWebSocketDebugger';
+import SecureKeypadShowcase from './components/SecureKeypadShowcase';
+import MuiSharedProgramPage from './components/MuiSharedProgramPage';
 // import MuiExample from './components/common/MuiExample'; // 임시 숨김
 
 // 알림 아이콘 컴포넌트 (MUI Navigation에서 처리하므로 주석 처리)
@@ -38,13 +40,48 @@ const AppContent: React.FC = () => {
     const { user, logout } = useAuth();
     const [page, setPage] = useState<Page>('login');
     const [showNotifications, setShowNotifications] = useState(false);
+    const [sharedProgramId, setSharedProgramId] = useState<number | null>(null);
 
     useEffect(() => {
         if (user) {
             setPage('programs');
         } else {
-            setPage('login');
+            // URL hash 체크
+            const hash = window.location.hash.substring(1);
+            if (hash === 'keypad-demo') {
+                setPage('keypad-demo');
+            } else if (hash.startsWith('share/')) {
+                // 공유 URL 처리
+                const programId = parseInt(hash.split('/')[1]);
+                if (!isNaN(programId)) {
+                    setSharedProgramId(programId);
+                }
+            } else {
+                setPage('login');
+            }
         }
+    }, [user]);
+
+    // URL hash 변경 감지
+    useEffect(() => {
+        const handleHashChange = () => {
+            const hash = window.location.hash.substring(1);
+            if (hash === 'keypad-demo' && !user) {
+                setPage('keypad-demo');
+            } else if (hash.startsWith('share/') && !user) {
+                // 공유 URL 처리
+                const programId = parseInt(hash.split('/')[1]);
+                if (!isNaN(programId)) {
+                    setSharedProgramId(programId);
+                }
+            } else if (hash === '' && !user) {
+                setPage('login');
+                setSharedProgramId(null);
+            }
+        };
+
+        window.addEventListener('hashchange', handleHashChange);
+        return () => window.removeEventListener('hashchange', handleHashChange);
     }, [user]);
 
     const redirectToLogin = (): void => {
@@ -65,6 +102,11 @@ const AppContent: React.FC = () => {
                 logout={logout}
                 showNotifications={showNotifications}
                 setShowNotifications={setShowNotifications}
+                sharedProgramId={sharedProgramId}
+                onCloseSharedProgram={() => {
+                    setSharedProgramId(null);
+                    window.location.hash = '';
+                }}
             />
         </NotificationProvider>
     );
@@ -78,11 +120,21 @@ const AppWithNotifications: React.FC<{
     logout: () => void;
     showNotifications: boolean;
     setShowNotifications: (show: boolean) => void;
-}> = ({ user, page, setPage, logout, showNotifications, setShowNotifications }) => {
+    sharedProgramId: number | null;
+    onCloseSharedProgram: () => void;
+}> = ({ user, page, setPage, logout, showNotifications, setShowNotifications, sharedProgramId, onCloseSharedProgram }) => {
     const { unreadCount } = useNotifications();
 
     return (
         <div>
+            {/* 공유 프로그램 모달 - 로그인 여부와 상관없이 표시 */}
+            {sharedProgramId && (
+                <MuiSharedProgramPage
+                    programId={sharedProgramId}
+                    onClose={onCloseSharedProgram}
+                />
+            )}
+
             {user ? (
                 <>
                     <MuiNavigation
@@ -112,7 +164,9 @@ const AppWithNotifications: React.FC<{
                     )}
                 </>
             ) : (
-                page === 'login' ? (
+                page === 'keypad-demo' ? (
+                    <SecureKeypadShowcase />
+                ) : page === 'login' ? (
                     <MuiLoginPage
                         setUser={() => { }} // AuthProvider에서 관리하므로 빈 함수
                         goRegister={() => setPage('register')}

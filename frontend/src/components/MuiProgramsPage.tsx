@@ -37,13 +37,19 @@ import {
     TrendingUp as TrendingUpIcon,
     AccessTime as AccessTimeIcon,
     Warning as WarningIcon,
+    Share as ShareIcon,
 } from '@mui/icons-material';
 import { Program, ProgramWithParticipation, CreateWorkoutRecordRequest, ProgramDetail } from '../types';
 import { programApi, participationApi, workoutRecordsApi } from '../utils/api';
 import MuiLoadingSpinner from './MuiLoadingSpinner';
 import MuiWorkoutTimer from './MuiWorkoutTimer';
+import MuiWorkoutTimerEnhanced from './MuiWorkoutTimerEnhanced';
 import MuiWorkoutRecordModal from './MuiWorkoutRecordModal';
 import { useTheme } from '../theme/ThemeProvider';
+import { Snackbar, Alert } from './common/MuiComponents';
+
+// 🎛️ 타이머 설정: true = 신규 타이머, false = 기존 타이머
+const USE_ENHANCED_TIMER = true;
 
 // 만료 기한 관련 유틸리티 함수
 const getExpiryInfo = (expiresAt?: string) => {
@@ -93,7 +99,13 @@ const MuiProgramsPage: React.FC = () => {
     const [showTimer, setShowTimer] = useState<boolean>(false);
     const [showRecordModal, setShowRecordModal] = useState<boolean>(false);
     const [completionTime, setCompletionTime] = useState<number>(0);
+    const [roundTimes, setRoundTimes] = useState<number[]>([]);  // 라운드별 시간 (신규 타이머용)
     const [isSavingRecord, setIsSavingRecord] = useState<boolean>(false);
+
+    // 공유 기능 관련 상태
+    const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
+    const [snackbarMessage, setSnackbarMessage] = useState<string>('');
+    const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
 
     const load = async (): Promise<void> => {
         setBusy(true);
@@ -282,6 +294,33 @@ const MuiProgramsPage: React.FC = () => {
         }
     };
 
+    // 공유 URL 복사 함수
+    const handleShareProgram = async (e: React.MouseEvent, programId: number): Promise<void> => {
+        e.stopPropagation(); // 카드 클릭 이벤트 방지
+
+        try {
+            // 공유 URL 생성 (현재 도메인 기준)
+            const shareUrl = `${window.location.origin}/#share/${programId}`;
+
+            // 클립보드에 복사
+            await navigator.clipboard.writeText(shareUrl);
+
+            setSnackbarMessage('공유 링크가 복사되었습니다!');
+            setSnackbarSeverity('success');
+            setSnackbarOpen(true);
+        } catch (error) {
+            console.error('URL 복사 실패:', error);
+            setSnackbarMessage('링크 복사에 실패했습니다.');
+            setSnackbarSeverity('error');
+            setSnackbarOpen(true);
+        }
+    };
+
+    // 스낵바 닫기
+    const handleSnackbarClose = (): void => {
+        setSnackbarOpen(false);
+    };
+
     // 운동 시작
     const startWorkout = (program: Program): void => {
         const programDetail: ProgramDetail = {
@@ -293,8 +332,11 @@ const MuiProgramsPage: React.FC = () => {
     };
 
     // 운동 완료
-    const handleWorkoutComplete = (time: number): void => {
+    const handleWorkoutComplete = (time: number, rounds?: number[]): void => {
         setCompletionTime(time);
+        if (rounds) {
+            setRoundTimes(rounds);  // 신규 타이머의 라운드 시간 저장
+        }
         setShowTimer(false);
         setShowRecordModal(true);
     };
@@ -303,6 +345,14 @@ const MuiProgramsPage: React.FC = () => {
     const handleWorkoutCancel = (): void => {
         setShowTimer(false);
         setSelectedProgram(null);
+        setRoundTimes([]);  // 초기화
+    };
+
+    // 시간 포맷팅 함수 (MM:SS)
+    const formatTime = (seconds: number): string => {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
     };
 
     // 기록 저장
@@ -311,9 +361,25 @@ const MuiProgramsPage: React.FC = () => {
 
         setIsSavingRecord(true);
         try {
-            await workoutRecordsApi.createRecord(selectedProgram.id, data);
+            // 신규 타이머 사용 시 라운드별 시간 정보 추가
+            let notesWithRounds = data.notes || '';
+            if (USE_ENHANCED_TIMER && roundTimes.length > 0) {
+                const roundTimesText = roundTimes
+                    .map((time, index) => `라운드 ${index + 1}: ${formatTime(time)}`)
+                    .join('\n');
+                notesWithRounds = notesWithRounds
+                    ? `${notesWithRounds}\n\n📊 라운드별 시간:\n${roundTimesText}`
+                    : `📊 라운드별 시간:\n${roundTimesText}`;
+            }
+
+            await workoutRecordsApi.createRecord(selectedProgram.id, {
+                ...data,
+                notes: notesWithRounds
+            });
+
             setShowRecordModal(false);
             setSelectedProgram(null);
+            setRoundTimes([]);  // 초기화
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : '기록 저장 실패';
             console.error(`기록 저장 중 오류가 발생했습니다: ${errorMessage}`);
@@ -509,9 +575,21 @@ const MuiProgramsPage: React.FC = () => {
                                         </Stack>
                                     }
                                     action={
-                                        <IconButton size="small">
-                                            <PersonIcon />
-                                        </IconButton>
+                                        <Tooltip title="공유하기">
+                                            <IconButton
+                                                size="small"
+                                                onClick={(e) => handleShareProgram(e, program.id)}
+                                                sx={{
+                                                    color: 'primary.main',
+                                                    '&:hover': {
+                                                        backgroundColor: 'primary.light',
+                                                        color: 'primary.dark',
+                                                    }
+                                                }}
+                                            >
+                                                <ShareIcon />
+                                            </IconButton>
+                                        </Tooltip>
                                     }
                                 />
 
@@ -1197,11 +1275,22 @@ const MuiProgramsPage: React.FC = () => {
 
             {/* 운동 타이머 */}
             {showTimer && selectedProgram && (
-                <MuiWorkoutTimer
-                    onComplete={handleWorkoutComplete}
-                    onCancel={handleWorkoutCancel}
-                    programTitle={selectedProgram.title}
-                />
+                USE_ENHANCED_TIMER ? (
+                    // 🆕 신규 타이머 (Wake Lock, 음향 효과, 라운드 추적)
+                    <MuiWorkoutTimerEnhanced
+                        onComplete={handleWorkoutComplete}
+                        onCancel={handleWorkoutCancel}
+                        programTitle={selectedProgram.title}
+                        workoutPattern={selectedProgram.workout_pattern}
+                    />
+                ) : (
+                    // 📦 기존 타이머 (백업용)
+                    <MuiWorkoutTimer
+                        onComplete={handleWorkoutComplete}
+                        onCancel={handleWorkoutCancel}
+                        programTitle={selectedProgram.title}
+                    />
+                )
             )}
 
             {/* 운동 기록 저장 모달 */}
@@ -1215,6 +1304,22 @@ const MuiProgramsPage: React.FC = () => {
                     isLoading={isSavingRecord}
                 />
             )}
+
+            {/* 공유 알림 스낵바 */}
+            <Snackbar
+                open={snackbarOpen}
+                autoHideDuration={3000}
+                onClose={handleSnackbarClose}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert
+                    onClose={handleSnackbarClose}
+                    severity={snackbarSeverity}
+                    sx={{ width: '100%' }}
+                >
+                    {snackbarMessage}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 };

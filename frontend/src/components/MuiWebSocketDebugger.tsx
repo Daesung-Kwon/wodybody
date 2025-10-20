@@ -47,13 +47,13 @@ const MuiWebSocketDebugger: React.FC = () => {
 
         // 모바일 Safari 감지
         const userAgent = navigator.userAgent.toLowerCase();
-        const isMobileSafari = userAgent.includes('safari') && 
-                                  !userAgent.includes('chrome') && 
-                                  (userAgent.includes('iphone') || userAgent.includes('ipad') || userAgent.includes('mobile'));
+        const isMobileSafari = userAgent.includes('safari') &&
+            !userAgent.includes('chrome') &&
+            (userAgent.includes('iphone') || userAgent.includes('ipad') || userAgent.includes('mobile'));
 
         // localStorage에서 토큰 가져오기
         const authToken = localStorage.getItem('access_token');
-        
+
         addLog(`모바일 Safari: ${isMobileSafari ? 'YES' : 'NO'}`);
         addLog(`인증 토큰: ${authToken ? '있음 (길이:' + authToken.length + ')' : '없음'}`);
         addLog(`API URL: ${process.env.REACT_APP_API_URL || 'https://wodybody-production.up.railway.app'}`);
@@ -62,22 +62,31 @@ const MuiWebSocketDebugger: React.FC = () => {
             console.log('모바일 Safari 감지됨, polling 우선 연결 시도');
             addLog('polling 우선 연결 시도');
         }
-        
-        const socketConfig = {
-            transports: isMobileSafari ? ['polling', 'websocket'] : ['websocket', 'polling'],
+
+        // Safari 최적화: polling 전용 모드
+        const socketConfig: any = {
+            path: '/socket.io/',
+            transports: isMobileSafari ? ['polling'] : ['polling', 'websocket'],
             autoConnect: true,
             reconnection: true,
             reconnectionDelay: isMobileSafari ? 2000 : 1000,
-            reconnectionAttempts: 10,
-            withCredentials: true,
+            reconnectionAttempts: 5,
+            withCredentials: false,  // Safari third-party cookie 문제 회피
             forceNew: true,
-            upgrade: !isMobileSafari,
-            timeout: isMobileSafari ? 20000 : 10000,
-            // 모바일 Safari를 위한 인증 토큰 전달
-            auth: authToken ? { token: authToken } : undefined,
-            query: authToken ? { token: authToken } : undefined
+            upgrade: false,  // Safari 안정성을 위해 polling 유지
+            timeout: 20000,
+            closeOnBeforeunload: false,
         };
-        
+
+        // 인증 토큰 전달
+        if (authToken) {
+            socketConfig.auth = { token: authToken };
+            socketConfig.query = { token: authToken };
+            socketConfig.extraHeaders = {
+                'Authorization': `Bearer ${authToken}`
+            };
+        }
+
         addLog(`SocketIO 설정: ${JSON.stringify(socketConfig, null, 2)}`);
         const newSocket = io(process.env.REACT_APP_API_URL || 'https://wodybody-production.up.railway.app', socketConfig);
 
@@ -98,15 +107,15 @@ const MuiWebSocketDebugger: React.FC = () => {
             addLog(`❌ WebSocket 연결 오류: ${error.message}`);
             addLog(`오류 상세: ${JSON.stringify(error)}`);
         });
-        
+
         newSocket.on('mobile_safari_info', (data) => {
             addLog(`📱 모바일 Safari 정보: ${JSON.stringify(data)}`);
         });
-        
+
         newSocket.on('join_success', (data) => {
             addLog(`✅ 방 참여 성공: ${JSON.stringify(data)}`);
         });
-        
+
         newSocket.on('join_error', (data) => {
             addLog(`❌ 방 참여 오류: ${JSON.stringify(data)}`);
         });

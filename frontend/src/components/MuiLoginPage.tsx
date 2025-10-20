@@ -201,35 +201,19 @@ const MuiLoginPage: React.FC<LoginPageProps> = ({ setUser, goRegister, goProgram
                             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                                 계정이 없으신가요?
                             </Typography>
-                            <Stack direction="row" spacing={2} justifyContent="center">
-                                <Button
-                                    variant="outlined"
-                                    onClick={goRegister}
-                                    disabled={busy}
-                                    sx={{
-                                        borderRadius: 2,
-                                        px: 3,
-                                        py: 1,
-                                        fontWeight: 500,
-                                    }}
-                                >
-                                    회원가입
-                                </Button>
-                                <Button
-                                    variant="text"
-                                    onClick={() => window.location.hash = '#keypad-demo'}
-                                    disabled={busy}
-                                    sx={{
-                                        borderRadius: 2,
-                                        px: 3,
-                                        py: 1,
-                                        fontWeight: 500,
-                                        color: 'primary.main',
-                                    }}
-                                >
-                                    🔒 보안 키패드 데모
-                                </Button>
-                            </Stack>
+                            <Button
+                                variant="outlined"
+                                onClick={goRegister}
+                                disabled={busy}
+                                sx={{
+                                    borderRadius: 2,
+                                    px: 3,
+                                    py: 1,
+                                    fontWeight: 500,
+                                }}
+                            >
+                                회원가입
+                            </Button>
                         </Box>
                     </CardContent>
                 </Card>

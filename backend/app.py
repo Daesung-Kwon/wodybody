@@ -133,12 +133,26 @@ def get_user_id_from_session_or_cookies():
 
 app = Flask(__name__)
 
-# SocketIO 초기화
+# SocketIO 초기화 (Safari/Mobile 호환)
+# CORS 허용 도메인 설정 (명시적 도메인)
+FRONTEND_URLS = [
+    'https://wodybody-web.vercel.app',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000'
+]
+app.logger.info(f'SocketIO CORS allowed origins: {FRONTEND_URLS}')
+
 socketio = SocketIO(app, 
     logger=True,
     engineio_logger=True,
-    cors_allowed_origins="*",
-    cors_credentials=True
+    cors_allowed_origins=FRONTEND_URLS,  # 명시적 도메인 지정 (Safari 호환)
+    cors_credentials=True,
+    async_mode='eventlet',  # eventlet 사용 명시
+    ping_timeout=60,  # Safari를 위한 긴 타임아웃
+    ping_interval=25,  # Keep-alive 주기 (Safari 연결 유지)
+    transports=['polling', 'websocket'],  # polling 우선 (Safari 호환)
+    allow_upgrades=True,  # polling에서 websocket으로 업그레이드 허용
+    cookie='io',  # 쿠키 이름 명시
 )
 
 # 로깅 설정

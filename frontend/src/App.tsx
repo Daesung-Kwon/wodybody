@@ -14,9 +14,13 @@ import MuiPersonalRecordsPage from './components/MuiPersonalRecordsPage';
 import MuiStepBasedCreateProgramPage from './components/MuiStepBasedCreateProgramPage';
 import MuiNotificationsPage from './components/MuiNotificationsPage';
 import MuiWebSocketDebugger from './components/MuiWebSocketDebugger';
-import SecureKeypadShowcase from './components/SecureKeypadShowcase';
 import MuiSharedProgramPage from './components/MuiSharedProgramPage';
 // import MuiExample from './components/common/MuiExample'; // 임시 숨김
+
+// 개발 환경 전용 컴포넌트
+const DemoPage = process.env.NODE_ENV === 'development'
+    ? React.lazy(() => import('./components/DemoPage'))
+    : null;
 
 // 알림 아이콘 컴포넌트 (MUI Navigation에서 처리하므로 주석 처리)
 // const NotificationIcon: React.FC<{ onClick: () => void }> = ({ onClick }) => {
@@ -48,8 +52,8 @@ const AppContent: React.FC = () => {
         } else {
             // URL hash 체크
             const hash = window.location.hash.substring(1);
-            if (hash === 'keypad-demo') {
-                setPage('keypad-demo');
+            if (hash === 'demo' && process.env.NODE_ENV === 'development') {
+                setPage('demo');
             } else if (hash.startsWith('share/')) {
                 // 공유 URL 처리
                 const programId = parseInt(hash.split('/')[1]);
@@ -66,8 +70,8 @@ const AppContent: React.FC = () => {
     useEffect(() => {
         const handleHashChange = () => {
             const hash = window.location.hash.substring(1);
-            if (hash === 'keypad-demo' && !user) {
-                setPage('keypad-demo');
+            if (hash === 'demo' && !user && process.env.NODE_ENV === 'development') {
+                setPage('demo');
             } else if (hash.startsWith('share/') && !user) {
                 // 공유 URL 처리
                 const programId = parseInt(hash.split('/')[1]);
@@ -164,8 +168,10 @@ const AppWithNotifications: React.FC<{
                     )}
                 </>
             ) : (
-                page === 'keypad-demo' ? (
-                    <SecureKeypadShowcase />
+                page === 'demo' && process.env.NODE_ENV === 'development' && DemoPage ? (
+                    <React.Suspense fallback={<div>로딩 중...</div>}>
+                        <DemoPage />
+                    </React.Suspense>
                 ) : page === 'login' ? (
                     <MuiLoginPage
                         setUser={() => { }} // AuthProvider에서 관리하므로 빈 함수

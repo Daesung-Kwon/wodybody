@@ -50,21 +50,35 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
             console.log('WebSocket 연결 URL:', apiBaseUrl);
 
-            const newSocket = io(apiBaseUrl, {
-                transports: isMobileSafari ? ['polling', 'websocket'] : ['websocket', 'polling'],
+            // Safari 최적화: polling 전용 모드로 시작하여 안정성 향상
+            const socketConfig: any = {
+                path: '/socket.io/',  // 명시적 경로 지정
+                transports: isMobileSafari ? ['polling'] : ['polling', 'websocket'],  // Safari는 polling만 사용
                 autoConnect: true,
                 reconnection: true,
                 reconnectionDelay: isMobileSafari ? 2000 : 1000,
-                reconnectionAttempts: 10,
-                withCredentials: true,
+                reconnectionAttempts: 5,  // 재연결 횟수 제한
+                withCredentials: false,  // Safari third-party cookie 문제 회피
                 forceNew: true,
-                // 모바일 Safari를 위한 추가 설정
-                upgrade: !isMobileSafari,
-                timeout: isMobileSafari ? 20000 : 10000,
-                // 모바일 Safari를 위한 인증 토큰 전달
-                auth: authToken ? { token: authToken } : undefined,
-                query: authToken ? { token: authToken, user_id: userId } : { user_id: userId }
-            });
+                upgrade: false,  // Safari 안정성을 위해 polling 유지
+                timeout: 20000,
+                closeOnBeforeunload: false,  // 페이지 이동 시에도 연결 유지 시도
+            };
+
+            // 인증 토큰 전달 (쿠키 대신 토큰 기반)
+            if (authToken) {
+                socketConfig.auth = { token: authToken };
+                socketConfig.query = { token: authToken, user_id: userId.toString() };
+                socketConfig.extraHeaders = {
+                    'Authorization': `Bearer ${authToken}`
+                };
+            } else {
+                socketConfig.query = { user_id: userId.toString() };
+            }
+
+            console.log('Socket.IO 연결 설정:', socketConfig);
+
+            const newSocket = io(apiBaseUrl, socketConfig);
 
             newSocket.on('connect', () => {
                 console.log('✅ WebSocket 연결 성공!', newSocket.id);

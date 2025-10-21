@@ -147,10 +147,10 @@ socketio = SocketIO(app,
     engineio_logger=True,
     cors_allowed_origins=FRONTEND_URLS,  # 명시적 도메인 지정 (Safari 호환)
     cors_credentials=True,
-    async_mode='eventlet',  # eventlet 사용 명시
+    # async_mode는 명시하지 않음 - Gunicorn eventlet worker가 자동 감지
     ping_timeout=60,  # Safari를 위한 긴 타임아웃
     ping_interval=25,  # Keep-alive 주기 (Safari 연결 유지)
-    transports=['polling', 'websocket'],  # polling 우선 (Safari 호환)
+    # transports는 서버에서 지정하지 않고 클라이언트에서 제어
     allow_upgrades=True,  # polling에서 websocket으로 업그레이드 허용
     cookie='io',  # 쿠키 이름 명시
 )

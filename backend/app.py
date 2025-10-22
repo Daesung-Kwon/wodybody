@@ -134,10 +134,11 @@ def get_user_id_from_session_or_cookies():
 app = Flask(__name__)
 
 # SocketIO 초기화 (Safari/Mobile 호환)
-# CORS 허용 도메인 설정 (명시적 도메인)
+# CORS 허용 도메인 설정 (프로덕션 + 프리뷰 환경)
 FRONTEND_URLS = [
-    'https://wodybody-web.vercel.app',
-    'http://localhost:3000',
+    'https://wodybody-web.vercel.app',  # 프로덕션
+    'https://*.vercel.app',  # Vercel 프리뷰 배포 (와일드카드)
+    'http://localhost:3000',  # 로컬 개발
     'http://127.0.0.1:3000'
 ]
 app.logger.info(f'SocketIO CORS allowed origins: {FRONTEND_URLS}')

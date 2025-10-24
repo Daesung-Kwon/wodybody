@@ -66,14 +66,14 @@ const MuiWebSocketDebugger: React.FC = () => {
         // Safari 최적화: polling 전용 모드
         const socketConfig: any = {
             path: '/socket.io/',
-            transports: isMobileSafari ? ['polling'] : ['polling', 'websocket'],
+            transports: ['polling'],  // 모든 브라우저에서 polling만 사용 (안정성 우선)
             autoConnect: true,
             reconnection: true,
-            reconnectionDelay: isMobileSafari ? 2000 : 1000,
-            reconnectionAttempts: 5,
-            withCredentials: true,  // CORS credentials 필요
+            reconnectionDelay: 2000,
+            reconnectionAttempts: 10,
+            withCredentials: false,  // Safari CORS 문제 회피 (토큰 인증 사용)
             forceNew: true,
-            upgrade: false,  // Safari 안정성을 위해 polling 유지
+            upgrade: false,  // polling 유지 (Safari 호환)
             timeout: 20000,
             closeOnBeforeunload: false,
         };

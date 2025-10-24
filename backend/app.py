@@ -164,14 +164,14 @@ app.logger.info('SocketIO CORS: 동적 검증 함수 사용 (모든 .vercel.app 
 socketio = SocketIO(app, 
     logger=True,
     engineio_logger=True,
-    cors_allowed_origins=is_allowed_origin,  # 동적 검증 함수 사용
-    cors_credentials=True,
+    cors_allowed_origins='*',  # 모든 origin 허용 (credentials 없이)
+    cors_credentials=False,  # Safari CORS 문제 해결 (withCredentials: false와 일치)
     # async_mode는 명시하지 않음 - Gunicorn eventlet worker가 자동 감지
     ping_timeout=60,  # Safari를 위한 긴 타임아웃
     ping_interval=25,  # Keep-alive 주기 (Safari 연결 유지)
     # transports는 서버에서 지정하지 않고 클라이언트에서 제어
     allow_upgrades=True,  # polling에서 websocket으로 업그레이드 허용
-    cookie='io',  # 쿠키 이름 명시
+    cookie=None,  # 쿠키 사용하지 않음 (토큰 인증)
 )
 
 # 로깅 설정

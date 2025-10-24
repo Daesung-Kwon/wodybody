@@ -53,14 +53,14 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
             // Safari 최적화: polling 전용 모드로 시작하여 안정성 향상
             const socketConfig: any = {
                 path: '/socket.io/',  // 명시적 경로 지정
-                transports: isMobileSafari ? ['polling'] : ['polling', 'websocket'],  // Safari는 polling만 사용
+                transports: ['polling'],  // 모든 브라우저에서 polling만 사용 (안정성 우선)
                 autoConnect: true,
                 reconnection: true,
-                reconnectionDelay: isMobileSafari ? 2000 : 1000,
-                reconnectionAttempts: 5,  // 재연결 횟수 제한
+                reconnectionDelay: 2000,
+                reconnectionAttempts: 10,
                 withCredentials: true,  // CORS credentials 필요
                 forceNew: true,
-                upgrade: false,  // Safari 안정성을 위해 polling 유지
+                upgrade: false,  // polling 유지 (Safari 호환)
                 timeout: 20000,
                 closeOnBeforeunload: false,  // 페이지 이동 시에도 연결 유지 시도
             };

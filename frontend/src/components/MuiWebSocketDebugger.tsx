@@ -71,7 +71,7 @@ const MuiWebSocketDebugger: React.FC = () => {
             reconnection: true,
             reconnectionDelay: 2000,
             reconnectionAttempts: 10,
-            withCredentials: true,  // CORS credentials 필요
+            withCredentials: false,  // Safari CORS 문제 회피 (토큰 인증 사용)
             forceNew: true,
             upgrade: false,  // polling 유지 (Safari 호환)
             timeout: 20000,

@@ -134,19 +134,37 @@ def get_user_id_from_session_or_cookies():
 app = Flask(__name__)
 
 # SocketIO 초기화 (Safari/Mobile 호환)
-# CORS 허용 도메인 설정 (프로덕션 + 프리뷰 환경)
-FRONTEND_URLS = [
-    'https://wodybody-web.vercel.app',  # 프로덕션
-    'https://*.vercel.app',  # Vercel 프리뷰 배포 (와일드카드)
-    'http://localhost:3000',  # 로컬 개발
-    'http://127.0.0.1:3000'
-]
-app.logger.info(f'SocketIO CORS allowed origins: {FRONTEND_URLS}')
+# CORS 허용 도메인 설정 - 동적 검증 함수 사용
+def is_allowed_origin(origin):
+    """Origin이 허용되는지 동적으로 검증"""
+    if not origin:
+        return False
+    
+    allowed_patterns = [
+        'https://wodybody-web.vercel.app',  # 프로덕션
+        'http://localhost:3000',  # 로컬 개발
+        'http://127.0.0.1:3000'
+    ]
+    
+    # 정확히 일치하는 경우
+    if origin in allowed_patterns:
+        app.logger.info(f'✅ CORS 허용 (정확 일치): {origin}')
+        return True
+    
+    # Vercel 배포 도메인 검증 (.vercel.app으로 끝나는 경우)
+    if origin.startswith('https://') and origin.endswith('.vercel.app'):
+        app.logger.info(f'✅ CORS 허용 (Vercel 도메인): {origin}')
+        return True
+    
+    app.logger.warning(f'❌ CORS 차단: {origin}')
+    return False
+
+app.logger.info('SocketIO CORS: 동적 검증 함수 사용 (모든 .vercel.app 허용)')
 
 socketio = SocketIO(app, 
     logger=True,
     engineio_logger=True,
-    cors_allowed_origins=FRONTEND_URLS,  # 명시적 도메인 지정 (Safari 호환)
+    cors_allowed_origins=is_allowed_origin,  # 동적 검증 함수 사용
     cors_credentials=True,
     # async_mode는 명시하지 않음 - Gunicorn eventlet worker가 자동 감지
     ping_timeout=60,  # Safari를 위한 긴 타임아웃

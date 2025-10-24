@@ -79,12 +79,10 @@ const MuiWebSocketDebugger: React.FC = () => {
         };
 
         // 인증 토큰 전달
+        // 모바일 Safari는 extraHeaders를 CORS에서 차단하므로 auth와 query만 사용
         if (authToken) {
             socketConfig.auth = { token: authToken };
             socketConfig.query = { token: authToken };
-            socketConfig.extraHeaders = {
-                'Authorization': `Bearer ${authToken}`
-            };
         }
 
         addLog(`SocketIO 설정: ${JSON.stringify(socketConfig, null, 2)}`);

@@ -66,12 +66,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
             };
 
             // 인증 토큰 전달 (쿠키 대신 토큰 기반)
+            // 모바일 Safari는 extraHeaders를 CORS에서 차단하므로 auth와 query만 사용
             if (authToken) {
                 socketConfig.auth = { token: authToken };
                 socketConfig.query = { token: authToken, user_id: userId.toString() };
-                socketConfig.extraHeaders = {
-                    'Authorization': `Bearer ${authToken}`
-                };
             } else {
                 socketConfig.query = { user_id: userId.toString() };
             }

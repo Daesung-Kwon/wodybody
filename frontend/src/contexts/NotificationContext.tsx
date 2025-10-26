@@ -93,12 +93,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
             newSocket.on('connect_error', (error) => {
                 console.error('❌ WebSocket 연결 오류:', error.message);
                 console.error('오류 상세:', error);
-                // 모바일 Safari에서 WebSocket 연결 실패 시 polling만 사용하도록 재시도
-                if (isMobileSafari) {
-                    console.log('모바일 Safari에서 polling 전용으로 재연결 시도');
-                    newSocket.io.opts.transports = ['polling'];
-                    newSocket.connect();
-                }
+                // Socket.IO가 자동으로 재연결을 시도함 (reconnection: true)
+                // 중복 재연결 로직 제거 - 무한 루프 및 CORS 충돌 방지
             });
 
             // 방 참여 성공/실패 이벤트

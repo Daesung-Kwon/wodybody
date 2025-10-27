@@ -22,9 +22,10 @@ def register_socketio_events(socketio):
         
         # 모바일 Safari를 위한 추가 정보 응답
         if is_mobile_safari:
+            # request.transport는 초기 연결 시점에 없을 수 있으므로 안전하게 처리
             emit('mobile_safari_info', {
                 'message': '모바일 Safari에서 연결됨',
-                'transport': request.transport,
+                'transport': getattr(request, 'transport', 'unknown'),
                 'recommended_transport': 'polling'
             })
     

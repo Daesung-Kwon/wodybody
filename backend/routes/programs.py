@@ -111,15 +111,19 @@ def get_programs():
 
 @bp.route('/programs/<int:program_id>', methods=['GET'])
 def get_program_detail(program_id):
-    """프로그램 상세 조회 (비로그인 허용 - 공개 프로그램만)"""
+    """프로그램 상세 조회 (공개 프로그램 또는 본인이 만든 프로그램)"""
     try:
-        # 공개된 프로그램만 조회 가능
-        program = Programs.query.filter_by(id=program_id, is_open=True).first()
+        program = Programs.query.get(program_id)
         if not program:
             return jsonify({'message': '프로그램을 찾을 수 없습니다'}), 404
         
-        # 비로그인도 허용하지만, 로그인한 경우 참여 상태 확인
+        # 로그인 사용자 확인
         current_user_id = get_user_id_from_session_or_cookies()
+        
+        # 권한 체크: 공개 프로그램이 아니면 creator만 조회 가능
+        if not program.is_open:
+            if not current_user_id or current_user_id != program.creator_id:
+                return jsonify({'message': '프로그램을 조회할 권한이 없습니다'}), 403
         
         # Creator 정보 조회
         try:

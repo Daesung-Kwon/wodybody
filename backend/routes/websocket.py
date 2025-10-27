@@ -20,13 +20,8 @@ def register_socketio_events(socketio):
         current_app.logger.info(f'클라이언트 연결됨: {request.sid} | User-Agent: {user_agent[:100]} | Mobile Safari: {is_mobile_safari}')
         print(f'🔌 WebSocket 클라이언트 연결됨: {request.sid} {"(모바일 Safari)" if is_mobile_safari else ""}')
         
-        # 모바일 Safari를 위한 추가 정보 응답
-        if is_mobile_safari:
-            emit('mobile_safari_info', {
-                'message': '모바일 Safari에서 연결됨',
-                'transport': request.transport,
-                'recommended_transport': 'polling'
-            })
+        # 모바일 Safari 감지는 로그로만 처리 (emit 제거로 연결 안정성 향상)
+        # connect 이벤트에서 emit()하면 연결이 불안정해질 수 있음
     
     @socketio.on('disconnect')
     def handle_disconnect():

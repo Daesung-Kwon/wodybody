@@ -7,6 +7,7 @@ import { NotificationProvider, useNotifications } from './contexts/NotificationC
 // import RegisterPage from './components/RegisterPage';
 import MuiLoginPage from './components/MuiLoginPage';
 import MuiRegisterPage from './components/MuiRegisterPage';
+import MuiPasswordResetPage from './components/MuiPasswordResetPage';
 import MuiNavigation from './components/MuiNavigation';
 import MuiProgramsPage from './components/MuiProgramsPage';
 import MuiMyProgramsPage from './components/MuiMyProgramsPage';
@@ -177,10 +178,13 @@ const AppWithNotifications: React.FC<{
                         setUser={() => { }} // AuthProvider에서 관리하므로 빈 함수
                         goRegister={() => setPage('register')}
                         goPrograms={() => setPage('programs')}
+                        goPasswordReset={() => setPage('passwordReset')}
                     />
-                ) : (
+                ) : page === 'register' ? (
                     <MuiRegisterPage goLogin={() => setPage('login')} />
-                )
+                ) : page === 'passwordReset' ? (
+                    <MuiPasswordResetPage goLogin={() => setPage('login')} />
+                ) : null
             )}
             <MuiWebSocketDebugger />
         </div>

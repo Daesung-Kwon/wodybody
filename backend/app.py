@@ -219,6 +219,11 @@ CORS(app,
 from config.database import db
 db.init_app(app)
 
+# Flask-Mail 초기화
+from utils.email import init_mail
+init_mail(app)
+app.logger.info('Flask-Mail initialized')
+
 # Request/Response 로깅
 @app.before_request
 def _before():
@@ -239,6 +244,7 @@ from models.program import Programs, Registrations, ProgramParticipants, Persona
 from models.exercise import Exercises, ExerciseCategories, ProgramExercises, WorkoutPatterns, ExerciseSets
 from models.notification import Notifications
 from models.workout_record import WorkoutRecords
+from models.password_reset import PasswordReset
 
 
 # ==================================================================
@@ -418,6 +424,10 @@ app.register_blueprint(exercises.bp)
 # Goals 라우트
 from routes import goals
 app.register_blueprint(goals.bp)
+
+# Password Reset 라우트
+from routes import password_reset
+app.register_blueprint(password_reset.bp)
 
 # WebSocket 이벤트 핸들러 등록 (app.py에 직접 정의)
 @socketio.on('connect')

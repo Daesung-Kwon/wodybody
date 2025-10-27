@@ -18,7 +18,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../theme/ThemeProvider';
 import WodyBodyLogo from './WodyBodyLogo';
 
-const MuiLoginPage: React.FC<LoginPageProps> = ({ setUser, goRegister, goPrograms }) => {
+interface ExtendedLoginPageProps extends LoginPageProps {
+    goPasswordReset?: () => void;
+}
+
+const MuiLoginPage: React.FC<ExtendedLoginPageProps> = ({ setUser, goRegister, goPrograms, goPasswordReset }) => {
     const { setUser: setAuthUser } = useAuth();
     const { isDarkMode } = useTheme();
     const [email, setEmail] = useState<string>('');
@@ -160,6 +164,29 @@ const MuiLoginPage: React.FC<LoginPageProps> = ({ setUser, goRegister, goProgram
                                         },
                                     }}
                                 />
+
+                                {/* 비밀번호 재설정 링크 */}
+                                {goPasswordReset && (
+                                    <Box sx={{ textAlign: 'right' }}>
+                                        <Button
+                                            variant="text"
+                                            size="small"
+                                            onClick={goPasswordReset}
+                                            disabled={busy}
+                                            sx={{
+                                                fontSize: '0.875rem',
+                                                color: 'text.secondary',
+                                                textTransform: 'none',
+                                                '&:hover': {
+                                                    color: 'primary.main',
+                                                },
+                                            }}
+                                        >
+                                            비밀번호를 잊으셨나요?
+                                        </Button>
+                                    </Box>
+                                )}
+
                                 <Button
                                     type="submit"
                                     fullWidth

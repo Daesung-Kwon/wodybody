@@ -426,3 +426,27 @@ export const testApi = {
     test: (): Promise<{ message: string; timestamp: string }> =>
         apiRequest<{ message: string; timestamp: string }>('/api/test'),
 };
+
+// 비밀번호 재설정 API
+export const passwordResetApi = {
+    // 비밀번호 재설정 요청 (인증번호 이메일 전송)
+    requestReset: (email: string): Promise<{ message: string; email: string }> =>
+        apiRequest<{ message: string; email: string }>('/api/password-reset/request', {
+            method: 'POST',
+            body: JSON.stringify({ email })
+        }),
+
+    // 인증번호 확인
+    verifyCode: (email: string, code: string): Promise<{ message: string; verified: boolean; reset_id: number }> =>
+        apiRequest<{ message: string; verified: boolean; reset_id: number }>('/api/password-reset/verify', {
+            method: 'POST',
+            body: JSON.stringify({ email, code })
+        }),
+
+    // 비밀번호 재설정
+    resetPassword: (email: string, reset_id: number, new_password: string): Promise<{ message: string; success: boolean }> =>
+        apiRequest<{ message: string; success: boolean }>('/api/password-reset/reset', {
+            method: 'POST',
+            body: JSON.stringify({ email, reset_id, new_password })
+        }),
+};

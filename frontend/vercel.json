@@ -29,7 +29,9 @@
             "frontend": true,
             "main": false,
             "backend": false,
-            "develop": false
-        }
+            "develop": false,
+            "gh-pages": false
+        },
+        "ignoreCommand": "bash -c '[[ \"$VERCEL_GIT_COMMIT_REF\" == \"gh-pages\" ]] && exit 1 || exit 0'"
     }
 }

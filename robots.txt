@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://daesung-kwon.github.io/wodybody/sitemap.xml
+

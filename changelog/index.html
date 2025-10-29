@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Changelog — Crossfit System</title>
+    <meta name="description" content="Crossfit System 변경 이력" />
+    <link rel="canonical" href="/docs/changelog/" />
+    <link rel="stylesheet" href="/docs/assets/css/styles.css" />
+</head>
+
+<body>
+    <nav class="nav">
+        <div class="container nav-inner">
+            <div class="brand"><span>Crossfit System</span><span class="brand-badge">Changelog</span></div>
+            <div class="lang"><a href="/docs/">홈</a></div>
+        </div>
+    </nav>
+
+    <main class="container">
+        <section class="hero">
+            <h1>Changelog</h1>
+            <p class="subtitle">릴리스, 수정, 개선 사항을 한 곳에 모아둡니다.</p>
+        </section>
+
+        <section class="section">
+            <div class="grid">
+                <div class="card">
+                    <h3>공식 릴리스</h3>
+                    <p>GitHub Releases와 태그를 통해 버전 노트를 제공합니다.</p>
+                    <p><a href="#" aria-disabled="true">GitHub Releases (추가 예정)</a></p>
+                </div>
+                <div class="card">
+                    <h3>변경 기록 소스</h3>
+                    <p>주요 문서와 변경 기록은 저장소의 문서에서 확인할 수 있습니다.</p>
+                    <ul>
+                        <li><a href="/DEPLOYMENT_CHECKLIST.md">DEPLOYMENT_CHECKLIST.md</a> (저장소 기준)</li>
+                        <li><a href="/REFACTORING_STATUS_20251027.md">REFACTORING_STATUS_20251027.md</a></li>
+                        <li><a href="/PASSWORD_RESET_GUIDE.md">PASSWORD_RESET_GUIDE.md</a></li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h3>최근 변경 스냅샷</h3>
+                    <p>주요 기능: 비밀번호 재설정, 웹소켓 안정화, 프로그램 상세 개선 등.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer container">
+        <div>© <span id="y"></span> Crossfit System</div>
+    </footer>
+    <script>document.getElementById('y').textContent = new Date().getFullYear();</script>
+</body>
+
+</html>

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ko">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>문서 / 가이드 — Crossfit System</title>
+    <meta name="description" content="Crossfit System 문서/가이드 허브" />
+    <link rel="canonical" href="/docs/docs/" />
+    <link rel="stylesheet" href="/docs/assets/css/styles.css" />
+</head>
+
+<body>
+    <nav class="nav">
+        <div class="container nav-inner">
+            <div class="brand"><span>Crossfit System</span><span class="brand-badge">Docs</span></div>
+            <div class="lang"><a href="/docs/">홈</a></div>
+        </div>
+    </nav>
+
+    <main class="container">
+        <section class="hero">
+            <h1>문서 / 가이드</h1>
+            <p class="subtitle">빠른 시작, 자주 묻는 질문, 문제 해결을 한 곳에서.</p>
+        </section>
+
+        <section class="section">
+            <h2>빠른 시작</h2>
+            <div class="grid">
+                <div class="card">
+                    <h3>로컬 실행</h3>
+                    <p><a href="../">홈</a>에서 시작 버튼을 눌러 데모 흐름을 확인한 뒤, 저장소의 README를 참고해 로컬 환경을 준비하세요.</p>
+                </div>
+                <div class="card">
+                    <h3>핵심 개념</h3>
+                    <p>운동 기록, 프로그램, 알림 3요소로 구성됩니다. 최소 설정으로 바로 기록을 시작할 수 있습니다.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>FAQ</h2>
+            <ul class="list">
+                <li class="card"><strong>데이터는 어디에 저장되나요?</strong><br />운영 환경에 따라 로컬 DB 또는 외부 DB를 사용할 수 있습니다.</li>
+                <li class="card"><strong>비밀번호 재설정은 지원하나요?</strong><br />예. 보안 토큰 기반으로 재설정을 지원합니다.</li>
+            </ul>
+        </section>
+
+        <section class="section">
+            <h2>트러블슈팅</h2>
+            <ul class="list">
+                <li class="card"><strong>로그인이 되지 않아요</strong><br />시간대 설정과 토큰 만료 시간을 확인하세요.</li>
+                <li class="card"><strong>알림이 오지 않아요</strong><br />이메일 또는 웹소켓 연결 상태를 점검하세요.</li>
+            </ul>
+        </section>
+
+        <section class="section">
+            <h2>추가 자료</h2>
+            <ul class="list">
+                <li class="card">릴리스와 변경 이력: <a href="/docs/changelog/">Changelog</a></li>
+                <li class="card">향후 계획: <a href="/docs/roadmap/">로드맵</a></li>
+            </ul>
+        </section>
+    </main>
+
+    <footer class="footer container">
+        <div>© <span id="y"></span> Crossfit System</div>
+    </footer>
+    <script>document.getElementById('y').textContent = new Date().getFullYear();</script>
+</body>
+
+</html>

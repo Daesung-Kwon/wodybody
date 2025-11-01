@@ -183,6 +183,7 @@ export interface RegisterRequest {
     email: string;
     password: string;
     name: string;
+    verification_id?: number;  // 이메일 인증 ID (선택적, 이메일 인증 활성화 시 필수)
 }
 
 // 로그인 요청 타입

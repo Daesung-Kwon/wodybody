@@ -450,3 +450,20 @@ export const passwordResetApi = {
             body: JSON.stringify({ email, reset_id, new_password })
         }),
 };
+
+// 이메일 인증 API (회원가입용)
+export const emailVerificationApi = {
+    // 이메일 인증번호 전송
+    requestVerification: (email: string): Promise<{ message: string; email: string }> =>
+        apiRequest<{ message: string; email: string }>('/api/email-verification/request', {
+            method: 'POST',
+            body: JSON.stringify({ email })
+        }),
+
+    // 인증번호 확인
+    verifyCode: (email: string, code: string): Promise<{ message: string; verified: boolean; verification_id: number }> =>
+        apiRequest<{ message: string; verified: boolean; verification_id: number }>('/api/email-verification/verify', {
+            method: 'POST',
+            body: JSON.stringify({ email, code })
+        }),
+};

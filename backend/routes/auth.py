@@ -27,7 +27,7 @@ def profile():
 
 @bp.route('/register', methods=['POST'])
 def register():
-    """회원가입"""
+    """회원가입 (이메일 인증 필수)"""
     try:
         data = request.get_json(silent=True)
         error = validate_register(data)
@@ -37,6 +37,32 @@ def register():
         email = data['email'].strip()
         name = data['name'].strip()
         password = data['password']
+        verification_id = data.get('verification_id')  # 이메일 인증 ID
+        
+        # 이메일 인증 확인 (필수)
+        if not verification_id:
+            return jsonify({'message': '이메일 인증이 필요합니다.'}), 400
+        
+        from models.email_verification import EmailVerification
+        from config.database import db
+        
+        # 인증번호 확인
+        email_verification = EmailVerification.query.filter_by(
+            id=verification_id,
+            email=email,
+            is_used=False
+        ).first()
+        
+        if not email_verification:
+            return jsonify({'message': '유효하지 않은 인증 정보입니다.'}), 404
+        
+        # 인증 완료 여부 확인
+        if not email_verification.verified_at:
+            return jsonify({'message': '이메일 인증을 먼저 완료해주세요.'}), 400
+        
+        # 만료 확인
+        if email_verification.is_expired():
+            return jsonify({'message': '인증번호가 만료되었습니다. 다시 시도해주세요.'}), 400
         
         # 이메일 중복 확인
         if Users.query.filter_by(email=email).first():
@@ -46,15 +72,23 @@ def register():
         user = Users(email=email, name=name)
         user.set_password(password)
         
-        from config.database import db
         db.session.add(user)
+        
+        # 인증번호 사용 완료 표시
+        email_verification.mark_as_used()
+        
         db.session.commit()
+        
+        from flask import current_app
+        current_app.logger.info(f'회원가입 완료: {email} (이름: {name})')
         
         return jsonify({'message': '회원가입이 완료되었습니다'}), 201
         
     except Exception as e:
         from flask import current_app
         current_app.logger.exception('register error: %s', str(e))
+        from config.database import db
+        db.session.rollback()
         return jsonify({'message': '회원가입 처리 중 오류가 발생했습니다'}), 500
 
 @bp.route('/login', methods=['POST'])

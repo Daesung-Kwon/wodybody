@@ -245,6 +245,7 @@ from models.exercise import Exercises, ExerciseCategories, ProgramExercises, Wor
 from models.notification import Notifications
 from models.workout_record import WorkoutRecords
 from models.password_reset import PasswordReset
+from models.email_verification import EmailVerification
 
 
 # ==================================================================
@@ -428,6 +429,10 @@ app.register_blueprint(goals.bp)
 # Password Reset 라우트
 from routes import password_reset
 app.register_blueprint(password_reset.bp)
+
+# Email Verification 라우트 (회원가입용)
+from routes import email_verification
+app.register_blueprint(email_verification.bp)
 
 # WebSocket 이벤트 핸들러 등록 (app.py에 직접 정의)
 @socketio.on('connect')

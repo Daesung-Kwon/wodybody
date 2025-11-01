@@ -62,7 +62,7 @@ def send_email_resend(to_email, subject, html_body, text_body):
         return False, f"이메일 전송 중 오류가 발생했습니다: {str(e)}"
 
 def send_verification_code(email, verification_code, user_name=''):
-    """비밀번호 재설정 인증번호 이메일 전송"""
+    """비밀번호 재설정 인증번호 이메일 전송 (Resend HTTP API 사용)"""
     subject = '[WodyBody] 비밀번호 재설정 인증번호'
     
     # HTML 이메일 본문
@@ -177,7 +177,7 @@ def send_verification_code(email, verification_code, user_name=''):
     return send_email_resend(email, subject, html_body, text_body)
 
 def send_password_changed_notification(email, user_name=''):
-    """비밀번호 변경 완료 알림 이메일"""
+    """비밀번호 변경 완료 알림 이메일 (Resend HTTP API 사용)"""
     subject = '[WodyBody] 비밀번호가 변경되었습니다'
     
     html_body = f"""
@@ -281,4 +281,3 @@ def send_password_changed_notification(email, user_name=''):
     # Resend HTTP API 사용 (Railway 호환)
     success, message = send_email_resend(email, subject, html_body, text_body)
     return success
-

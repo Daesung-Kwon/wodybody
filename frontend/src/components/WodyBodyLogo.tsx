@@ -1,6 +1,8 @@
 import React from 'react';
 import { Box } from '@mui/material';
 import { useTheme } from '../theme/ThemeProvider';
+import logoDark from '../assets/logo-dark.png';
+import logoLight from '../assets/logo-light.png';
 
 interface WodyBodyLogoProps {
     variant?: 'simple' | 'detailed' | 'icon-only';
@@ -13,7 +15,7 @@ const WodyBodyLogo: React.FC<WodyBodyLogoProps> = ({
     size = 'medium',
 }) => {
     const { isDarkMode } = useTheme();
-    
+
     const getSizeStyles = () => {
         switch (size) {
             case 'small':
@@ -25,21 +27,19 @@ const WodyBodyLogo: React.FC<WodyBodyLogoProps> = ({
         }
     };
 
-    // 로고 이미지 경로
-    const logoSrc = isDarkMode 
-        ? '/logo-dark.png'  // 다크 모드: 검은 배경에 흰 텍스트
-        : '/logo-light.png'; // 라이트 모드: 흰 배경에 검은 텍스트
+    // 로고 이미지 경로 (번들 import 사용: 안정적 캐싱/경로 처리)
+    const logoSrc = isDarkMode ? logoDark : logoLight;
 
     const sizeStyles = getSizeStyles();
 
     return (
-        <Box 
-            sx={{ 
+        <Box
+            sx={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 width: '100%',
-                maxWidth: size === 'large' ? 400 : size === 'small' ? 200 : 300,
+                maxWidth: size === 'large' ? 420 : size === 'small' ? 220 : 320,
             }}
         >
             <img
@@ -49,7 +49,6 @@ const WodyBodyLogo: React.FC<WodyBodyLogoProps> = ({
                     height: sizeStyles.height,
                     width: '100%',
                     objectFit: 'contain',
-                    imageRendering: 'crisp-edges', // 선명하게 렌더링
                 }}
             />
         </Box>

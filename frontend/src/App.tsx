@@ -20,6 +20,7 @@ import MuiPersonalRecordsPage from './components/MuiPersonalRecordsPage';
 import MuiStepBasedCreateProgramPage from './components/MuiStepBasedCreateProgramPage';
 import MuiNotificationsPage from './components/MuiNotificationsPage';
 import { isBurnFatHost } from './lib/env';
+import MuiAboutPage from './components/MuiAboutPage';
 
 const BurnFatApp = React.lazy(() => import('./pages/BurnFatApp'));
 import {
@@ -171,6 +172,7 @@ const AppRoutes: React.FC = () => {
                     />
                     <Route path="/preferences" element={<MuiPreferencesPage goBack={() => navigate('/today')} />} />
                     <Route path="/notifications" element={<MuiNotificationsPage onBack={() => navigate(-1)} />} />
+                    <Route path="/about" element={<MuiAboutPage />} />
                 </Route>
             </Route>
 

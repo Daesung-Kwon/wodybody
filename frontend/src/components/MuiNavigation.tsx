@@ -27,6 +27,7 @@ import {
     Home as HomeIcon,
     Timer as TimerIcon,
     TrendingUp as TrendingUpIcon,
+    Info as InfoIcon,
 } from '@mui/icons-material';
 import { User } from '../types';
 import { useTheme } from '../theme/ThemeProvider';
@@ -40,6 +41,9 @@ interface MuiNavigationProps {
     onNotifications: () => void;
     unreadCount: number;
 }
+
+// 드로어 메뉴 중 실제 라우트(App.tsx)가 연결된 항목
+const ROUTED_DRAWER_ITEMS = new Set<string>(['about']);
 
 const MuiNavigation: React.FC<MuiNavigationProps> = ({
     user,
@@ -66,6 +70,7 @@ const MuiNavigation: React.FC<MuiNavigationProps> = ({
 
     const drawerItems = [
         { id: 'profile', label: '프로필 설정', icon: <PersonIcon /> },
+        { id: 'about', label: '서비스 소개', icon: <InfoIcon /> },
         { id: 'settings', label: '설정', icon: <SettingsIcon /> },
         { id: 'help', label: '도움말', icon: <HelpIcon /> },
     ];
@@ -204,7 +209,10 @@ const MuiNavigation: React.FC<MuiNavigationProps> = ({
                         <ListItem key={item.id} disablePadding>
                             <ListItemButton
                                 onClick={() => {
-                                    // 메뉴 아이템 클릭 처리
+                                    // 라우트가 있는 메뉴만 이동 (profile/settings/help 는 아직 페이지 없음 → /today 리다이렉트 방지)
+                                    if (ROUTED_DRAWER_ITEMS.has(item.id)) {
+                                        onPageChange(item.id);
+                                    }
                                     toggleDrawer();
                                 }}
                                 sx={{ px: 3, py: 1.5 }}

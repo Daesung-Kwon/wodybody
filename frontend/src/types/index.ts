@@ -144,7 +144,7 @@ export interface ProgramResultsResponse {
 }
 
 // 페이지 타입
-export type Page = 'login' | 'register' | 'passwordReset' | 'programs' | 'my' | 'records' | 'create' | 'mui-example' | 'demo';
+export type Page = 'login' | 'register' | 'passwordReset' | 'programs' | 'my' | 'records' | 'create' | 'about' | 'profile' | 'settings' | 'help' | 'mui-example' | 'demo';
 
 // 모달 타입
 export interface ModalState {

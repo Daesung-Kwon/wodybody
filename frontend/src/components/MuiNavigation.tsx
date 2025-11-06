@@ -27,6 +27,7 @@ import {
     Home as HomeIcon,
     Timer as TimerIcon,
     TrendingUp as TrendingUpIcon,
+    Info as InfoIcon,
 } from '@mui/icons-material';
 import { User } from '../types';
 import { useTheme } from '../theme/ThemeProvider';
@@ -66,6 +67,7 @@ const MuiNavigation: React.FC<MuiNavigationProps> = ({
 
     const drawerItems = [
         { id: 'profile', label: '프로필 설정', icon: <PersonIcon /> },
+        { id: 'about', label: '서비스 소개', icon: <InfoIcon /> },
         { id: 'settings', label: '설정', icon: <SettingsIcon /> },
         { id: 'help', label: '도움말', icon: <HelpIcon /> },
     ];
@@ -204,7 +206,7 @@ const MuiNavigation: React.FC<MuiNavigationProps> = ({
                         <ListItem key={item.id} disablePadding>
                             <ListItemButton
                                 onClick={() => {
-                                    // 메뉴 아이템 클릭 처리
+                                    onPageChange(item.id);
                                     toggleDrawer();
                                 }}
                                 sx={{ px: 3, py: 1.5 }}

@@ -16,6 +16,7 @@ import MuiStepBasedCreateProgramPage from './components/MuiStepBasedCreateProgra
 import MuiNotificationsPage from './components/MuiNotificationsPage';
 import MuiWebSocketDebugger from './components/MuiWebSocketDebugger';
 import MuiSharedProgramPage from './components/MuiSharedProgramPage';
+import MuiAboutPage from './components/MuiAboutPage';
 // import MuiExample from './components/common/MuiExample'; // 임시 숨김
 
 // 개발 환경 전용 컴포넌트
@@ -164,6 +165,7 @@ const AppWithNotifications: React.FC<{
                                     goPrograms={() => setPage('programs')}
                                 />
                             )}
+                            {page === 'about' && <MuiAboutPage />}
                             {/* {page === 'mui-example' && <MuiExample />} */}
                         </>
                     )}

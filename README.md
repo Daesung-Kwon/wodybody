@@ -1,6 +1,10 @@
-# WODYBODY
-
-크로스핏 운동 프로그램을 만들고 공유하는 모바일 앱입니다.
+<div align="center">
+  <img src="./frontend/public/logo-light.png" alt="WODYBODY Logo" height="100">
+  
+  # WODYBODY
+  
+  크로스핏 운동 프로그램을 만들고 공유하는 모바일 앱입니다.
+</div>
 
 ## 주요 기능
 

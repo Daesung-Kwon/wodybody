@@ -172,7 +172,7 @@ const AppRoutes: React.FC = () => {
                     />
                     <Route path="/preferences" element={<MuiPreferencesPage goBack={() => navigate('/today')} />} />
                     <Route path="/notifications" element={<MuiNotificationsPage onBack={() => navigate(-1)} />} />
-                    <Route path="/about" element={<MuiAboutPage />} />
+                    <Route path="/about" element={<MuiAboutPage onBack={() => navigate('/today')} />} />
                 </Route>
             </Route>
 

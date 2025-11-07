@@ -165,7 +165,7 @@ const AppWithNotifications: React.FC<{
                                     goPrograms={() => setPage('programs')}
                                 />
                             )}
-                            {page === 'about' && <MuiAboutPage />}
+                            {page === 'about' && <MuiAboutPage onBack={() => setPage('programs')} />}
                             {/* {page === 'mui-example' && <MuiExample />} */}
                         </>
                     )}

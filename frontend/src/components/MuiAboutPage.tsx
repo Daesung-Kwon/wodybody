@@ -263,12 +263,16 @@ const MuiAboutPage: React.FC<MuiAboutPageProps> = ({ onBack }) => {
                                                 WodyBody 서비스 개발과 운영에 도움을 주신 분들께 진심으로 감사드립니다.
                                             </Typography>
 
-                                            <Stack
-                                                direction="row"
-                                                flexWrap="wrap"
-                                                spacing={2}
+                                            <Box
                                                 sx={{
-                                                    justifyContent: { xs: 'center', md: 'flex-start' },
+                                                    display: 'grid',
+                                                    gridTemplateColumns: {
+                                                        xs: 'repeat(2, 1fr)',
+                                                        sm: 'repeat(3, 1fr)',
+                                                        md: 'repeat(3, 1fr)',
+                                                    },
+                                                    gap: 2,
+                                                    width: '100%',
                                                 }}
                                             >
                                                 {contributors.map((contributor, index) => (
@@ -276,8 +280,12 @@ const MuiAboutPage: React.FC<MuiAboutPageProps> = ({ onBack }) => {
                                                         <Paper
                                                             sx={{
                                                                 p: 2.5,
-                                                                minWidth: 120,
+                                                                minHeight: 140,
                                                                 textAlign: 'center',
+                                                                display: 'flex',
+                                                                flexDirection: 'column',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
                                                                 bgcolor: isDarkMode
                                                                     ? 'rgba(156, 39, 176, 0.1)'
                                                                     : 'rgba(156, 39, 176, 0.05)',
@@ -311,7 +319,7 @@ const MuiAboutPage: React.FC<MuiAboutPageProps> = ({ onBack }) => {
                                                         </Paper>
                                                     </Fade>
                                                 ))}
-                                            </Stack>
+                                            </Box>
                                         </Box>
                                     </Stack>
                                 </CardContent>

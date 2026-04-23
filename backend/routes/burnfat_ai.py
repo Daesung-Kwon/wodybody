@@ -211,3 +211,33 @@ def ai_health():
         "xai_configured": bool(os.environ.get("XAI_API_KEY")),
         "model": XAI_MODEL,
     }), 200
+
+
+@bp.route("/ai/debug", methods=["GET"])
+def ai_debug():
+    """Supabase 연결 실제 테스트. 배포 후 원인 파악용으로만 사용."""
+    supabase_url, supabase_key = _get_supabase_config()
+    if not supabase_url or not supabase_key:
+        return jsonify({"ok": False, "error": "Supabase env vars not set"}), 500
+
+    # 실제 REST 요청 (participants 1건만)
+    headers = {
+        "apikey": supabase_key,
+        "Authorization": f"Bearer {supabase_key}",
+        "Accept": "application/json",
+    }
+    try:
+        resp = requests.get(
+            f"{supabase_url}/rest/v1/participants",
+            params={"select": "id", "limit": "1"},
+            headers=headers,
+            timeout=10,
+        )
+        return jsonify({
+            "ok": resp.ok,
+            "supabase_status": resp.status_code,
+            "supabase_url_host": supabase_url.split("//")[-1].split(".")[0] + ".supabase.co (masked)",
+            "supabase_body_preview": (resp.text or "")[:300],
+        }), 200
+    except requests.RequestException as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 502

@@ -31,11 +31,16 @@ export default function AIAdviceCard({ participantId, participantNickname }: Pro
   return (
     <Card sx={{ bgcolor: 'primary.50', border: '1px solid', borderColor: 'primary.200' }}>
       <CardContent sx={{ pb: 0 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
           <PsychologyIcon color="primary" sx={{ fontSize: 20 }} />
-          <Typography variant="subtitle2" color="primary.dark">
-            AI 체지방 감량 조언
-          </Typography>
+          <Box>
+            <Typography variant="subtitle2" color="primary.dark" component="span" display="block">
+              AI 체지방 감량 조언
+            </Typography>
+            <Typography variant="caption" color="text.disabled" display="block" sx={{ mt: 0.25 }}>
+              Grok (xAI) · wodybody 서버 연동
+            </Typography>
+          </Box>
         </Box>
         {!requested && (
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>

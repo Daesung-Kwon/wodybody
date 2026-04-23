@@ -1,5 +1,7 @@
 # AI 조언 비용 구조 및 무료 대안
 
+> **운영 현황(2026)**: 최종 선택은 **xAI Grok** 입니다. wodybody Flask 백엔드(Railway)의 `/api/burnfat/ai/advice` 프록시로 호출합니다. 아래 내용은 당시 후보군 비교 기록으로 남겨둡니다.
+
 ---
 
 ## 1. 현재 사용: OpenAI gpt-4o-mini

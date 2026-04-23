@@ -1,6 +1,8 @@
 # BurnFat V2 기술 검토 및 구현 아키텍처
 
 > PRODUCT_PLAN_V2.md 기반 기술 검토 및 구현 구조 상세화 문서
+>
+> **참고**: 당시 후보 인프라(Cloudflare Pages, Cloudflare Workers 등) 이름이 일부 남아 있습니다. **실제 운영 구성은 Vercel(`burnfat.wodybody.com`) + Supabase + Railway Flask(xAI Grok 프록시)** 입니다. 최신 상세는 [TECH.md](TECH.md)·[DEPLOY.md](DEPLOY.md) 참고.
 
 ---
 

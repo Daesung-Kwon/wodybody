@@ -6,10 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview",
-    "deploy": "npm run build && wrangler pages deploy dist --project-name=burnfat",
-    "deploy:ai": "cd workers/ai-advice && wrangler deploy",
-    "deploy:all": "npm run deploy:ai && npm run deploy"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -28,7 +25,6 @@
     "@types/react-dom": "^18.2.0",
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "~5.6.0",
-    "vite": "^6.0.0",
-    "wrangler": "^3.90.0"
+    "vite": "^6.0.0"
   }
 }

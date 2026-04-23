@@ -1,7 +1,6 @@
 """
 BurnFat AI 조언 - Grok (xAI) 프록시 엔드포인트.
 
-Cloudflare Workers AI 버전을 대체하는 Flask 구현.
 - Supabase REST API를 통해 참가자/주간 기록/챌린지 정보 조회
 - xAI Grok API (OpenAI 호환)로 조언 생성
 - CORS: 전역 CORS 설정(app.py)이 /api/* 에 적용되므로 별도 처리 불필요
@@ -52,6 +51,14 @@ def _supabase_get(path: str, params: dict[str, str]) -> list[dict[str, Any]]:
         "Accept": "application/json",
     }
     resp = requests.get(f"{url}{path}", params=params, headers=headers, timeout=10)
+    if not resp.ok:
+        logger.error(
+            "Supabase REST error %s %s: status=%s body=%s",
+            path,
+            params,
+            resp.status_code,
+            (resp.text or "")[:800],
+        )
     resp.raise_for_status()
     data = resp.json()
     return data if isinstance(data, list) else []

@@ -50,8 +50,8 @@ WODYBODY는 크로스핏 운동을 사랑하는 사람들을 위한 피트니스
 ### 기술 스택
 - Frontend: Vite + React + TypeScript + MUI (별도 빌드, 별도 Vercel 프로젝트)
 - Data: Supabase (PostgreSQL + Storage) — 현행 유지
-- AI 조언: Flask 백엔드의 Grok 프록시(`/api/burnfat/ai/advice`) 경유
-  - 레거시 Cloudflare Workers AI 코드는 `burnfat/workers/ai-advice/`에 보존
+- AI 조언: Flask 백엔드의 Grok 프록시(`/api/burnfat/ai/advice`) 경유 — xAI Grok 사용
+- 호스팅: Vercel (`burnfat.wodybody.com`) — Cloudflare 관련 설정·코드는 사용하지 않음
 
 ### 로컬 실행
 ```bash

@@ -13,12 +13,13 @@
 
 ## 2. 기술 스택
 
-### 2.1 선정 이유 (Vercel/Railway 대비)
+### 2.1 선정 이유 (crossfit-system 대비)
 
 | 구분 | crossfit-system | BurnFat | 선택 이유 |
 |------|-----------------|---------|-----------|
-| **프론트 호스팅** | Vercel | **Cloudflare Pages** | 200+ 엣지, 무제한 대역폭, 상대적으로 빠른 TTFB |
-| **백엔드/DB** | Railway + PostgreSQL | **Supabase** | 설정 최소화, DB+Storage+Auth 통합, 콜드스타트 적음 |
+| **프론트 호스팅** | Vercel | **Vercel (`burnfat.wodybody.com`)** | 동일 계정/파이프라인, 서브도메인으로 분리 운영 |
+| **DB/Storage** | Railway + PostgreSQL | **Supabase** | 설정 최소화, DB+Storage+Auth 통합, 콜드스타트 적음 |
+| **AI 조언** | - | **Flask(Railway) → xAI Grok 프록시** | 키를 서버에 보관, CORS·속도 제한 관리 용이 |
 | **프론트 프레임워크** | React (CRA) + MUI | **Vite + React + MUI** | CRA 대비 빠른 빌드, crossfit 디자인 유지 |
 | **이미지 저장** | - | **Supabase Storage** | 별도 S3 없이 통합 |
 
@@ -26,12 +27,13 @@
 
 | 레이어 | 기술 | 용도 |
 |--------|------|------|
-| **빌드** | Vite 5 | 빌드·HMR |
+| **빌드** | Vite 6 | 빌드·HMR |
 | **프론트** | React 18, TypeScript | UI |
 | **UI** | MUI (Material UI) 7 | crossfit-system 테마 호환 |
 | **상태** | React Context | 경량 상태 관리 |
-| **백엔드** | Supabase | PostgreSQL + Storage + Realtime(선택) |
-| **호스팅** | Cloudflare Pages | 정적 사이트 + Functions 없이 SPA |
+| **데이터** | Supabase | PostgreSQL + Storage + Realtime(선택) |
+| **AI 조언** | Flask(Railway) + xAI Grok | `/api/burnfat/ai/advice` 프록시 |
+| **호스팅** | Vercel | 정적 SPA, 커스텀 도메인 `burnfat.wodybody.com` |
 
 ---
 
@@ -39,20 +41,18 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                  Cloudflare Pages (CDN)                  │
+│           Vercel (burnfat.wodybody.com)                  │
 │              Static: Vite React SPA (burnfat)            │
-└─────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────┐
-│                    Supabase Project                      │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐  │
-│  │ PostgreSQL  │  │  Storage    │  │  (Auth V2 선택)  │  │
-│  │ challenges  │  │  inbody/    │  │                  │  │
-│  │ participants│  │  {challenge}│  │                  │  │
-│  │ submissions │  │  /{id}.jpg  │  │                  │  │
-│  └─────────────┘  └─────────────┘  └─────────────────┘  │
-└─────────────────────────────────────────────────────────┘
+└──────────────┬──────────────────────────┬───────────────┘
+               │                          │
+               ▼                          ▼
+┌───────────────────────┐   ┌──────────────────────────────┐
+│   Supabase Project    │   │  Railway: wodybody Flask     │
+│  PostgreSQL + Storage │   │  /api/burnfat/ai/advice      │
+│  challenges /         │   │   └─► xAI Grok API           │
+│  participants /       │   │      (서버 보관된 XAI_API_KEY)│
+│  submissions / inbody │   └──────────────────────────────┘
+└───────────────────────┘
 ```
 
 ---
@@ -134,19 +134,24 @@ CREATE POLICY "Allow anonymous insert" ON submissions FOR INSERT WITH CHECK (tru
 
 ---
 
-## 6. 배포 (Cloudflare Pages)
+## 6. 배포 (Vercel)
 
 ### 6.1 설정
 
+- **Root directory**: `burnfat`
+- **Framework preset**: Vite
 - **Build command**: `npm run build`
 - **Output directory**: `dist`
-- **Root directory**: (프로젝트 루트)
 - **Environment variables**: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+  - (선택) `VITE_AI_ADVICE_URL` — 기본값(Railway 프록시)을 덮어쓸 때
+- **커스텀 도메인**: `burnfat.wodybody.com`
+- 상세 절차는 [DEPLOY.md](DEPLOY.md) 참고.
 
 ### 6.2 배포 속도
 
-- Cloudflare Pages: Git push → 빌드 → CDN 전파 (전역 1분 내)
+- Vercel: `main` push → 빌드 → CDN 전파 (수십 초 수준)
 - Supabase: 프로젝트 생성 시점에 바로 사용 가능
+- Railway(Grok 프록시): 변경 시 자동 재배포 (wodybody 백엔드 쪽)
 
 ---
 

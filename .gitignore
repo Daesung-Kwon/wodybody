@@ -40,9 +40,6 @@ migrate_railway.py
 # BurnFat
 burnfat/node_modules/
 burnfat/dist/
-burnfat/.wrangler/
-burnfat/workers/*/node_modules/
-burnfat/workers/*/dist/
 burnfat/.env
 burnfat/.env.local
 

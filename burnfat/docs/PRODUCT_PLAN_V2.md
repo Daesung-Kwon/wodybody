@@ -1,5 +1,7 @@
 # BurnFat V2 서비스 확장 기획
 
+> **참고**: 이 문서는 초기 기획 시점의 메모로, 당시 검토했던 후보 인프라(예: Cloudflare Pages, Cloudflare Workers AI) 이름이 그대로 남아 있습니다. **실제 운영 구성은 Vercel(`burnfat.wodybody.com`) + Supabase + Railway Flask(xAI Grok 프록시)** 입니다. 최신 상세는 [TECH.md](TECH.md)·[DEPLOY.md](DEPLOY.md) 참고.
+
 ## 1. 기획 개요
 
 | 항목 | 내용 |

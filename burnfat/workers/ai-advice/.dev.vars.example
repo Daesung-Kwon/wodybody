@@ -1,0 +1,5 @@
+# 로컬 개발용 (wrangler dev)
+# .dev.vars.example을 .dev.vars로 복사 후 값 입력
+
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key

@@ -434,6 +434,10 @@ app.register_blueprint(password_reset.bp)
 from routes import email_verification
 app.register_blueprint(email_verification.bp)
 
+# BurnFat AI Advice 라우트 (Grok 프록시, /api/burnfat/*)
+from routes import burnfat_ai
+app.register_blueprint(burnfat_ai.bp)
+
 # WebSocket 이벤트 핸들러 등록 (app.py에 직접 정의)
 @socketio.on('connect')
 def handle_connect():

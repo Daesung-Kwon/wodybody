@@ -36,3 +36,16 @@ instance/
 
 # Railway 마이그레이션 스크립트 (민감한 정보 포함)
 migrate_railway.py
+
+# BurnFat
+burnfat/node_modules/
+burnfat/dist/
+burnfat/.wrangler/
+burnfat/workers/*/node_modules/
+burnfat/workers/*/dist/
+burnfat/.env
+burnfat/.env.local
+
+# 루트의 lib/ ignore 규칙에서 BurnFat 소스 lib는 제외
+!burnfat/src/lib/
+!burnfat/src/lib/**

@@ -40,7 +40,11 @@ export default function ParticipantWeeklyLogCard({
             {participant.nickname}님 주간 기록 입력
           </Button>
         </Box>
-        <WeeklyLogChart logs={logs} participant={participant} />
+        <WeeklyLogChart
+          logs={logs}
+          participant={participant}
+          startBodyFat={participant.submissions.find((s) => s.type === 'start')?.body_fat_rate}
+        />
         {logs.length > 0 && (
           <Box sx={{ mt: 2 }}>
             {logs.map((l) => (

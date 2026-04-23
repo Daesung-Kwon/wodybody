@@ -7,6 +7,7 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import PsychologyIcon from '@mui/icons-material/Psychology';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { useAIAdvice } from '../hooks/useAIAdvice';
 
 interface Props {
@@ -15,7 +16,7 @@ interface Props {
 }
 
 export default function AIAdviceCard({ participantId, participantNickname }: Props) {
-  const { advice, loading, error, load, reset } = useAIAdvice();
+  const { advice, loading, error, isCached, load, reset } = useAIAdvice();
   const [requested, setRequested] = useState(false);
 
   const handleLoad = () => {
@@ -26,6 +27,10 @@ export default function AIAdviceCard({ participantId, participantNickname }: Pro
   const handleReset = () => {
     reset();
     setRequested(false);
+  };
+
+  const handleRefresh = () => {
+    load(participantId, true);
   };
 
   return (
@@ -61,20 +66,38 @@ export default function AIAdviceCard({ participantId, participantNickname }: Pro
           </Typography>
         )}
         {advice && !loading && (
-          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: 1 }}>
-            {advice}
-          </Typography>
+          <>
+            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: 1 }}>
+              {advice}
+            </Typography>
+            {isCached && (
+              <Typography variant="caption" color="text.disabled">
+                오늘 캐시된 조언 · 새로 받으려면 아래 버튼을 누르세요
+              </Typography>
+            )}
+          </>
         )}
       </CardContent>
-      <CardActions sx={{ px: 2, pb: 2, pt: 0 }}>
+      <CardActions sx={{ px: 2, pb: 2, pt: 0, flexWrap: 'wrap', gap: 1 }}>
         {!requested && (
           <Button size="small" variant="contained" onClick={handleLoad} startIcon={<PsychologyIcon />}>
             AI 조언 보기
           </Button>
         )}
+        {requested && !loading && advice && (
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<RefreshIcon sx={{ fontSize: 16 }} />}
+            onClick={handleRefresh}
+          >
+            새로 받기
+          </Button>
+        )}
         {requested && !loading && (
-          <Button size="small" variant="outlined" onClick={handleReset}>
-            다시 보기
+          <Button size="small" variant="text" color="inherit" onClick={handleReset}
+            sx={{ color: 'text.secondary', minWidth: 'unset' }}>
+            닫기
           </Button>
         )}
       </CardActions>

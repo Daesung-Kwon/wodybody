@@ -6,6 +6,8 @@ export interface Challenge {
   end_date: string;
   stake_amount: number;
   created_at: string;
+  /** 중간 순위 공개 여부 — 마이그레이션 후 사용 가능 */
+  ranking_unlocked?: boolean;
 }
 
 export type Gender = 'M' | 'F';

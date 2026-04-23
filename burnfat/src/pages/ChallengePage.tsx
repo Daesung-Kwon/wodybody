@@ -20,6 +20,9 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import ShareIcon from '@mui/icons-material/Share';
+import LockOpenIcon from '@mui/icons-material/LockOpen';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Snackbar from '@mui/material/Snackbar';
@@ -75,6 +78,7 @@ export default function ChallengePage() {
   } | null>(null);
   const [snackbar, setSnackbar] = useState(false);
   const [earlyEndBlockSnackbar, setEarlyEndBlockSnackbar] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   const fetchChallenge = useCallback(async () => {
     if (!code) {
@@ -147,6 +151,41 @@ export default function ChallengePage() {
     navigator.clipboard.writeText(shareUrl).then(() => setSnackbar(true));
   };
 
+  const handleShareRanking = () => {
+    if (!challenge || ranking.length === 0) return;
+    const medal = (n: number) => n === 1 ? '🥇' : n === 2 ? '🥈' : n === 3 ? '🥉' : `${n}위`;
+    const lines = [
+      `🔥 BurnFat 대결 결과`,
+      `📌 ${challenge.title}`,
+      `📅 ${challenge.start_date} ~ ${challenge.end_date}`,
+      '',
+      ...ranking.map((r) => `${medal(r.rank)} ${r.nickname}  -${r.reductionRate.toFixed(2)}%`),
+      '',
+      `🔗 ${shareUrl}`,
+    ];
+    navigator.clipboard.writeText(lines.join('\n')).then(() =>
+      setToast('결과가 클립보드에 복사되었습니다')
+    );
+  };
+
+  const handleUnlockRanking = async () => {
+    if (!challenge) return;
+    try {
+      const { error } = await supabase
+        .from('challenges')
+        .update({ ranking_unlocked: true })
+        .eq('id', challenge.id);
+      if (error) {
+        setToast('순위 공개 실패: Supabase 마이그레이션을 먼저 실행하세요');
+        return;
+      }
+      setChallenge({ ...challenge, ranking_unlocked: true });
+      setToast('순위가 공개되었습니다');
+    } catch {
+      setToast('순위 공개 중 오류가 발생했습니다');
+    }
+  };
+
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!challenge || !joinNickname.trim()) return;
@@ -202,6 +241,7 @@ export default function ChallengePage() {
   const allEndComplete = participantsWithStart.length > 0 && participantsWithStart.every((p) =>
     p.submissions.some((s) => s.type === 'end')
   );
+  const showRanking = allEndComplete || (challenge?.ranking_unlocked ?? false) || DEBUG_SHOW_RANKING;
 
   const participantsWithRank = [...participants]
     .map((p) => {
@@ -452,7 +492,7 @@ export default function ChallengePage() {
 
       {tab === 1 && (
         <Box sx={{ px: 2, pt: 2 }}>
-          {!allEndComplete && !DEBUG_SHOW_RANKING ? (
+          {!showRanking ? (
             <Box sx={{ textAlign: 'center', py: 2, px: 2 }}>
               <Typography color="text.secondary">
                 모든 참가자가 종료 인증을 완료하면 순위가 공개됩니다.
@@ -470,12 +510,46 @@ export default function ChallengePage() {
                 controls
                 sx={{ width: '100%', maxWidth: 360, mt: 2, borderRadius: 2, mx: 'auto', display: 'block' }}
               />
+              <Box sx={{ mt: 3 }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<LockOpenIcon />}
+                  onClick={handleUnlockRanking}
+                  color="warning"
+                >
+                  중간 순위 공개
+                </Button>
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                  종료 인증 전이어도 모든 참가자에게 순위가 공개됩니다
+                </Typography>
+              </Box>
             </Box>
           ) : ranking.length === 0 ? (
             <Typography color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
               시작·종료 인증을 모두 마친 참가자가 있을 때 순위가 표시됩니다.
             </Typography>
           ) : (
+            <>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2, gap: 1 }}>
+                <Box sx={{ p: 1.5, bgcolor: 'grey.50', borderRadius: 1.5, border: '1px solid', borderColor: 'grey.200', flex: 1 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    💡 감소율 = (시작 − 종료) ÷ 시작 × 100
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.25 }}>
+                    시작 체지방에 관계없이 공정하게 비교하는 상대 감소율입니다.
+                  </Typography>
+                </Box>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<ShareIcon />}
+                  onClick={handleShareRanking}
+                  sx={{ flexShrink: 0, minHeight: 44 }}
+                >
+                  결과 공유
+                </Button>
+              </Box>
             <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
               <Table size="small" sx={{ tableLayout: 'fixed', width: '100%' }}>
                 <TableHead>
@@ -484,7 +558,14 @@ export default function ChallengePage() {
                     <TableCell>닉네임</TableCell>
                     <TableCell align="right" sx={{ width: 64 }}>시작</TableCell>
                     <TableCell align="right" sx={{ width: 64 }}>종료</TableCell>
-                    <TableCell align="right" sx={{ width: 80 }}>감소율</TableCell>
+                    <TableCell align="right" sx={{ width: 80 }}>
+                      <Tooltip title="감소율 = (시작 − 종료) ÷ 시작 × 100" arrow>
+                        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, cursor: 'help' }}>
+                          감소율
+                          <InfoOutlinedIcon sx={{ fontSize: 13, opacity: 0.55 }} />
+                        </Box>
+                      </Tooltip>
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -552,9 +633,12 @@ export default function ChallengePage() {
                             fontWeight: r.rank === 1 ? 700 : 400,
                             color: isFirst ? '#92400e' : 'inherit',
                             verticalAlign: 'middle',
+                            overflow: 'hidden',
                           }}
                         >
-                          {r.nickname}
+                          <Box sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {r.nickname}
+                          </Box>
                         </TableCell>
                         <TableCell align="right" sx={{ verticalAlign: 'middle' }}>{r.startBodyFat.toFixed(1)}%</TableCell>
                         <TableCell align="right" sx={{ verticalAlign: 'middle' }}>{r.endBodyFat.toFixed(1)}%</TableCell>
@@ -576,6 +660,7 @@ export default function ChallengePage() {
                 </TableBody>
               </Table>
             </TableContainer>
+            </>
           )}
         </Box>
       )}
@@ -650,6 +735,13 @@ export default function ChallengePage() {
         message={`종료일(${endDateOnly || challenge.end_date}) 이후에 인증이 가능합니다.`}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         sx={{ '& .MuiSnackbarContent-root': { bgcolor: 'warning.dark' } }}
+      />
+      <Snackbar
+        open={!!toast}
+        autoHideDuration={3000}
+        onClose={() => setToast(null)}
+        message={toast}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       />
 
       {basicInfoDialog && (

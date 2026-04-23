@@ -23,6 +23,8 @@ export interface Participant {
   created_at: string;
 }
 
+export type DietQuality = 'normal' | 'overeat' | 'undereat';
+
 export interface WeeklyLog {
   id: string;
   participant_id: string;
@@ -33,6 +35,12 @@ export interface WeeklyLog {
   weight_kg: number | null;
   height_cm: number | null;
   body_fat_rate: number | null;
+  /** 이번 주 운동 횟수 (0~7) */
+  exercise_count: number | null;
+  /** 평균 수면 시간 (시간) */
+  sleep_hours: number | null;
+  /** 식단 패턴 */
+  diet_quality: DietQuality | null;
   note: string | null;
   created_at: string;
   updated_at: string;

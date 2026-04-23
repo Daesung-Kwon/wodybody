@@ -12,8 +12,10 @@ import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
+import Divider from '@mui/material/Divider';
+import Box from '@mui/material/Box';
 import { supabase } from '../lib/supabase';
-import type { Participant, Gender } from '../types';
+import type { Participant, Gender, DietQuality } from '../types';
 import { getWeekNoForDate } from '../lib/weekUtils';
 
 interface Props {
@@ -45,6 +47,10 @@ export default function WeeklyLogForm({
   const [weightKg, setWeightKg] = useState<string>('');
   const [heightCm, setHeightCm] = useState<string>('');
   const [bodyFatRate, setBodyFatRate] = useState<string>('');
+  // 라이프스타일 필드
+  const [exerciseCount, setExerciseCount] = useState<string>('');
+  const [sleepHours, setSleepHours] = useState<string>('');
+  const [dietQuality, setDietQuality] = useState<DietQuality | ''>('');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -78,6 +84,11 @@ export default function WeeklyLogForm({
       setError(`이미 ${weekNo}주차 기록이 있습니다. 수정하려면 기존 기록을 찾아 수정하세요.`);
       return;
     }
+    const parsedSleepHours = sleepHours.trim() ? parseFloat(sleepHours) : null;
+    if (parsedSleepHours !== null && (parsedSleepHours < 0 || parsedSleepHours > 24)) {
+      setError('수면 시간은 0~24 사이로 입력하세요.');
+      return;
+    }
     setLoading(true);
     setError('');
 
@@ -90,6 +101,9 @@ export default function WeeklyLogForm({
       weight_kg: weightKg.trim() ? parseFloat(weightKg) : null,
       height_cm: heightCm.trim() ? parseFloat(heightCm) : null,
       body_fat_rate: Math.round(rate * 100) / 100,
+      exercise_count: exerciseCount !== '' ? parseInt(exerciseCount, 10) : null,
+      sleep_hours: parsedSleepHours,
+      diet_quality: dietQuality || null,
       note: note.trim() || null,
     });
 
@@ -164,7 +178,56 @@ export default function WeeklyLogForm({
             value={heightCm}
             onChange={(e) => setHeightCm(e.target.value)}
           />
-          <TextField fullWidth label="메모" multiline rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+
+          {/* ── 이번 주 라이프스타일 ── */}
+          <Divider sx={{ mt: 1 }} />
+          <Box>
+            <Typography variant="subtitle2" color="primary.main" gutterBottom>
+              이번 주 라이프스타일
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              입력할수록 AI 조언이 더 개인화됩니다.
+            </Typography>
+          </Box>
+          <FormControl fullWidth>
+            <InputLabel>운동 횟수</InputLabel>
+            <Select
+              value={exerciseCount}
+              label="운동 횟수"
+              onChange={(e) => setExerciseCount(e.target.value as string)}
+            >
+              <MenuItem value="">입력 안 함</MenuItem>
+              {[0, 1, 2, 3, 4, 5, 6, 7].map((n) => (
+                <MenuItem key={n} value={String(n)}>
+                  {n}회{n === 0 ? ' (운동 없음)' : ''}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <TextField
+            fullWidth
+            label="평균 수면 시간 (시간)"
+            type="number"
+            inputProps={{ min: 0, max: 24, step: 0.5, inputMode: 'decimal' }}
+            value={sleepHours}
+            onChange={(e) => setSleepHours(e.target.value)}
+            helperText="예: 7.5"
+          />
+          <FormControl fullWidth>
+            <InputLabel>식단 패턴</InputLabel>
+            <Select
+              value={dietQuality}
+              label="식단 패턴"
+              onChange={(e) => setDietQuality(e.target.value as DietQuality | '')}
+            >
+              <MenuItem value="">입력 안 함</MenuItem>
+              <MenuItem value="normal">정상 — 평소와 비슷하게 먹었음</MenuItem>
+              <MenuItem value="overeat">과식 — 평소보다 많이 먹었음</MenuItem>
+              <MenuItem value="undereat">절식 — 평소보다 적게 먹었음</MenuItem>
+            </Select>
+          </FormControl>
+
+          <TextField fullWidth label="메모 (특이사항, 부상, 출장 등)" multiline rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
           {error && (
             <Typography color="error" variant="body2">
               {error}

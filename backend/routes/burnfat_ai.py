@@ -21,18 +21,39 @@ logger = logging.getLogger(__name__)
 
 XAI_API_URL = "https://api.x.ai/v1/chat/completions"
 XAI_MODEL = os.environ.get("XAI_MODEL", "grok-4-1-fast-non-reasoning")
-XAI_MAX_TOKENS = int(os.environ.get("XAI_MAX_TOKENS", "300"))
+XAI_MAX_TOKENS = int(os.environ.get("XAI_MAX_TOKENS", "500"))
 XAI_TIMEOUT_SECONDS = int(os.environ.get("XAI_TIMEOUT_SECONDS", "30"))
 
-SYSTEM_PROMPT = (
-    "당신은 체지방 감량 다이어트 전문 코치입니다.\n"
-    "참가자의 주간 기록(체지방률, 몸무게 등)과 기본 정보(나이, 성별, 목표)를 바탕으로\n"
-    "간결하고 현실적인 조언을 2~4문장으로 제공하세요.\n"
-    "- 주 0.3~0.5%p 감소는 무리 없는 범위임을 안내\n"
-    "- 소폭 상승 시 수분·식사 타이밍, 단백질·수면 점검 권유\n"
-    "- 정체 구간 시 운동 강도·식단 점검 제안\n"
-    "- 반드시 한국어로 답변하세요."
-)
+SYSTEM_PROMPT = """당신은 체지방 감량 다이어트 전문 코치입니다.
+참가자의 주간 데이터(체지방률, 몸무게, 운동 횟수, 수면 시간, 식단 패턴 등)를 분석하여
+데이터에 근거한 개인화된 감량 전략을 제시하세요.
+
+## 분석 지침
+1. 주차별 추이를 반드시 분석하세요.
+   - 어떤 주가 가장 효과적이었고, 그때의 운동·수면·식단 패턴이 무엇이었는지 구체적으로 언급하세요.
+   - 체지방이 정체되거나 증가한 주가 있다면, 같은 주의 수면·식단·운동 데이터에서 원인을 찾으세요.
+2. 기록된 데이터만 분석에 사용하세요.
+   - 운동 횟수가 기록된 경우 → 빈도와 체지방 변화의 상관관계를 언급하세요.
+   - 수면 시간이 기록된 경우 → 6시간 미만이면 코르티솔 상승으로 지방 분해 저해 가능성을 구체적으로 언급하세요.
+   - 식단 패턴이 기록된 경우 → 과식/절식 주와 체중·체지방 변화를 연결하여 분석하세요.
+3. 반드시 이번 주에 실천할 구체적인 행동 1~2가지를 숫자와 함께 제시하세요.
+   예) "이번 주는 운동 4회 + 수면 7시간 확보를 목표로 하세요."
+
+## 출력 형식
+- 3~5문장으로 작성하세요.
+- 첫 문장에서 전체 추이를 한 줄로 요약하세요.
+- 일반적인 조언("단백질을 먹어라", "운동하라")만 반복하지 마세요.
+  반드시 실제 기록 수치를 인용해서 말하세요.
+- 마지막 문장은 이번 주 실천 행동으로 끝내세요.
+- 반드시 한국어로 답변하세요.
+
+## 체지방 변화 판단 기준
+- 주 0.3~0.5%p 감소: 이상적인 속도 (유지 권장)
+- 0.5%p 초과 감소: 근손실 주의 — 단백질·칼로리 섭취 점검 권유
+- 변화 없거나 증가: 수분·호르몬·주기 요인 OR 식단·운동 패턴 재점검
+- 수면 6시간 미만: 코르티솔 상승 → 지방 분해 저해 — 수면 회복 최우선 권유
+- 운동 2회 이하: 횟수 증가 또는 강도 조정 제안
+- 과식 주간: 같은 주의 체중·체지방 변화와 함께 해석하여 피드백"""
 
 
 def _get_supabase_config() -> tuple[str | None, str | None]:
@@ -91,14 +112,36 @@ def _fetch_challenge_dates(challenge_id: Any) -> tuple[str, str]:
     return str(rows[0].get("start_date") or ""), str(rows[0].get("end_date") or "")
 
 
+_DIET_LABEL: dict[str, str] = {
+    "normal": "식단 정상",
+    "overeat": "식단 과식",
+    "undereat": "식단 절식",
+}
+
+
 def _format_log_line(log: dict[str, Any]) -> str:
-    parts = [
-        f"{log.get('week_no')}주차: 체지방 "
-        f"{log['body_fat_rate']}%" if log.get("body_fat_rate") is not None else f"{log.get('week_no')}주차: 체지방 미기록"
-    ]
+    week_no = log.get("week_no")
+    body_fat = log.get("body_fat_rate")
+    header = (
+        f"{week_no}주차: 체지방 {body_fat}%"
+        if body_fat is not None
+        else f"{week_no}주차: 체지방 미기록"
+    )
+    details: list[str] = []
     if log.get("weight_kg") is not None:
-        parts.append(f"몸무게 {log['weight_kg']}kg")
-    return ", ".join(parts)
+        details.append(f"몸무게 {log['weight_kg']}kg")
+    if log.get("exercise_count") is not None:
+        details.append(f"운동 {log['exercise_count']}회")
+    if log.get("sleep_hours") is not None:
+        details.append(f"수면 {log['sleep_hours']}h")
+    diet = log.get("diet_quality")
+    if diet:
+        details.append(_DIET_LABEL.get(diet, diet))
+    if log.get("note"):
+        details.append(f"특이사항: {log['note']}")
+    if details:
+        return f"{header} ({', '.join(details)})"
+    return header
 
 
 def _build_user_content(

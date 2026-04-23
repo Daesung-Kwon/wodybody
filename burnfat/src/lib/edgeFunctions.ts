@@ -1,4 +1,6 @@
-// Cloudflare Workers AI (VITE_AI_ADVICE_URL) 또는 Supabase Edge Function
+// AI 조언 엔드포인트 우선순위:
+// 1) VITE_AI_ADVICE_URL (권장: wodybody Flask 백엔드의 /api/burnfat/ai/advice - Grok 프록시)
+// 2) Supabase Edge Function 폴백 (레거시)
 const AI_ADVICE_URL =
   import.meta.env.VITE_AI_ADVICE_URL ||
   (import.meta.env.VITE_SUPABASE_URL

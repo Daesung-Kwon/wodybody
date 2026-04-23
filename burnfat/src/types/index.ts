@@ -56,5 +56,6 @@ export interface RankingRow {
   nickname: string;
   startBodyFat: number;
   endBodyFat: number;
-  reduction: number;
+  /** 체지방 감소율 (%) = (시작 - 종료) / 시작 × 100 */
+  reductionRate: number;
 }

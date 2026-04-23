@@ -116,17 +116,20 @@ export default function ChallengePage() {
         if (!start || !end) return null;
         const startVal = Number(start.body_fat_rate);
         const endVal = Number(end.body_fat_rate);
-        const reduction = Math.round((startVal - endVal) * 10) / 10;
+        // (시작 - 종료) / 시작 × 100 → 시작 체지방 대비 상대 감소율
+        const reductionRate = startVal > 0
+          ? Math.round(((startVal - endVal) / startVal) * 10000) / 100
+          : 0;
         return {
           rank: 0,
           nickname: p.nickname,
           startBodyFat: Math.round(startVal * 10) / 10,
           endBodyFat: Math.round(endVal * 10) / 10,
-          reduction,
+          reductionRate,
         };
       })
       .filter((r): r is RankingRow => r !== null)
-      .sort((a, b) => b.reduction - a.reduction)
+      .sort((a, b) => b.reductionRate - a.reductionRate)
       .map((r, i) => ({ ...r, rank: i + 1 }));
     setRanking(rows);
   }, [challenge]);
@@ -481,7 +484,7 @@ export default function ChallengePage() {
                     <TableCell>닉네임</TableCell>
                     <TableCell align="right" sx={{ width: 64 }}>시작</TableCell>
                     <TableCell align="right" sx={{ width: 64 }}>종료</TableCell>
-                    <TableCell align="right" sx={{ width: 72 }}>감소량</TableCell>
+                    <TableCell align="right" sx={{ width: 80 }}>감소율</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -564,7 +567,7 @@ export default function ChallengePage() {
                               textShadow: isFirst ? '0 0 8px rgba(245, 158, 11, 0.5)' : 'none',
                             }}
                           >
-                            -{r.reduction.toFixed(1)}%
+                            -{r.reductionRate.toFixed(2)}%
                           </Typography>
                         </TableCell>
                       </TableRow>

@@ -41,14 +41,14 @@ export default function WeeklyLogChart({ logs, participant }: Props) {
   return (
     <Box sx={{ width: '100%', height: 240 }}>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <LineChart data={data} margin={{ top: 8, right: 8, left: 4, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
           <XAxis dataKey="week" tick={{ fontSize: 12 }} />
           <YAxis
             domain={['auto', 'auto']}
-            tickFormatter={(v) => `${v}%`}
-            tick={{ fontSize: 12 }}
-            width={36}
+            tickFormatter={(v: number) => `${Number(v).toFixed(1)}%`}
+            tick={{ fontSize: 11 }}
+            width={52}
           />
           <Tooltip
             formatter={(value: number | undefined) => (value != null ? [`${value}%`, '체지방률'] : null)}

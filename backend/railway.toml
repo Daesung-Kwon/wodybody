@@ -9,6 +9,8 @@ restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
 
 [git]
+# PR 및 프로덕션은 main 기준이므로 main에서 자동 배포 허용
+# legacy 실험용 backend 브랜치도 유지
+deploymentEnabled.main = true
 deploymentEnabled.backend = true
-deploymentEnabled.main = false
 deploymentEnabled.frontend = false

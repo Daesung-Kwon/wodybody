@@ -1,37 +1,37 @@
 name: Railway Backend Deploy
 
+# Railway: backend/ 서비스는 GitHub 연동 + backend/railway.toml 의
+# [git] deploymentEnabled 로 브랜치별 자동 배포가 결정됩니다. main 푸시로
+# PR 머지가 반영되려면 deploymentEnabled.main=true 이어야 합니다.
+# 아래 job은 (선택) 수동 웹훅 보조용 — 시크릿이 없으면 no-op.
+
 on:
   push:
-    branches: [ backend ]
-  workflow_dispatch:  # 수동 트리거 가능
+    branches: [ main, backend ]
+    paths:
+      - "backend/**"
+  workflow_dispatch:
 
 jobs:
   notify-railway:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Notify Railway Deployment
-      run: |
-        echo "Backend branch updated. Railway should auto-deploy via webhook."
-        echo "Commit: ${{ github.sha }}"
-        echo "Branch: ${{ github.ref_name }}"
-        echo "Repository: ${{ github.repository }}"
-        
-        # Railway 웹훅 트리거 (Railway 대시보드에서 설정된 경우)
-        curl -X POST \
-          -H "Content-Type: application/json" \
-          -d '{
-            "ref": "${{ github.ref }}",
-            "repository": {
-              "full_name": "${{ github.repository }}",
-              "clone_url": "${{ github.server_url }}/${{ github.repository }}.git"
-            },
-            "head_commit": {
-              "id": "${{ github.sha }}",
-              "message": "${{ github.event.head_commit.message }}"
-            }
-          }' \
-          "${{ secrets.RAILWAY_WEBHOOK_URL }}" || echo "Webhook not configured, Railway auto-deploy should handle this"
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log deploy context
+        run: |
+          echo "Branch: $GITHUB_REF_NAME | SHA: $GITHUB_SHA | Repo: $GITHUB_REPOSITORY"
+
+      - name: Optional webhook to Railway
+        env:
+          RAILWAY_WEBHOOK_URL: ${{ secrets.RAILWAY_WEBHOOK_URL }}
+        run: |
+          if [ -z "${RAILWAY_WEBHOOK_URL}" ]; then
+            echo "RAILWAY_WEBHOOK_URL not set; relying on Railway GitHub app integration (recommended)."
+            exit 0
+          fi
+          curl -fsS -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"ref\":\"${{ github.ref }}\",\"repository\":{\"full_name\":\"${{ github.repository }}\"},\"head_commit\":{\"id\":\"${{ github.sha }}\"}}" \
+            "$RAILWAY_WEBHOOK_URL"

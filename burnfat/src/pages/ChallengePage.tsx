@@ -88,6 +88,15 @@ export default function ChallengePage() {
   const [pinDialog, setPinDialog] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
+  const [pendingPinAction, setPendingPinAction] = useState<'ranking' | 'editChallenge'>('ranking');
+  // 챌린지 기본정보 수정
+  const [challengeEditOpen, setChallengeEditOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
+  const [editStakeAmount, setEditStakeAmount] = useState(0);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState('');
 
   const fetchChallenge = useCallback(async () => {
     if (!code) {
@@ -177,16 +186,63 @@ export default function ChallengePage() {
     );
   };
 
+  const openPinDialog = (action: 'ranking' | 'editChallenge') => {
+    setPinInput('');
+    setPinError('');
+    setPendingPinAction(action);
+    setPinDialog(true);
+  };
+
   const handleUnlockRanking = () => {
     if (!challenge) return;
-    // PIN이 설정된 경우 다이얼로그로 검증
     if (challenge.admin_pin) {
-      setPinInput('');
-      setPinError('');
-      setPinDialog(true);
+      openPinDialog('ranking');
     } else {
       doToggleRanking();
     }
+  };
+
+  const handleEditChallengeOpen = () => {
+    if (!challenge) return;
+    if (challenge.admin_pin) {
+      openPinDialog('editChallenge');
+    } else {
+      openChallengeEditDialog();
+    }
+  };
+
+  const openChallengeEditDialog = () => {
+    if (!challenge) return;
+    setEditTitle(challenge.title);
+    setEditStartDate(challenge.start_date);
+    setEditEndDate(challenge.end_date);
+    setEditStakeAmount(challenge.stake_amount);
+    setEditError('');
+    setChallengeEditOpen(true);
+  };
+
+  const handleChallengeEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!challenge) return;
+    if (!editTitle.trim()) { setEditError('대결 이름을 입력하세요.'); return; }
+    if (!editStartDate || !editEndDate) { setEditError('기간을 입력하세요.'); return; }
+    if (editStartDate >= editEndDate) { setEditError('종료일은 시작일 이후여야 합니다.'); return; }
+    setEditLoading(true);
+    setEditError('');
+    const { error: err } = await supabase
+      .from('challenges')
+      .update({
+        title: editTitle.trim(),
+        start_date: editStartDate,
+        end_date: editEndDate,
+        stake_amount: editStakeAmount,
+      })
+      .eq('id', challenge.id);
+    setEditLoading(false);
+    if (err) { setEditError(err.message); return; }
+    setChallenge({ ...challenge, title: editTitle.trim(), start_date: editStartDate, end_date: editEndDate, stake_amount: editStakeAmount });
+    setChallengeEditOpen(false);
+    setToast('챌린지 정보가 수정되었습니다');
   };
 
   const doToggleRanking = async () => {
@@ -215,7 +271,11 @@ export default function ChallengePage() {
       return;
     }
     setPinDialog(false);
-    doToggleRanking();
+    if (pendingPinAction === 'ranking') {
+      doToggleRanking();
+    } else if (pendingPinAction === 'editChallenge') {
+      openChallengeEditDialog();
+    }
   };
 
   const handleJoin = async (e: React.FormEvent) => {
@@ -310,11 +370,18 @@ export default function ChallengePage() {
               대결 코드: <strong>{challenge.code}</strong>
             </Typography>
           </Box>
-          <Tooltip title="URL 복사">
-            <IconButton onClick={handleCopyShare} color="primary" size="small">
-              <ContentCopyIcon />
-            </IconButton>
-          </Tooltip>
+          <Box sx={{ display: 'flex', gap: 0.5 }}>
+            <Tooltip title="챌린지 정보 수정">
+              <IconButton onClick={handleEditChallengeOpen} size="small" color="default">
+                <EditIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="URL 복사">
+              <IconButton onClick={handleCopyShare} color="primary" size="small">
+                <ContentCopyIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
         </Box>
       </Box>
 
@@ -793,6 +860,60 @@ export default function ChallengePage() {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       />
 
+      {/* 챌린지 기본정보 수정 다이얼로그 */}
+      <Dialog open={challengeEditOpen} onClose={() => setChallengeEditOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <EditIcon sx={{ fontSize: 20 }} />
+          챌린지 정보 수정
+        </DialogTitle>
+        <form onSubmit={handleChallengeEditSubmit}>
+          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+            <TextField
+              fullWidth
+              label="대결 이름"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              required
+            />
+            <TextField
+              fullWidth
+              label="시작일"
+              type="date"
+              value={editStartDate}
+              onChange={(e) => setEditStartDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
+            <TextField
+              fullWidth
+              label="종료일"
+              type="date"
+              value={editEndDate}
+              onChange={(e) => setEditEndDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
+            <TextField
+              fullWidth
+              label="참가비 (원)"
+              type="number"
+              value={editStakeAmount}
+              onChange={(e) => setEditStakeAmount(Number(e.target.value) || 0)}
+              inputProps={{ min: 0 }}
+            />
+            {editError && (
+              <Typography color="error" variant="body2">
+                {editError}
+              </Typography>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setChallengeEditOpen(false)} color="inherit">취소</Button>
+            <Button type="submit" variant="contained" disabled={editLoading}>
+              {editLoading ? '저장 중...' : '저장'}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+
       {/* PIN 확인 다이얼로그 */}
       <Dialog open={pinDialog} onClose={() => setPinDialog(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -801,7 +922,9 @@ export default function ChallengePage() {
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            순위 공개/잠금은 관리자 PIN이 필요합니다.
+            {pendingPinAction === 'editChallenge'
+              ? '챌린지 정보 수정은 관리자 PIN이 필요합니다.'
+              : '순위 공개/잠금은 관리자 PIN이 필요합니다.'}
           </Typography>
           <TextField
             fullWidth

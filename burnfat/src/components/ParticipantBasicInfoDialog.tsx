@@ -34,14 +34,16 @@ export default function ParticipantBasicInfoDialog({ open, participant, onClose,
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // open이 바뀔 때(다이얼로그가 열릴 때)마다 participant 최신값으로 폼 초기화
   useEffect(() => {
-    if (participant) {
+    if (open && participant) {
       setAge(participant.age != null ? String(participant.age) : '');
       setGender(participant.gender || '');
       setHeightCm(participant.height_cm != null ? String(participant.height_cm) : '');
       setTargetBodyFat(participant.target_body_fat != null ? String(participant.target_body_fat) : '');
+      setError('');
     }
-  }, [participant]);
+  }, [open, participant]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

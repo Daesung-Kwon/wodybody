@@ -265,7 +265,7 @@ export default function ChallengePage() {
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const endDateOnly = (challenge.end_date || '').split('T')[0].slice(0, 10);
-  const canSubmitStart = challenge.start_date <= today;
+  const isBeforeStartDate = challenge.start_date > today;
   // end_date가 없으면 안전하게 차단(모달 열지 않음). 빈 문자열일 때 '' > today 는 false가 되어 잘못 모달이 열리는 버그 방지
   const isBeforeEndDate = !endDateOnly ? true : endDateOnly > today;
 
@@ -403,12 +403,17 @@ export default function ChallengePage() {
                           <EditIcon sx={{ fontSize: 18 }} />
                         </IconButton>
                       </Tooltip>
-                      {canSubmitStart && !p.submissions.some((s) => s.type === 'start') && (
+                      {!p.submissions.some((s) => s.type === 'start') && (
                         <Button
                           size="small"
                           variant="outlined"
                           startIcon={<AddIcon sx={{ fontSize: 16 }} />}
-                          onClick={() => setSubmitModal({ open: true, participantId: p.id, participantNickname: p.nickname, type: 'start' })}
+                          onClick={() => {
+                            if (isBeforeStartDate) {
+                              setToast(`시작일(${challenge.start_date}) 이후에 인증을 권장하지만, 미리 제출도 가능합니다.`);
+                            }
+                            setSubmitModal({ open: true, participantId: p.id, participantNickname: p.nickname, type: 'start' });
+                          }}
                           sx={{ minHeight: 44, py: 0.75, px: 1.5, fontSize: '0.8125rem' }}
                         >
                           시작일 인증

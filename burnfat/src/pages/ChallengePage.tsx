@@ -170,19 +170,20 @@ export default function ChallengePage() {
 
   const handleUnlockRanking = async () => {
     if (!challenge) return;
+    const next = !(challenge.ranking_unlocked ?? false);
     try {
       const { error } = await supabase
         .from('challenges')
-        .update({ ranking_unlocked: true })
+        .update({ ranking_unlocked: next })
         .eq('id', challenge.id);
       if (error) {
-        setToast('순위 공개 실패: Supabase 마이그레이션을 먼저 실행하세요');
+        setToast('설정 실패: Supabase 마이그레이션을 먼저 실행하세요');
         return;
       }
-      setChallenge({ ...challenge, ranking_unlocked: true });
-      setToast('순위가 공개되었습니다');
+      setChallenge({ ...challenge, ranking_unlocked: next });
+      setToast(next ? '중간 순위가 공개되었습니다' : '순위가 다시 잠겼습니다');
     } catch {
-      setToast('순위 공개 중 오류가 발생했습니다');
+      setToast('순위 공개 설정 중 오류가 발생했습니다');
     }
   };
 
@@ -492,39 +493,48 @@ export default function ChallengePage() {
 
       {tab === 1 && (
         <Box sx={{ px: 2, pt: 2 }}>
-          {!showRanking ? (
-            <Box sx={{ textAlign: 'center', py: 2, px: 2 }}>
-              <Typography color="text.secondary">
-                모든 참가자가 종료 인증을 완료하면 순위가 공개됩니다.
-              </Typography>
-              <Typography variant="body1" fontWeight={600} color="primary.main" sx={{ mt: 2 }}>
-                순위 보지 말고, 뛰세요... 지금 당장!
-              </Typography>
-              <Box
-                component="video"
-                src="/promo-video.mp4"
-                autoPlay
-                muted
-                loop
-                playsInline
-                controls
-                sx={{ width: '100%', maxWidth: 360, mt: 2, borderRadius: 2, mx: 'auto', display: 'block' }}
-              />
-              <Box sx={{ mt: 3 }}>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<LockOpenIcon />}
-                  onClick={handleUnlockRanking}
-                  color="warning"
-                >
-                  중간 순위 공개
-                </Button>
-                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                  종료 인증 전이어도 모든 참가자에게 순위가 공개됩니다
+          {/* 종료 인증 진행 상태 + 중간 순위 공개 토글 */}
+          {!allEndComplete && (
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 1,
+                mb: 2,
+                p: 1.5,
+                bgcolor: showRanking ? 'warning.50' : 'grey.50',
+                borderRadius: 1.5,
+                border: '1px solid',
+                borderColor: showRanking ? 'warning.200' : 'grey.200',
+              }}
+            >
+              <Box>
+                <Typography variant="body2" fontWeight={500}>
+                  종료 인증 {participantsWithStart.filter((p) =>
+                    p.submissions.some((s) => s.type === 'end')
+                  ).length} / {participantsWithStart.length}명 완료
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {showRanking ? '현재 중간 순위 공개 중' : '전원 완료 시 자동 공개'}
                 </Typography>
               </Box>
+              <Button
+                variant={showRanking ? 'contained' : 'outlined'}
+                size="small"
+                startIcon={<LockOpenIcon />}
+                onClick={handleUnlockRanking}
+                color="warning"
+                sx={{ flexShrink: 0 }}
+              >
+                {showRanking ? '순위 잠금' : '중간 공개'}
+              </Button>
             </Box>
+          )}
+          {!showRanking ? (
+            <Typography color="text.secondary" sx={{ textAlign: 'center', py: 6 }}>
+              종료 인증이 완료되면 순위가 공개됩니다.
+            </Typography>
           ) : ranking.length === 0 ? (
             <Typography color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
               시작·종료 인증을 모두 마친 참가자가 있을 때 순위가 표시됩니다.

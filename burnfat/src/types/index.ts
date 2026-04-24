@@ -8,6 +8,8 @@ export interface Challenge {
   created_at: string;
   /** 중간 순위 공개 여부 — 마이그레이션 후 사용 가능 */
   ranking_unlocked?: boolean;
+  /** 순위 공개/잠금 보호 PIN (4자리 숫자, 미설정 시 누구나 가능) */
+  admin_pin?: string | null;
 }
 
 export type Gender = 'M' | 'F';

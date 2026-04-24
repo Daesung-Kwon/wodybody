@@ -7,6 +7,8 @@ import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import LockIcon from '@mui/icons-material/Lock';
+import InputAdornment from '@mui/material/InputAdornment';
 import { supabase } from '../lib/supabase';
 import type { Challenge } from '../types';
 
@@ -34,6 +36,7 @@ export default function CreateChallengePage() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
   const [stakeAmount, setStakeAmount] = useState(50000);
+  const [adminPin, setAdminPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -53,6 +56,12 @@ export default function CreateChallengePage() {
       attempts++;
     }
 
+    if (adminPin && !/^\d{4}$/.test(adminPin)) {
+      setError('관리자 PIN은 숫자 4자리로 입력하세요.');
+      setLoading(false);
+      return;
+    }
+
     const { data, error: err } = await supabase
       .from('challenges')
       .insert({
@@ -61,6 +70,7 @@ export default function CreateChallengePage() {
         start_date: startDate,
         end_date: endDate,
         stake_amount: stakeAmount,
+        admin_pin: adminPin.trim() || null,
       })
       .select()
       .single();
@@ -117,6 +127,24 @@ export default function CreateChallengePage() {
               type="number"
               value={stakeAmount}
               onChange={(e) => setStakeAmount(Number(e.target.value) || 0)}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="관리자 PIN (선택)"
+              type="number"
+              inputProps={{ maxLength: 4, inputMode: 'numeric' }}
+              value={adminPin}
+              onChange={(e) => setAdminPin(e.target.value.slice(0, 4))}
+              placeholder="숫자 4자리"
+              helperText="설정하면 순위 공개·잠금 시 PIN 확인이 필요합니다. 미설정 시 누구나 가능."
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LockIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
+                  </InputAdornment>
+                ),
+              }}
               sx={{ mb: 2 }}
             />
             {error && (

@@ -22,10 +22,16 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import ShareIcon from '@mui/icons-material/Share';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
+import LockIcon from '@mui/icons-material/Lock';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Snackbar from '@mui/material/Snackbar';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import InputAdornment from '@mui/material/InputAdornment';
 import { supabase } from '../lib/supabase';
 import type { Challenge, ParticipantWithSubmissions, RankingRow } from '../types';
 import SubmitModal from '../components/SubmitModal';
@@ -79,6 +85,9 @@ export default function ChallengePage() {
   const [snackbar, setSnackbar] = useState(false);
   const [earlyEndBlockSnackbar, setEarlyEndBlockSnackbar] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [pinDialog, setPinDialog] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState('');
 
   const fetchChallenge = useCallback(async () => {
     if (!code) {
@@ -168,7 +177,19 @@ export default function ChallengePage() {
     );
   };
 
-  const handleUnlockRanking = async () => {
+  const handleUnlockRanking = () => {
+    if (!challenge) return;
+    // PIN이 설정된 경우 다이얼로그로 검증
+    if (challenge.admin_pin) {
+      setPinInput('');
+      setPinError('');
+      setPinDialog(true);
+    } else {
+      doToggleRanking();
+    }
+  };
+
+  const doToggleRanking = async () => {
     if (!challenge) return;
     const next = !(challenge.ranking_unlocked ?? false);
     try {
@@ -185,6 +206,16 @@ export default function ChallengePage() {
     } catch {
       setToast('순위 공개 설정 중 오류가 발생했습니다');
     }
+  };
+
+  const handlePinSubmit = () => {
+    if (!challenge) return;
+    if (pinInput !== challenge.admin_pin) {
+      setPinError('PIN이 올바르지 않습니다.');
+      return;
+    }
+    setPinDialog(false);
+    doToggleRanking();
   };
 
   const handleJoin = async (e: React.FormEvent) => {
@@ -522,12 +553,15 @@ export default function ChallengePage() {
               <Button
                 variant={showRanking ? 'contained' : 'outlined'}
                 size="small"
-                startIcon={<LockOpenIcon />}
+                startIcon={showRanking ? <LockIcon /> : <LockOpenIcon />}
                 onClick={handleUnlockRanking}
                 color="warning"
                 sx={{ flexShrink: 0 }}
               >
                 {showRanking ? '순위 잠금' : '중간 공개'}
+                {challenge?.admin_pin && (
+                  <LockIcon sx={{ fontSize: 12, ml: 0.5, opacity: 0.6 }} />
+                )}
               </Button>
             </Box>
           )}
@@ -753,6 +787,49 @@ export default function ChallengePage() {
         message={toast}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       />
+
+      {/* PIN 확인 다이얼로그 */}
+      <Dialog open={pinDialog} onClose={() => setPinDialog(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <LockIcon sx={{ fontSize: 20, color: 'warning.main' }} />
+          관리자 PIN 확인
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            순위 공개/잠금은 관리자 PIN이 필요합니다.
+          </Typography>
+          <TextField
+            fullWidth
+            label="PIN 4자리"
+            type="number"
+            inputProps={{ maxLength: 4, inputMode: 'numeric' }}
+            value={pinInput}
+            onChange={(e) => { setPinInput(e.target.value.slice(0, 4)); setPinError(''); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') handlePinSubmit(); }}
+            error={!!pinError}
+            helperText={pinError}
+            autoFocus
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <LockIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setPinDialog(false)} color="inherit">취소</Button>
+          <Button
+            variant="contained"
+            color="warning"
+            onClick={handlePinSubmit}
+            disabled={pinInput.length !== 4}
+          >
+            확인
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {basicInfoDialog && (
         <ParticipantBasicInfoDialog

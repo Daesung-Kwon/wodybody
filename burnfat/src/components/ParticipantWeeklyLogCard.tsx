@@ -16,6 +16,7 @@ interface Props {
   challengeEndDate: string;
   logs: WeeklyLog[];
   onOpenLogForm: () => void;
+  onOpenBasicInfo: () => void;
   onRefresh: () => void;
 }
 
@@ -23,6 +24,7 @@ export default function ParticipantWeeklyLogCard({
   participant,
   logs,
   onOpenLogForm,
+  onOpenBasicInfo,
   onRefresh: _onRefresh,
 }: Props) {
   return (
@@ -76,7 +78,12 @@ export default function ParticipantWeeklyLogCard({
           </Box>
         )}
         <Box sx={{ mt: 2 }}>
-          <AIAdviceCard participantId={participant.id} participantNickname={participant.nickname} />
+          <AIAdviceCard
+            participant={participant}
+            logs={logs}
+            onOpenBasicInfo={onOpenBasicInfo}
+            onOpenLogForm={onOpenLogForm}
+          />
         </Box>
       </CardContent>
     </Card>

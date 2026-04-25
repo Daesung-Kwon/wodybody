@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { fetchAIAdvice } from '../lib/edgeFunctions';
+import { fetchAIAdvice, type AIAdviceRequest } from '../lib/edgeFunctions';
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24시간
 
@@ -38,7 +38,11 @@ export function useAIAdvice() {
   const [error, setError] = useState<string | null>(null);
   const [isCached, setIsCached] = useState(false);
 
-  const load = useCallback(async (participantId: string, forceRefresh = false) => {
+  const load = useCallback(async (
+    participantId: string,
+    forceRefresh = false,
+    options?: Omit<AIAdviceRequest, 'participantId'>
+  ) => {
     if (!forceRefresh) {
       const cached = readCache(participantId);
       if (cached) {
@@ -54,7 +58,7 @@ export function useAIAdvice() {
     setAdvice(null);
     setIsCached(false);
     try {
-      const res = await fetchAIAdvice(participantId);
+      const res = await fetchAIAdvice({ participantId, ...options });
       setAdvice(res.advice);
       setIsCached(false);
       writeCache(participantId, res.advice);

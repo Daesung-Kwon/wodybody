@@ -14,6 +14,13 @@ export interface AIAdviceResponse {
   advice: string;
 }
 
+export interface AIAdviceRequest {
+  participantId: string;
+  userContext?: string;
+  adviceStyle?: string;
+  adviceGoal?: string;
+}
+
 interface AdviceErrorBody {
   error?: string;
 }
@@ -48,12 +55,17 @@ function parseErrorMessage(res: Response, bodyText: string): string {
   return bodyText?.trim() || `AI 조언 요청 실패 (${res.status})`;
 }
 
-export async function fetchAIAdvice(participantId: string): Promise<AIAdviceResponse> {
+export async function fetchAIAdvice(req: AIAdviceRequest): Promise<AIAdviceResponse> {
   const url = resolveAiAdviceUrl();
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ participant_id: participantId }),
+    body: JSON.stringify({
+      participant_id: req.participantId,
+      user_context: req.userContext?.trim() || undefined,
+      advice_style: req.adviceStyle || undefined,
+      advice_goal: req.adviceGoal || undefined,
+    }),
   });
 
   const text = await res.text();

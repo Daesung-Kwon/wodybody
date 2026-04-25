@@ -828,6 +828,7 @@ export default function ChallengePage() {
               challengeEndDate={challenge.end_date}
               logs={logsByParticipant[p.id] || []}
               onOpenLogForm={() => setWeeklyLogParticipant(p)}
+              onOpenBasicInfo={() => { setBasicInfoDialog(p); setBasicInfoDialogAfterJoin(false); }}
               onRefresh={fetchParticipants}
             />
           ))}

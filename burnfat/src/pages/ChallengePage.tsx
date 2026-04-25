@@ -88,6 +88,7 @@ export default function ChallengePage() {
   const [pinDialog, setPinDialog] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
+  const [pinLoading, setPinLoading] = useState(false);
   const [pendingPinAction, setPendingPinAction] = useState<'ranking' | 'editChallenge'>('ranking');
   // 챌린지 기본정보 수정
   const [challengeEditOpen, setChallengeEditOpen] = useState(false);
@@ -189,6 +190,7 @@ export default function ChallengePage() {
   const openPinDialog = (action: 'ranking' | 'editChallenge') => {
     setPinInput('');
     setPinError('');
+    setPinLoading(false);
     setPendingPinAction(action);
     setPinDialog(true);
   };
@@ -245,8 +247,10 @@ export default function ChallengePage() {
     setToast('챌린지 정보가 수정되었습니다');
   };
 
-  const doToggleRanking = async () => {
-    if (!challenge) return;
+  const normalizeAdminPin = (p: string | null | undefined) => String(p ?? '').trim().replace(/\D/g, '');
+
+  const doToggleRanking = async (): Promise<boolean> => {
+    if (!challenge) return false;
     const next = !(challenge.ranking_unlocked ?? false);
     try {
       const { error } = await supabase
@@ -254,26 +258,38 @@ export default function ChallengePage() {
         .update({ ranking_unlocked: next })
         .eq('id', challenge.id);
       if (error) {
-        setToast('설정 실패: Supabase 마이그레이션을 먼저 실행하세요');
-        return;
+        setToast(`설정 실패: ${error.message}`);
+        return false;
       }
       setChallenge({ ...challenge, ranking_unlocked: next });
       setToast(next ? '중간 순위가 공개되었습니다' : '순위가 다시 잠겼습니다');
+      return true;
     } catch {
       setToast('순위 공개 설정 중 오류가 발생했습니다');
+      return false;
     }
   };
 
-  const handlePinSubmit = () => {
+  const handlePinSubmit = async () => {
     if (!challenge) return;
-    if (pinInput !== challenge.admin_pin) {
+    const expected = normalizeAdminPin(challenge.admin_pin);
+    const got = normalizeAdminPin(pinInput);
+    if (got.length !== 4 || got !== expected) {
       setPinError('PIN이 올바르지 않습니다.');
       return;
     }
-    setPinDialog(false);
     if (pendingPinAction === 'ranking') {
-      doToggleRanking();
+      setPinLoading(true);
+      setPinError('');
+      const ok = await doToggleRanking();
+      setPinLoading(false);
+      if (ok) {
+        setPinInput('');
+        setPinDialog(false);
+      }
     } else if (pendingPinAction === 'editChallenge') {
+      setPinInput('');
+      setPinDialog(false);
       openChallengeEditDialog();
     }
   };
@@ -929,14 +945,19 @@ export default function ChallengePage() {
           <TextField
             fullWidth
             label="PIN 4자리"
-            type="number"
-            inputProps={{ maxLength: 4, inputMode: 'numeric' }}
+            type="text"
+            inputProps={{ maxLength: 4, inputMode: 'numeric', pattern: '[0-9]*' }}
             value={pinInput}
-            onChange={(e) => { setPinInput(e.target.value.slice(0, 4)); setPinError(''); }}
-            onKeyDown={(e) => { if (e.key === 'Enter') handlePinSubmit(); }}
+            onChange={(e) => {
+              const v = e.target.value.replace(/\D/g, '').slice(0, 4);
+              setPinInput(v);
+              setPinError('');
+            }}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !pinLoading) void handlePinSubmit(); }}
             error={!!pinError}
             helperText={pinError}
             autoFocus
+            disabled={pinLoading}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -947,14 +968,16 @@ export default function ChallengePage() {
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setPinDialog(false)} color="inherit">취소</Button>
+          <Button onClick={() => setPinDialog(false)} color="inherit" disabled={pinLoading}>
+            취소
+          </Button>
           <Button
             variant="contained"
             color="warning"
-            onClick={handlePinSubmit}
-            disabled={pinInput.length !== 4}
+            onClick={() => void handlePinSubmit()}
+            disabled={pinLoading || pinInput.length !== 4}
           >
-            확인
+            {pinLoading ? '처리 중...' : '확인'}
           </Button>
         </DialogActions>
       </Dialog>

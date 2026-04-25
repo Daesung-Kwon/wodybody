@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
-import Typography from '@mui/material/Typography';
 import {
   LineChart,
   Line,
@@ -52,13 +51,7 @@ export default function WeeklyLogChart({ logs, participant, startBodyFat }: Prop
   const hasWeight = weekData.some((d) => d.weight != null);
   const hasBodyFat = data.some((d) => d.bodyFat != null);
 
-  if (data.length === 0) {
-    return (
-      <Box sx={{ py: 8, textAlign: 'center' }}>
-        <Typography color="text.secondary">아직 주간 기록이 없습니다.</Typography>
-      </Box>
-    );
-  }
+  if (data.length === 0) return null;
 
   const isWeight = metric === 'weight';
   const yUnit = isWeight ? 'kg' : '%';

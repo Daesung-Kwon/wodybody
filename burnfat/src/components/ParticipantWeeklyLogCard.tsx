@@ -32,21 +32,39 @@ export default function ParticipantWeeklyLogCard({
       <CardContent sx={{ p: 2 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Typography fontWeight={600}>{participant.nickname}</Typography>
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<AddIcon sx={{ fontSize: 16 }} />}
-            onClick={onOpenLogForm}
-            sx={{ minHeight: 44, py: 0.75, px: 1.5, fontSize: '0.8125rem' }}
-          >
-            {participant.nickname}님 주간 기록 입력
-          </Button>
         </Box>
-        <WeeklyLogChart
-          logs={logs}
-          participant={participant}
-          startBodyFat={participant.submissions.find((s) => s.type === 'start')?.body_fat_rate}
-        />
+        {logs.length === 0 ? (
+          <Box
+            sx={{
+              py: 4,
+              px: 2,
+              textAlign: 'center',
+              bgcolor: 'grey.50',
+              borderRadius: 2,
+              border: '1px dashed',
+              borderColor: 'grey.300',
+            }}
+          >
+            <Typography color="text.secondary" variant="body2">
+              아직 주간 기록이 없습니다.
+            </Typography>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<AddIcon sx={{ fontSize: 16 }} />}
+              onClick={onOpenLogForm}
+              sx={{ mt: 1.5, minHeight: 40 }}
+            >
+              주간 기록 입력
+            </Button>
+          </Box>
+        ) : (
+          <WeeklyLogChart
+            logs={logs}
+            participant={participant}
+            startBodyFat={participant.submissions.find((s) => s.type === 'start')?.body_fat_rate}
+          />
+        )}
         {logs.length > 0 && (
           <Box sx={{ mt: 2 }}>
             {logs.map((l) => {

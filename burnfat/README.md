@@ -4,6 +4,17 @@
 
 **v1.0.0** - 초기 버전 (2025.03)
 
+## 중요 공지 (2026-04)
+
+- BurnFat는 이제 wodybody 레포의 `burnfat/` 디렉터리에서 통합 운영됩니다.
+- 기존 단독 BurnFat 저장소(`/Users/malife/burnfat`)는 sunset 상태이며 더 이상 유지보수하지 않습니다.
+- 새 기준 저장소: [`Daesung-Kwon/wodybody`](https://github.com/Daesung-Kwon/wodybody) (하위 `burnfat/`)
+
+## 최근 변경
+
+- `주간 기록` 탭 최초 진입 시, Grok 기반 AI 조언 고도화(유료 크레딧/개인화 전략) 안내 팝업을 하루 1회 표시합니다.
+- 팝업에는 기존 단독 BurnFat 저장소 유지보수 종료 및 wodybody 통합 안내가 포함됩니다.
+
 ## 프로젝트 개요
 
 - **기간**: 2.23 ~ 3.23

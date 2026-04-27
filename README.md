@@ -47,6 +47,11 @@ WODYBODY는 크로스핏 운동을 사랑하는 사람들을 위한 피트니스
 `burnfat/` 하위에 체지방 감량 챌린지 서비스(BurnFat)가 포함되어 있습니다.
 `burnfat.wodybody.com` 서브도메인으로 서비스됩니다.
 
+### 공지 (2026-04)
+- BurnFat는 wodybody 모노레포(`burnfat/`)에 완전 통합되어 운영됩니다.
+- 기존 단독 BurnFat 저장소(`/Users/malife/burnfat`)는 sunset 처리되었으며 더 이상 유지보수하지 않습니다.
+- BurnFat의 `주간 기록` 탭 진입 시, Grok 기반 AI 조언 고도화/유료 크레딧/개인화 전략 안내 팝업이 하루 1회 노출됩니다.
+
 ### 기술 스택
 - Frontend: Vite + React + TypeScript + MUI (별도 빌드, 별도 Vercel 프로젝트)
 - Data: Supabase (PostgreSQL + Storage) — 현행 유지

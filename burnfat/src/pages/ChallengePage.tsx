@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -40,6 +40,10 @@ import WeeklyLogForm from '../components/WeeklyLogForm';
 import AllParticipantsChart from '../components/AllParticipantsChart';
 import RecordStatusSummary from '../components/RecordStatusSummary';
 import ParticipantWeeklyLogCard from '../components/ParticipantWeeklyLogCard';
+import WeeklyLogsUpgradeNoticeDialog, {
+  dismissWeeklyLogsUpgradeNotice,
+  shouldShowWeeklyLogsUpgradeNotice,
+} from '../components/WeeklyLogsUpgradeNoticeDialog';
 import { useAllWeeklyLogsForChallenge } from '../hooks/useWeeklyLogs';
 import { useRecordStatus } from '../hooks/useRecordStatus';
 
@@ -89,7 +93,9 @@ export default function ChallengePage() {
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
   const [pinLoading, setPinLoading] = useState(false);
+  const [weeklyLogsNoticeOpen, setWeeklyLogsNoticeOpen] = useState(false);
   const [pendingPinAction, setPendingPinAction] = useState<'ranking' | 'editChallenge'>('ranking');
+  const prevTabRef = useRef(0);
   // 챌린지 기본정보 수정
   const [challengeEditOpen, setChallengeEditOpen] = useState(false);
   const [editTitle, setEditTitle] = useState('');
@@ -165,9 +171,23 @@ export default function ChallengePage() {
     fetchParticipants();
   }, [fetchParticipants]);
 
+  useEffect(() => {
+    const prevTab = prevTabRef.current;
+    const enteredWeeklyLogsTab = tab === 2 && prevTab !== 2;
+    if (enteredWeeklyLogsTab && shouldShowWeeklyLogsUpgradeNotice()) {
+      setWeeklyLogsNoticeOpen(true);
+    }
+    prevTabRef.current = tab;
+  }, [tab]);
+
   const shareUrl = challenge ? `${window.location.origin}/c/${challenge.code}` : '';
   const handleCopyShare = () => {
     navigator.clipboard.writeText(shareUrl).then(() => setSnackbar(true));
+  };
+
+  const handleCloseWeeklyLogsNotice = () => {
+    dismissWeeklyLogsUpgradeNotice();
+    setWeeklyLogsNoticeOpen(false);
   };
 
   const handleShareRanking = () => {
@@ -853,6 +873,11 @@ export default function ChallengePage() {
           }}
         />
       )}
+
+      <WeeklyLogsUpgradeNoticeDialog
+        open={weeklyLogsNoticeOpen}
+        onClose={handleCloseWeeklyLogsNotice}
+      />
 
       <Snackbar
         open={snackbar}

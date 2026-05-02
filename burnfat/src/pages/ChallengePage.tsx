@@ -15,6 +15,8 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -40,6 +42,7 @@ import WeeklyLogForm from '../components/WeeklyLogForm';
 import AllParticipantsChart from '../components/AllParticipantsChart';
 import RecordStatusSummary from '../components/RecordStatusSummary';
 import ParticipantWeeklyLogCard from '../components/ParticipantWeeklyLogCard';
+import ChallengePageSkeleton from '../components/ChallengePageSkeleton';
 import WeeklyLogsUpgradeNoticeDialog, {
   dismissWeeklyLogsUpgradeNotice,
   shouldShowWeeklyLogsUpgradeNotice,
@@ -69,6 +72,8 @@ const getEndBtnColor = (participantId: string) => {
 export default function ChallengePage() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
+  const theme = useTheme();
+  const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [participants, setParticipants] = useState<ParticipantWithSubmissions[]>([]);
   const [ranking, setRanking] = useState<RankingRow[]>([]);
@@ -104,6 +109,7 @@ export default function ChallengePage() {
   const [editStakeAmount, setEditStakeAmount] = useState(0);
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState('');
+  const [loadingElapsedMs, setLoadingElapsedMs] = useState(0);
 
   const fetchChallenge = useCallback(async () => {
     if (!code) {
@@ -166,6 +172,22 @@ export default function ChallengePage() {
   useEffect(() => {
     fetchChallenge();
   }, [fetchChallenge]);
+
+  useEffect(() => {
+    if (!loading) {
+      setLoadingElapsedMs(0);
+      return;
+    }
+
+    const startedAt = performance.now();
+    const timer = window.setInterval(() => {
+      setLoadingElapsedMs(Math.round(performance.now() - startedAt));
+    }, 100);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [loading]);
 
   useEffect(() => {
     fetchParticipants();
@@ -340,9 +362,31 @@ export default function ChallengePage() {
   const recordStatus = useRecordStatus(participants, logsByParticipant, challenge?.start_date || '');
 
   if (loading) {
+    if (loadingElapsedMs < 300) {
+      return (
+        <Box
+          sx={{
+            minHeight: '50vh',
+            bgcolor: theme.palette.background.default,
+          }}
+          aria-hidden
+        />
+      );
+    }
+
     return (
-      <Box sx={{ p: 3, textAlign: 'center' }}>
-        <Typography>로딩 중...</Typography>
+      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+        <ChallengePageSkeleton disableAnimation={prefersReducedMotion} />
+        {loadingElapsedMs >= 2000 && (
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ textAlign: 'center', px: 2, pb: 3 }}
+            aria-live="polite"
+          >
+            대결 데이터 불러오는 중...
+          </Typography>
+        )}
       </Box>
     );
   }

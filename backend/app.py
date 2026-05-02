@@ -438,6 +438,22 @@ app.register_blueprint(email_verification.bp)
 from routes import burnfat_ai
 app.register_blueprint(burnfat_ai.bp)
 
+# WODYBODY PT — 사용자 선호 설정
+from routes import preferences as pt_preferences
+app.register_blueprint(pt_preferences.bp)
+
+# WODYBODY PT — 오늘의 WOD
+from routes import today as pt_today
+app.register_blueprint(pt_today.bp)
+
+# WODYBODY PT — Grok 추천 엔진(내부/디버그)
+from routes import recommendations as pt_recommendations
+app.register_blueprint(pt_recommendations.bp)
+
+# WODYBODY PT — 푸시 토큰 등록
+from routes import push as pt_push
+app.register_blueprint(pt_push.bp)
+
 # WebSocket 이벤트 핸들러 등록 (app.py에 직접 정의)
 @socketio.on('connect')
 def handle_connect():
@@ -478,6 +494,16 @@ def handle_leave_user_room(data):
         print(f'👤 사용자 {user_id}가 방에서 나갔습니다.')
 
 print("✅ All blueprints and WebSocket handlers registered successfully!")
+
+
+# ==================================================================
+# WODYBODY PT — 일일 푸시 워커 (APScheduler 인-프로세스)
+# ==================================================================
+try:
+    from utils.scheduler import start_scheduler
+    start_scheduler(app)
+except Exception as _scheduler_exc:  # pragma: no cover
+    app.logger.warning('PT push scheduler start skipped: %s', _scheduler_exc)
 
 
 # ==================================================================

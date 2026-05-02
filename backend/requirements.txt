@@ -12,3 +12,8 @@ gunicorn==21.2.0
 eventlet==0.33.3
 pytz==2023.3
 requests==2.32.3
+APScheduler==3.10.4
+# Optional — only needed if APNs/FCM 자격증명이 설정된 경우 실제 발송에 사용.
+# 설치되지 않아도 푸시 디스패처는 WARN 로그 후 no-op으로 동작한다.
+PyJWT[crypto]==2.8.0
+google-auth==2.32.0

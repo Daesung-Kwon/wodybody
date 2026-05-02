@@ -1,0 +1,15 @@
+node_modules/
+.DS_Store
+.idea/
+.vscode/
+*.log
+ios/App/Pods/
+ios/App/build/
+ios/DerivedData/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/captures/
+*.iml
+.capacitor/

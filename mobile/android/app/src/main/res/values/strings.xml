@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">WODYBODY</string>
+    <string name="title_activity_main">WODYBODY</string>
+    <string name="package_name">com.wodybody.app</string>
+    <string name="custom_url_scheme">com.wodybody.app</string>
+</resources>

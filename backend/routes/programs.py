@@ -1,5 +1,7 @@
 """프로그램 관련 라우트"""
 
+import os
+
 from flask import Blueprint, request, jsonify, session, current_app
 from config.database import db
 from models.program import Programs, Registrations, ProgramParticipants
@@ -12,6 +14,25 @@ from datetime import datetime, timedelta
 
 # 블루프린트 생성
 bp = Blueprint('programs', __name__, url_prefix='/api')
+
+
+# ==================================================================
+# 마켓플레이스 기능 플래그 (PT 모델로 전환되며 deprecate)
+# ==================================================================
+# 환경변수 MARKETPLACE_ENABLED=true 면 기존 마켓플레이스 라우트가 부활.
+# 기본값 false: /open, /join, /leave, /participants(...), /results, /approve 는 410 Gone.
+MARKETPLACE_ENABLED = os.environ.get('MARKETPLACE_ENABLED', 'false').lower() == 'true'
+
+
+def _gone_if_marketplace_disabled():
+    """마켓플레이스가 비활성화된 경우 410 Gone 응답을 반환. 활성화면 None."""
+    if not MARKETPLACE_ENABLED:
+        return jsonify({
+            'error': 'gone',
+            'message': '공개 마켓플레이스 기능은 PT 모델로 전환되어 종료되었습니다.',
+            'replacement': '/api/today'
+        }), 410
+    return None
 
 @bp.route('/programs', methods=['GET'])
 def get_programs():
@@ -298,7 +319,10 @@ def create_program():
 
 @bp.route('/programs/<int:program_id>/open', methods=['POST'])
 def open_program(program_id):
-    """프로그램 공개"""
+    """[DEPRECATED] 프로그램 공개 — 마켓플레이스 deprecate."""
+    gone = _gone_if_marketplace_disabled()
+    if gone is not None:
+        return gone
     try:
         user_id = get_user_id_from_session_or_cookies()
         if not user_id:
@@ -380,7 +404,10 @@ def open_program(program_id):
 
 @bp.route('/programs/<int:program_id>/join', methods=['POST'])
 def join_program(program_id):
-    """프로그램 참여 신청"""
+    """[DEPRECATED] 프로그램 참여 신청 — 마켓플레이스 deprecate."""
+    gone = _gone_if_marketplace_disabled()
+    if gone is not None:
+        return gone
     try:
         user_id = get_user_id_from_session_or_cookies()
         if not user_id:
@@ -434,7 +461,10 @@ def join_program(program_id):
 
 @bp.route('/programs/<int:program_id>/leave', methods=['DELETE'])
 def leave_program(program_id):
-    """프로그램 참여 취소"""
+    """[DEPRECATED] 프로그램 참여 취소 — 마켓플레이스 deprecate."""
+    gone = _gone_if_marketplace_disabled()
+    if gone is not None:
+        return gone
     try:
         user_id = get_user_id_from_session_or_cookies()
         if not user_id:
@@ -459,7 +489,10 @@ def leave_program(program_id):
 
 @bp.route('/programs/<int:program_id>/participants', methods=['GET'])
 def get_program_participants(program_id):
-    """프로그램 참여자 목록 조회"""
+    """[DEPRECATED] 프로그램 참여자 목록 조회 — 마켓플레이스 deprecate."""
+    gone = _gone_if_marketplace_disabled()
+    if gone is not None:
+        return gone
     try:
         user_id = get_user_id_from_session_or_cookies()
         if not user_id:
@@ -499,7 +532,10 @@ def get_program_participants(program_id):
 
 @bp.route('/programs/<int:program_id>/participants/<int:user_id>/approve', methods=['PUT'])
 def approve_participant(program_id, user_id):
-    """참여자 승인/거부"""
+    """[DEPRECATED] 참여자 승인/거부 — 마켓플레이스 deprecate."""
+    gone = _gone_if_marketplace_disabled()
+    if gone is not None:
+        return gone
     try:
         creator_id = get_user_id_from_session_or_cookies()
         if not creator_id:
@@ -559,7 +595,10 @@ def approve_participant(program_id, user_id):
 
 @bp.route('/programs/<int:program_id>/results', methods=['GET'])
 def program_results(program_id):
-    """프로그램 결과 조회"""
+    """[DEPRECATED] 프로그램 결과 조회 — 마켓플레이스 deprecate."""
+    gone = _gone_if_marketplace_disabled()
+    if gone is not None:
+        return gone
     try:
         user_id = get_user_id_from_session_or_cookies()
         if not user_id:

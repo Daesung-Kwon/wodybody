@@ -143,8 +143,15 @@ export interface ProgramResultsResponse {
     results: ProgramResult[];
 }
 
-// 페이지 타입
-export type Page = 'login' | 'register' | 'passwordReset' | 'programs' | 'my' | 'records' | 'create' | 'mui-example' | 'demo';
+// 페이지 타입 (PT 모델로 전환)
+export type Page =
+    | 'login' | 'register' | 'passwordReset'
+    | 'today'        // 오늘의 운동 (홈)
+    | 'history'      // 개인 기록 + 통계
+    | 'library'      // 내 WOD (직접 만든 것)
+    | 'preferences'  // 선호도/푸시 설정
+    | 'create'
+    | 'demo';        // 개발용 DemoPage
 
 // 모달 타입
 export interface ModalState {
@@ -355,4 +362,68 @@ export interface WodStatus {
     expired_wods: number;
     can_create_wod: boolean;
     can_create_public_wod: boolean;
+}
+
+// ==================================================================
+// PT 모델 타입
+// ==================================================================
+
+export interface UserPreferences {
+    id?: number | null;
+    user_id?: number | null;
+    goals: string[];
+    equipment: string[];
+    available_minutes: number;
+    difficulty: 'beginner' | 'intermediate' | 'advanced';
+    push_time: string;       // 'HH:MM'
+    timezone: string;        // e.g. 'Asia/Seoul'
+    push_enabled: boolean;
+    created_at?: string | null;
+    updated_at?: string | null;
+}
+
+export interface DailyAssignmentProgram {
+    id: number;
+    title: string;
+    description?: string;
+    workout_type?: string;
+    target_value?: string;
+    difficulty?: string;
+    [k: string]: any;
+}
+
+export interface DailyAssignment {
+    id: number;
+    user_id: number;
+    assignment_date: string;
+    program_id: number | null;
+    source: 'ai_grok' | 'self_pick' | 'fallback' | string;
+    ai_rationale: string | null;
+    intensity_hint: string | null;
+    duration_estimate_minutes: number | null;
+    refresh_count: number;
+    completed_at: string | null;
+    skipped_at: string | null;
+    feedback: { [k: string]: any };
+    created_at?: string | null;
+    updated_at?: string | null;
+    program?: DailyAssignmentProgram | null;
+    daily_refresh_limit?: number;
+    can_refresh?: boolean;
+}
+
+export interface PushTokenRegistration {
+    platform: 'ios' | 'android' | 'web';
+    token: string;
+    app_version?: string;
+}
+
+export interface PushTokenInfo {
+    id: number;
+    platform: string;
+    token_preview: string;
+    app_version?: string;
+    last_seen_at?: string;
+    created_at?: string;
+    is_active: boolean;
 }

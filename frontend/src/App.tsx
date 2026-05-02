@@ -3,88 +3,54 @@ import { Page } from './types';
 import { setGlobalRedirectToLogin } from './utils/api';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider, useNotifications } from './contexts/NotificationContext';
-// import LoginPage from './components/LoginPage';
-// import RegisterPage from './components/RegisterPage';
 import MuiLoginPage from './components/MuiLoginPage';
 import MuiRegisterPage from './components/MuiRegisterPage';
 import MuiPasswordResetPage from './components/MuiPasswordResetPage';
 import MuiNavigation from './components/MuiNavigation';
-import MuiProgramsPage from './components/MuiProgramsPage';
-import MuiMyProgramsPage from './components/MuiMyProgramsPage';
+import MuiTodayPage from './components/MuiTodayPage';
+import MuiPreferencesPage from './components/MuiPreferencesPage';
 import MuiPersonalRecordsPage from './components/MuiPersonalRecordsPage';
 import MuiStepBasedCreateProgramPage from './components/MuiStepBasedCreateProgramPage';
 import MuiNotificationsPage from './components/MuiNotificationsPage';
 import MuiWebSocketDebugger from './components/MuiWebSocketDebugger';
-import MuiSharedProgramPage from './components/MuiSharedProgramPage';
-// import MuiExample from './components/common/MuiExample'; // 임시 숨김
+import {
+    initNativeShell,
+    attachDeepLinkHandler,
+    attachPushNotificationTapHandler,
+} from './utils/native';
 
 // 개발 환경 전용 컴포넌트
 const DemoPage = process.env.NODE_ENV === 'development'
     ? React.lazy(() => import('./components/DemoPage'))
     : null;
 
-// 알림 아이콘 컴포넌트 (MUI Navigation에서 처리하므로 주석 처리)
-// const NotificationIcon: React.FC<{ onClick: () => void }> = ({ onClick }) => {
-//     const { unreadCount } = useNotifications();
-
-//     return (
-//         <button
-//             className={`notification-icon-button ${unreadCount > 0 ? 'has-notifications' : ''}`}
-//             onClick={onClick}
-//             title="알림"
-//         >
-//             🔔
-//             {unreadCount > 0 && (
-//                 <span className="notification-badge">{unreadCount}</span>
-//             )}
-//         </button>
-//     );
-// };
-
 const AppContent: React.FC = () => {
     const { user, logout } = useAuth();
     const [page, setPage] = useState<Page>('login');
     const [showNotifications, setShowNotifications] = useState(false);
-    const [sharedProgramId, setSharedProgramId] = useState<number | null>(null);
 
     useEffect(() => {
         if (user) {
-            setPage('programs');
+            setPage('today');
         } else {
-            // URL hash 체크
             const hash = window.location.hash.substring(1);
             if (hash === 'demo' && process.env.NODE_ENV === 'development') {
                 setPage('demo');
-            } else if (hash.startsWith('share/')) {
-                // 공유 URL 처리
-                const programId = parseInt(hash.split('/')[1]);
-                if (!isNaN(programId)) {
-                    setSharedProgramId(programId);
-                }
             } else {
                 setPage('login');
             }
         }
     }, [user]);
 
-    // URL hash 변경 감지
     useEffect(() => {
         const handleHashChange = () => {
             const hash = window.location.hash.substring(1);
             if (hash === 'demo' && !user && process.env.NODE_ENV === 'development') {
                 setPage('demo');
-            } else if (hash.startsWith('share/') && !user) {
-                // 공유 URL 처리
-                const programId = parseInt(hash.split('/')[1]);
-                if (!isNaN(programId)) {
-                    setSharedProgramId(programId);
-                }
             } else if (hash === '' && !user) {
                 setPage('login');
-                setSharedProgramId(null);
             }
         };
-
         window.addEventListener('hashchange', handleHashChange);
         return () => window.removeEventListener('hashchange', handleHashChange);
     }, [user]);
@@ -93,9 +59,35 @@ const AppContent: React.FC = () => {
         setPage('login');
     };
 
-    // 전역 리다이렉트 함수 설정
     useEffect(() => {
         setGlobalRedirectToLogin(redirectToLogin);
+    }, []);
+
+    // 네이티브 셸 초기화 (웹에서는 자동 no-op).
+    useEffect(() => {
+        initNativeShell().catch(() => {});
+        let detachDeep: undefined | (() => void);
+        let detachTap: undefined | (() => void);
+        attachDeepLinkHandler((p) => setPage(p as Page))
+            .then((fn) => { detachDeep = fn; })
+            .catch(() => {});
+        attachPushNotificationTapHandler((data) => {
+            const target = data?.deeplink || data?.target;
+            if (typeof target === 'string') {
+                if (target.includes('today')) setPage('today');
+                else if (target.includes('history')) setPage('history');
+                else if (target.includes('library')) setPage('library');
+                else if (target.includes('preferences')) setPage('preferences');
+            } else {
+                setPage('today');
+            }
+        })
+            .then((fn) => { detachTap = fn; })
+            .catch(() => {});
+        return () => {
+            detachDeep?.();
+            detachTap?.();
+        };
     }, []);
 
     return (
@@ -107,17 +99,11 @@ const AppContent: React.FC = () => {
                 logout={logout}
                 showNotifications={showNotifications}
                 setShowNotifications={setShowNotifications}
-                sharedProgramId={sharedProgramId}
-                onCloseSharedProgram={() => {
-                    setSharedProgramId(null);
-                    window.location.hash = '';
-                }}
             />
         </NotificationProvider>
     );
 };
 
-// NotificationProvider 내부에서 useNotifications를 사용하는 컴포넌트
 const AppWithNotifications: React.FC<{
     user: any;
     page: Page;
@@ -125,27 +111,17 @@ const AppWithNotifications: React.FC<{
     logout: () => void;
     showNotifications: boolean;
     setShowNotifications: (show: boolean) => void;
-    sharedProgramId: number | null;
-    onCloseSharedProgram: () => void;
-}> = ({ user, page, setPage, logout, showNotifications, setShowNotifications, sharedProgramId, onCloseSharedProgram }) => {
+}> = ({ user, page, setPage, logout, showNotifications, setShowNotifications }) => {
     const { unreadCount } = useNotifications();
 
     return (
         <div>
-            {/* 공유 프로그램 모달 - 로그인 여부와 상관없이 표시 */}
-            {sharedProgramId && (
-                <MuiSharedProgramPage
-                    programId={sharedProgramId}
-                    onClose={onCloseSharedProgram}
-                />
-            )}
-
             {user ? (
                 <>
                     <MuiNavigation
                         user={user}
                         currentPage={page}
-                        onPageChange={(page: string) => setPage(page as Page)}
+                        onPageChange={(p: string) => setPage(p as Page)}
                         onLogout={logout}
                         onNotifications={() => setShowNotifications(true)}
                         unreadCount={unreadCount}
@@ -155,16 +131,25 @@ const AppWithNotifications: React.FC<{
                         <MuiNotificationsPage onBack={() => setShowNotifications(false)} />
                     ) : (
                         <>
-                            {page === 'programs' && <MuiProgramsPage />}
-                            {page === 'my' && <MuiMyProgramsPage />}
-                            {page === 'records' && <MuiPersonalRecordsPage />}
-                            {page === 'create' && (
+                            {page === 'today' && (
+                                <MuiTodayPage goPreferences={() => setPage('preferences')} />
+                            )}
+                            {page === 'history' && <MuiPersonalRecordsPage />}
+                            {page === 'library' && (
                                 <MuiStepBasedCreateProgramPage
-                                    goMy={() => setPage('my')}
-                                    goPrograms={() => setPage('programs')}
+                                    goMy={() => setPage('library')}
+                                    goPrograms={() => setPage('today')}
                                 />
                             )}
-                            {/* {page === 'mui-example' && <MuiExample />} */}
+                            {page === 'preferences' && (
+                                <MuiPreferencesPage goBack={() => setPage('today')} />
+                            )}
+                            {page === 'create' && (
+                                <MuiStepBasedCreateProgramPage
+                                    goMy={() => setPage('library')}
+                                    goPrograms={() => setPage('today')}
+                                />
+                            )}
                         </>
                     )}
                 </>
@@ -175,9 +160,9 @@ const AppWithNotifications: React.FC<{
                     </React.Suspense>
                 ) : page === 'login' ? (
                     <MuiLoginPage
-                        setUser={() => { }} // AuthProvider에서 관리하므로 빈 함수
+                        setUser={() => { }}
                         goRegister={() => setPage('register')}
-                        goPrograms={() => setPage('programs')}
+                        goPrograms={() => setPage('today')}
                         goPasswordReset={() => setPage('passwordReset')}
                     />
                 ) : page === 'register' ? (
@@ -193,7 +178,7 @@ const AppWithNotifications: React.FC<{
 
 const App: React.FC = () => {
     const redirectToLogin = (): void => {
-        // 페이지 상태는 AppContent에서 관리하므로 여기서는 빈 함수
+        // 페이지 상태는 AppContent에서 관리.
     };
 
     return (

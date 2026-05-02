@@ -6,13 +6,10 @@ import {
     RegisterRequest,
     LoginRequest,
     CreateProgramForm,
-    ProgramResultsResponse,
-    RecordResultRequest,
     Notification,
     ExerciseCategory,
     Exercise,
     ProgramExercise,
-    ProgramParticipantsResponse,
     WorkoutRecordsResponse,
     CreateWorkoutRecordRequest,
     UpdateWorkoutRecordRequest,
@@ -20,7 +17,11 @@ import {
     PersonalGoalsResponse,
     CreateGoalRequest,
     ProgramDetail,
-    WodStatus
+    WodStatus,
+    UserPreferences,
+    DailyAssignment,
+    PushTokenRegistration,
+    PushTokenInfo
 } from '../types';
 
 // API 기본 설정
@@ -239,50 +240,24 @@ export const userApi = {
     },
 };
 
-// 프로그램 관련 API
+// 프로그램 관련 API (PT 모델로 전환 — 마켓플레이스 메서드는 deprecate되어 제거됨)
+//
+// 제거된 메서드 (백엔드는 410 Gone 반환):
+//  - openProgram(), registerProgram(), unregisterProgram(),
+//  - getProgramResults(), recordResult(),
+//  - participationApi.joinProgram(), leaveProgram() (아래 별도 export 제거)
 export const programApi = {
-    // 프로그램 목록 조회
+    // 프로그램 목록 조회 (라이브러리 후보 풀)
     getPrograms: (): Promise<ProgramsResponse> =>
         apiRequest<ProgramsResponse>('/api/programs'),
 
-    // 내 프로그램 목록 조회
+    // 내 프로그램 목록 조회 (Library 화면)
     getMyPrograms: (): Promise<MyProgramsResponse> =>
         apiRequest<MyProgramsResponse>('/api/user/programs'),
 
-    // 프로그램 생성
+    // 프로그램 생성 (Library의 + 버튼)
     createProgram: (data: CreateProgramForm): Promise<{ message: string; program_id: number }> =>
         apiRequest<{ message: string; program_id: number }>('/api/programs', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        }),
-
-    // 프로그램 공개
-    openProgram: (programId: number): Promise<{ message: string }> =>
-        apiRequest<{ message: string }>(`/api/programs/${programId}/open`, {
-            method: 'POST',
-        }),
-
-    // 프로그램 참여 신청
-    registerProgram: (programId: number): Promise<{ message: string }> =>
-        apiRequest<{ message: string }>(`/api/programs/${programId}/register`, {
-            method: 'POST',
-        }),
-
-    // 프로그램 참여 취소
-    unregisterProgram: (programId: number): Promise<{ message: string }> =>
-        apiRequest<{ message: string }>(`/api/programs/${programId}/unregister`, {
-            method: 'POST',
-        }),
-
-    // 프로그램 결과 조회
-    getProgramResults: (programId: number, completedOnly?: boolean): Promise<ProgramResultsResponse> => {
-        const params = completedOnly ? '?completed_only=true' : '';
-        return apiRequest<ProgramResultsResponse>(`/api/programs/${programId}/results${params}`);
-    },
-
-    // 결과 기록
-    recordResult: (registrationId: number, data: RecordResultRequest): Promise<{ message: string }> =>
-        apiRequest<{ message: string }>(`/api/registrations/${registrationId}/result`, {
             method: 'POST',
             body: JSON.stringify(data),
         }),
@@ -338,27 +313,9 @@ export const exerciseApi = {
         apiRequest<{ exercises: ProgramExercise[] }>(`/api/programs/${programId}/exercises`),
 };
 
-// 프로그램 참여 관련 API
-export const participationApi = {
-    // 프로그램 참여 신청
-    joinProgram: (programId: number): Promise<{ message: string }> =>
-        apiRequest<{ message: string }>(`/api/programs/${programId}/join`, { method: 'POST' }),
-
-    // 프로그램 참여 취소/신청 취소
-    leaveProgram: (programId: number): Promise<{ message: string }> =>
-        apiRequest<{ message: string }>(`/api/programs/${programId}/leave`, { method: 'DELETE' }),
-
-    // 프로그램 참여자 목록 조회
-    getProgramParticipants: (programId: number): Promise<ProgramParticipantsResponse> =>
-        apiRequest<ProgramParticipantsResponse>(`/api/programs/${programId}/participants`),
-
-    // 참여자 승인/거부
-    approveParticipant: (programId: number, userId: number, action: 'approve' | 'reject'): Promise<{ message: string }> =>
-        apiRequest<{ message: string }>(`/api/programs/${programId}/participants/${userId}/approve`, {
-            method: 'PUT',
-            body: JSON.stringify({ action })
-        }),
-};
+// 프로그램 참여 관련 API (PT 전환으로 deprecate — 더 이상 export하지 않음).
+// 백엔드에서는 MARKETPLACE_ENABLED=false 일 때 410 Gone을 반환한다.
+// (이전 코드: joinProgram, leaveProgram, getProgramParticipants, approveParticipant)
 
 // 운동 기록 API
 export const workoutRecordsApi = {
@@ -466,4 +423,66 @@ export const emailVerificationApi = {
             method: 'POST',
             body: JSON.stringify({ email, code })
         }),
+};
+
+// ==================================================================
+// PT 모델 — 오늘의 WOD / 선호 / 푸시 토큰
+// ==================================================================
+
+export const todayApi = {
+    /** 오늘의 추천 조회 (없으면 서버에서 생성). */
+    getToday: (): Promise<DailyAssignment> =>
+        apiRequest<DailyAssignment>('/api/today'),
+
+    /** 추천 새로받기 — 일 한도(기본 3회) 초과 시 429. */
+    refresh: (): Promise<DailyAssignment> =>
+        apiRequest<DailyAssignment>('/api/today/refresh', { method: 'POST' }),
+
+    /** 오늘의 WOD 완료 기록. completion_time은 초 단위. */
+    complete: (data: { completion_time: number; notes?: string }): Promise<{ message: string; record_id: number; assignment: DailyAssignment }> =>
+        apiRequest<{ message: string; record_id: number; assignment: DailyAssignment }>('/api/today/complete', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        }),
+
+    /** 오늘 건너뛰기. */
+    skip: (): Promise<{ message: string; assignment: DailyAssignment }> =>
+        apiRequest<{ message: string; assignment: DailyAssignment }>('/api/today/skip', { method: 'POST' }),
+
+    /** easy / moderate / hard 피드백. */
+    feedback: (rating: 'easy' | 'moderate' | 'hard'): Promise<{ message: string; assignment: DailyAssignment }> =>
+        apiRequest<{ message: string; assignment: DailyAssignment }>('/api/today/feedback', {
+            method: 'POST',
+            body: JSON.stringify({ rating })
+        }),
+};
+
+export const preferencesApi = {
+    /** 선호 조회 — 미입력 시 기본값 객체. */
+    get: (): Promise<UserPreferences> =>
+        apiRequest<UserPreferences>('/api/me/preferences'),
+
+    /** 선호 저장/갱신. 부분 업데이트 허용 (변경된 필드만 보내기 가능). */
+    update: (data: Partial<UserPreferences>): Promise<UserPreferences> =>
+        apiRequest<UserPreferences>('/api/me/preferences', {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        }),
+};
+
+export const pushApi = {
+    /** 디바이스 푸시 토큰 등록. 같은 토큰이 있으면 갱신. */
+    register: (data: PushTokenRegistration): Promise<{ message: string; token: PushTokenInfo }> =>
+        apiRequest<{ message: string; token: PushTokenInfo }>('/api/me/push-tokens', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        }),
+
+    /** 자기 디바이스 토큰 목록(미리보기). */
+    list: (): Promise<{ tokens: PushTokenInfo[] }> =>
+        apiRequest<{ tokens: PushTokenInfo[] }>('/api/me/push-tokens'),
+
+    /** 토큰 비활성화. */
+    deactivate: (tokenId: number): Promise<{ message: string }> =>
+        apiRequest<{ message: string }>(`/api/me/push-tokens/${tokenId}`, { method: 'DELETE' }),
 };

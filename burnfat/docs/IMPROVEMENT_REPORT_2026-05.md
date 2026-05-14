@@ -233,7 +233,7 @@ HomePage(코드 입력) → ChallengePage(/c/:code)
    - 모든 IconButton `aria-label`, 차트 컨테이너 `role="img"` + alt-text,
    - 메달은 `🥇` + `(1위)` 텍스트 병행, 라인 차트에 점선/실선 스타일 매핑.
 
-### Sprint 1.5 — 주간 기록 입력 UX 정상화 (Sprint 1과 병행 가능, 0.5~1주)
+### Sprint 1.5 — 주간 기록 입력 UX 정상화 (Sprint 1과 병행 가능, 0.5~1주) ✅ **완료 (2026-05-14, [`SPRINT1_5_HANDOFF.md`](SPRINT1_5_HANDOFF.md))**
 
 > **배경**: 현재 `ParticipantWeeklyLogCard.tsx`는 `logs.length === 0`일 때만 "주간 기록 입력" 버튼을 노출하고, 1개라도 기록되면 다음 차수 입력 CTA가 사라진다. 또한 `WeeklyLogForm`의 `weekNo` 기본값은 *오늘 기준 주차*라 같은 주차 중복 에러가 자주 발생한다. 즉, 주차별 누적 기록이라는 핵심 데이터 자산이 *입력 마찰*로 인해 비어 가는 구조적 버그다.
 

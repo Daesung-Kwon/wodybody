@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
+import LinearProgress from '@mui/material/LinearProgress';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import type { ParticipantWithSubmissions } from '../types';
@@ -10,6 +11,10 @@ interface Props {
   completedCount: number;
   notCompletedCount: number;
   notCompleted: ParticipantWithSubmissions[];
+  /** Sprint 1.5: 누적 입력률 (0~100). */
+  cumulativeFillRate: number;
+  totalFilledCells: number;
+  totalPossibleCells: number;
 }
 
 export default function RecordStatusSummary({
@@ -17,6 +22,9 @@ export default function RecordStatusSummary({
   completedCount,
   notCompletedCount,
   notCompleted,
+  cumulativeFillRate,
+  totalFilledCells,
+  totalPossibleCells,
 }: Props) {
   const total = completedCount + notCompletedCount;
   if (total === 0) return null;
@@ -26,7 +34,7 @@ export default function RecordStatusSummary({
       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
         이번 주({currentWeek}주차) 기록 현황
       </Typography>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', mb: notCompleted.length > 0 ? 1.5 : 0 }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', mb: 1.5 }}>
         <Chip
           icon={<CheckCircleIcon />}
           label={`${completedCount}명 기록 완료`}
@@ -44,8 +52,31 @@ export default function RecordStatusSummary({
           sx={{ minHeight: 32 }}
         />
       </Box>
+
+      {/* Sprint 1.5: 시즌 전체 데이터 충실도 막대 */}
+      {totalPossibleCells > 0 && (
+        <Box sx={{ mt: 1.5 }} role="group" aria-label="누적 입력률">
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 0.5 }}>
+            <Typography variant="caption" color="text.secondary">
+              누적 입력률
+            </Typography>
+            <Typography variant="caption" color="text.secondary" fontWeight={500}>
+              {cumulativeFillRate}% · {totalFilledCells}/{totalPossibleCells}
+            </Typography>
+          </Box>
+          <LinearProgress
+            variant="determinate"
+            value={cumulativeFillRate}
+            aria-valuenow={cumulativeFillRate}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            sx={{ height: 8, borderRadius: 4 }}
+          />
+        </Box>
+      )}
+
       {notCompleted.length > 0 && (
-        <Box sx={{ mt: 1, p: 1.5, bgcolor: 'warning.50', borderRadius: 1 }}>
+        <Box sx={{ mt: 1.5, p: 1.5, bgcolor: 'warning.50', borderRadius: 1 }}>
           <Typography variant="body2" color="warning.dark" fontWeight={500}>
             이번 주 기록 부탁해요!
           </Typography>

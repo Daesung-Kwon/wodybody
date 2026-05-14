@@ -49,10 +49,10 @@ crossfit-system/
 |--------|------|------|
 | **0** | 보안 응급 처치 (PIN 해시 / UPDATE 잠금 / 이미지 signed URL / 디버그 플래그) | ✅ **완료** — commit `64315d3`, 프로덕션 배포·DB 적용·검증 완료. 상세: [`burnfat/docs/SPRINT0_HANDOFF.md`](burnfat/docs/SPRINT0_HANDOFF.md) |
 | **1** | UX 빠른 승 (개인 상태 카드 / D-Day / 랭킹 공유 이미지 / a11y 1차 패스) | ⏳ 미착수 |
-| **1.5** | 주간 기록 입력 UX 정상화 (다음 차주 CTA / placeholder / `useNextRecordableWeek`) | ⏳ 미착수 |
+| **1.5** | 주간 기록 입력 UX 정상화 (다음 차주 CTA / placeholder / `useNextRecordableWeek`) | ✅ **완료** — `useNextRecordableWeek` hook + 영구 CTA + 미입력 주차 placeholder + WeeklyLogForm 충돌 차단 + 누적 입력률 막대 + vitest 12/12. 상세: [`burnfat/docs/SPRINT1_5_HANDOFF.md`](burnfat/docs/SPRINT1_5_HANDOFF.md) |
 | **2** | AI 조언 서버 캐시 + JSON 응답 / 목표 진행률 / 챌린지 템플릿 | ⏳ 미착수 |
 | **2.5** | 대화형 코치 모달 + 세션·장기 메모리 영속화 | ⏳ 미착수 |
-| **3** | ChallengePage 분해 / N+1 제거 / 테스트 베이스라인 | ⏳ 미착수 |
+| **3** | ChallengePage 분해 / N+1 제거 / 테스트 베이스라인 | ⏳ 미착수 (Sprint 1.5 에서 vitest 최소 셋업만 선 도입) |
 
 작업 시작 시 항상 다음 순서를 지키세요.
 

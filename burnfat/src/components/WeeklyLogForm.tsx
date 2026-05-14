@@ -25,6 +25,11 @@ interface Props {
   challengeStartDate: string;
   challengeEndDate: string;
   existingWeekNos: number[];
+  /**
+   * Sprint 1.5: 폼 진입 시 기본 선택할 주차.
+   * 우선순위: ① defaultWeekNo → ② existingWeekNos 에 빠진 가장 이른 주차 → ③ 오늘 기준 주차.
+   */
+  defaultWeekNo?: number;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -35,13 +40,26 @@ export default function WeeklyLogForm({
   challengeStartDate,
   challengeEndDate,
   existingWeekNos,
+  defaultWeekNo,
   onClose,
   onSuccess,
 }: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const today = new Date().toISOString().slice(0, 10);
-  const [weekNo, setWeekNo] = useState(1);
+
+  // Sprint 1.5: 초기 주차 결정 — defaultWeekNo > 가장 이른 미입력 주차 > 오늘 기준
+  const initialWeekNo = (() => {
+    if (defaultWeekNo != null) return defaultWeekNo;
+    const todayWeek = getWeekNoForDate(challengeStartDate, today);
+    // 1..todayWeek 중 existingWeekNos 에 없는 가장 이른 주차
+    for (let w = 1; w <= todayWeek; w += 1) {
+      if (!existingWeekNos.includes(w)) return w;
+    }
+    return todayWeek;
+  })();
+
+  const [weekNo, setWeekNo] = useState(initialWeekNo);
   const [recordedAt, setRecordedAt] = useState(today);
   const [age, setAge] = useState<string>('');
   const [gender, setGender] = useState<Gender | ''>('');
@@ -64,9 +82,16 @@ export default function WeeklyLogForm({
     }
   }, [participant]);
 
-  useEffect(() => {
-    setWeekNo(getWeekNoForDate(challengeStartDate, recordedAt));
-  }, [challengeStartDate, recordedAt]);
+  // Sprint 1.5: 기존에는 useEffect 가 recordedAt 변경마다 weekNo 를 덮어써,
+  // defaultWeekNo 를 받아도 마운트 직후 초기 useEffect 실행으로 초기값이 무시되는 문제가 있었다.
+  // 날짜와 주차의 연결은 onChange 핸들러로 이동하여 마운트 시 defaultWeekNo 가 보존되도록 한다.
+  const handleRecordedAtChange = (next: string) => {
+    setRecordedAt(next);
+    const derivedWeek = getWeekNoForDate(challengeStartDate, next);
+    if (!existingWeekNos.includes(derivedWeek)) {
+      setWeekNo(derivedWeek);
+    }
+  };
 
   const totalWeeks = Math.ceil(
     (new Date(challengeEndDate).getTime() - new Date(challengeStartDate).getTime()) / (7 * 24 * 60 * 60 * 1000)
@@ -143,17 +168,20 @@ export default function WeeklyLogForm({
             label="기록일"
             type="date"
             value={recordedAt}
-            onChange={(e) => setRecordedAt(e.target.value)}
+            onChange={(e) => handleRecordedAtChange(e.target.value)}
             InputLabelProps={{ shrink: true }}
           />
           <FormControl fullWidth>
             <InputLabel>주차</InputLabel>
             <Select value={weekNo} label="주차" onChange={(e) => setWeekNo(e.target.value as number)}>
-              {weekOptions.map((w) => (
-                <MenuItem key={w} value={w}>
-                  {w}주차
-                </MenuItem>
-              ))}
+              {weekOptions.map((w) => {
+                const isLocked = existingWeekNos.includes(w);
+                return (
+                  <MenuItem key={w} value={w} disabled={isLocked}>
+                    {w}주차{isLocked ? ' (입력됨)' : ''}
+                  </MenuItem>
+                );
+              })}
             </Select>
           </FormControl>
           <TextField

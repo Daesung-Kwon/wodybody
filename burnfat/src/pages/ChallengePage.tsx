@@ -92,7 +92,10 @@ export default function ChallengePage() {
   const [joinLoading, setJoinLoading] = useState(false);
   const [basicInfoDialog, setBasicInfoDialog] = useState<ParticipantWithSubmissions | null>(null);
   const [basicInfoDialogAfterJoin, setBasicInfoDialogAfterJoin] = useState(false);
-  const [weeklyLogParticipant, setWeeklyLogParticipant] = useState<ParticipantWithSubmissions | null>(null);
+  // Sprint 1.5: 폼 진입 시 기본 주차를 함께 전달 (미입력 주차 placeholder 클릭 시 그 주차로 직행).
+  const [weeklyLogTarget, setWeeklyLogTarget] = useState<
+    { participant: ParticipantWithSubmissions; defaultWeekNo?: number } | null
+  >(null);
   const [submitModal, setSubmitModal] = useState<{
     open: boolean;
     participantId: string;
@@ -917,6 +920,9 @@ export default function ChallengePage() {
             completedCount={recordStatus.completedCount}
             notCompletedCount={recordStatus.notCompletedCount}
             notCompleted={recordStatus.notCompleted}
+            cumulativeFillRate={recordStatus.cumulativeFillRate}
+            totalFilledCells={recordStatus.totalFilledCells}
+            totalPossibleCells={recordStatus.totalPossibleCells}
           />
           <Typography variant="subtitle2" sx={{ mb: 1 }}>
             전체 참가자 추이
@@ -932,7 +938,7 @@ export default function ChallengePage() {
               challengeStartDate={challenge.start_date}
               challengeEndDate={challenge.end_date}
               logs={logsByParticipant[p.id] || []}
-              onOpenLogForm={() => setWeeklyLogParticipant(p)}
+              onOpenLogForm={(weekNo) => setWeeklyLogTarget({ participant: p, defaultWeekNo: weekNo })}
               onOpenBasicInfo={() => { setBasicInfoDialog(p); setBasicInfoDialogAfterJoin(false); }}
               onRefresh={fetchParticipants}
             />
@@ -1103,14 +1109,15 @@ export default function ChallengePage() {
         />
       )}
 
-      {weeklyLogParticipant && challenge && (
+      {weeklyLogTarget && challenge && (
         <WeeklyLogForm
-          open={!!weeklyLogParticipant}
-          participant={weeklyLogParticipant}
+          open={!!weeklyLogTarget}
+          participant={weeklyLogTarget.participant}
           challengeStartDate={challenge.start_date}
           challengeEndDate={challenge.end_date}
-          existingWeekNos={(logsByParticipant[weeklyLogParticipant.id] || []).map((l) => l.week_no)}
-          onClose={() => setWeeklyLogParticipant(null)}
+          existingWeekNos={(logsByParticipant[weeklyLogTarget.participant.id] || []).map((l) => l.week_no)}
+          defaultWeekNo={weeklyLogTarget.defaultWeekNo}
+          onClose={() => setWeeklyLogTarget(null)}
           onSuccess={() => {
             fetchParticipants();
             refetchLogs();

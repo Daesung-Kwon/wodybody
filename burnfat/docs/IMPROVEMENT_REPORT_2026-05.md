@@ -558,3 +558,11 @@ user    : 새 사용자 메시지
 ---
 
 *이 문서는 코드와 문서 스냅샷(2026-05-14) 기준이며, 우선순위·노력 추정은 1인 풀스택 개발자 기준이다. 팀 규모·외부 디자이너 가용성에 따라 Sprint 길이는 조정 가능하다.*
+
+---
+
+## 10. 핫픽스 로그
+
+| 날짜 | 배포 | 증상 | 핵심 변경 | 상세 |
+|------|------|------|----------|------|
+| 2026-05-14 | Sprint 0 직후 회귀 | 모든 챌린지 페이지가 `permission denied for column admin_pin_hash` 로 진입 차단 | `challenges` 조회를 `select('*')` → `CHALLENGE_PUBLIC_COLUMNS` 명시 SELECT 로 변경. 컬럼 레벨 GRANT 와 `select('*')` 의 충돌을 해소. | [`SPRINT0_HANDOFF.md`](SPRINT0_HANDOFF.md) §3.5 |

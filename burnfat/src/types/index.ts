@@ -15,6 +15,19 @@ export interface Challenge {
   has_admin_pin?: boolean;
 }
 
+/**
+ * Sprint 0 hotfix: `challenges` 테이블의 익명(anon) SELECT 권한이 *컬럼 레벨* 로 분리되어
+ * `admin_pin_hash` 는 anon 에 미부여 상태다 (마이그레이션 `20260514000001_admin_pin_hash.sql`).
+ * 이 상태에서 클라이언트가 `.select('*')` 를 호출하면 PostgREST 가
+ * `permission denied for column admin_pin_hash` 로 *전체 SELECT 자체* 를 실패시킨다.
+ *
+ * 따라서 challenges 를 클라이언트에서 조회할 때는 반드시 이 상수를 사용해
+ * 공개 컬럼만 명시적으로 SELECT 한다. 새 공개 컬럼이 추가되면 여기와
+ * `Challenge` 인터페이스 양쪽을 함께 갱신.
+ */
+export const CHALLENGE_PUBLIC_COLUMNS =
+  'id, code, title, start_date, end_date, stake_amount, created_at, ranking_unlocked, has_admin_pin';
+
 export type Gender = 'M' | 'F';
 
 export interface Participant {

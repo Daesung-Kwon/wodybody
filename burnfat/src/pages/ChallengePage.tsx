@@ -36,6 +36,7 @@ import DialogActions from '@mui/material/DialogActions';
 import InputAdornment from '@mui/material/InputAdornment';
 import { supabase } from '../lib/supabase';
 import type { Challenge, ParticipantWithSubmissions, RankingRow } from '../types';
+import { CHALLENGE_PUBLIC_COLUMNS } from '../types';
 import SubmitModal from '../components/SubmitModal';
 import ParticipantBasicInfoDialog from '../components/ParticipantBasicInfoDialog';
 import WeeklyLogForm from '../components/WeeklyLogForm';
@@ -123,7 +124,13 @@ export default function ChallengePage() {
       setLoading(false);
       return;
     }
-    const { data, error: err } = await supabase.from('challenges').select('*').eq('code', code.toUpperCase()).single();
+    // Sprint 0 hotfix: anon 에 `admin_pin_hash` SELECT 권한이 없어 `.select('*')` 가
+    // `permission denied for column admin_pin_hash` 로 실패한다. 공개 컬럼만 명시 SELECT.
+    const { data, error: err } = await supabase
+      .from('challenges')
+      .select(CHALLENGE_PUBLIC_COLUMNS)
+      .eq('code', code.toUpperCase())
+      .single();
     if (err || !data) {
       setError('대결을 찾을 수 없습니다.');
       setChallenge(null);

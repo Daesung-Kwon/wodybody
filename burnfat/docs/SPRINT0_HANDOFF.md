@@ -159,6 +159,44 @@ https://<project>.supabase.co/storage/v1/object/sign/inbody/<participant_id>/sta
 
 ---
 
+## 3.5 핫픽스 — `challenges.select('*')` 회귀 (2026-05-14 추가)
+
+### 증상
+
+- Sprint 0 배포 직후 운영 환경(`burnfat.wodybody.com`)에서 **모든 챌린지 페이지 진입이 차단**.
+- 챌린지 코드 `CQL9G7` 등 기존 URL 도 동일하게 "대결을 찾을 수 없습니다." 표시.
+- DevTools Network 탭의 `…/rest/v1/challenges?…` 응답:
+  ```
+  HTTP 403 — { "code": "42501", "message": "permission denied for column admin_pin_hash" }
+  ```
+
+### 원인
+
+Sprint 0.1 마이그레이션 (`20260514000001_admin_pin_hash.sql`) 이 `challenges.admin_pin_hash` 컬럼에 대해 **컬럼 레벨 GRANT** 로 anon/authenticated 의 SELECT 권한을 제거했다. 이는 의도된 보안 강화다(해시 노출 차단). 그러나 클라이언트 `ChallengePage.fetchChallenge` 가 `supabase.from('challenges').select('*')` 를 사용 — PostgREST 는 `*` 를 *행에 존재하는 모든 컬럼* 으로 확장한 뒤 각 컬럼의 SELECT 권한을 검사한다. 권한이 없는 컬럼이 하나라도 포함되면 **쿼리 전체가 403 으로 실패**한다.
+
+즉, *컬럼 레벨 차단* 과 *클라이언트의 `select('*')` 관행*이 부딪혀 전체 페이지가 죽었다.
+
+### 핫픽스
+
+1. `burnfat/src/types/index.ts` 에 신규 상수 `CHALLENGE_PUBLIC_COLUMNS` 추가 (9개 공개 컬럼 명시 문자열).
+2. `burnfat/src/pages/ChallengePage.tsx` 의 `fetchChallenge` 가 `.select(CHALLENGE_PUBLIC_COLUMNS)` 사용.
+3. `admin_pin_hash` 는 SELECT 목록에서 영구 제외 → 컬럼 레벨 GRANT 와 모순되지 않는다.
+
+이로써 *해시는 여전히 클라이언트에 노출되지 않고*, *페이지 진입은 정상 동작* 한다.
+
+### 부가 변경
+
+- 본 핸드오프 §3.5 (이 섹션) 작성으로 회귀 사건을 1차 사료로 남김.
+- `burnfat/docs/IMPROVEMENT_REPORT_2026-05.md` 끝에 "2026-05-14 핫픽스 로그" 한 줄 추가 — 향후 같은 패턴(컬럼 레벨 GRANT + `select('*')`) 회귀 예방.
+
+### 백로그 (다음 세션 또는 Sprint 3 에 묶을 후속)
+
+- `fetchParticipants` 와 `submissions`/`weekly_logs` 도 `select('*')` 를 쓰고 있다. 현재는 컬럼 레벨 GRANT 가 없어 동작 중이지만, 향후 보안 강화 시 동일 회귀 위험. 같은 패턴으로 `PARTICIPANT_PUBLIC_COLUMNS` 등 상수 정의 권장.
+- Supabase 클라이언트 타입을 `Database` generated types 로 전환하면 `.select('*')` 가 컴파일 타임에 *서버 권한 모델과 분리* 되어 안전. Sprint 3 의 "테스트 베이스라인" 과 함께 검토.
+- PostgREST `Prefer: return=representation` 헤더 + RLS 진단 SQL 을 운영 알람에 연결해 동일 회귀를 *배포 직후 자동 감지* 하는 방안.
+
+---
+
 ## 4. 알려진 잔여 위험 / 후속 처리
 
 - **레거시 이미지 URL**: Sprint 0 이전에 생성된 `submissions.image_url` 행은 *공개 URL 형식*. `resolveImageUrl()` 이 path 추출 후 재서명하므로 표시는 동작. 다만 **버킷을 Private 화한 순간 기존 URL 을 그대로 외부에 공유했다면 그 URL 은 더 이상 동작하지 않음**. (의도된 보안 강화 — 별도 알림 불요.)

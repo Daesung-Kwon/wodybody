@@ -49,9 +49,16 @@ import WeeklyLogsUpgradeNoticeDialog, {
 } from '../components/WeeklyLogsUpgradeNoticeDialog';
 import { useAllWeeklyLogsForChallenge } from '../hooks/useWeeklyLogs';
 import { useRecordStatus } from '../hooks/useRecordStatus';
+import { resolveImageUrl } from '../lib/signedImage';
 
-const DEBUG_SHOW_RANKING = false; // 테스트용: true면 순위 항상 공개
-const DEBUG_ALLOW_EARLY_END_SUBMIT = false; // 테스트용: true면 종료일 전에도 인증 진행
+// Sprint 0.4: 디버그 플래그를 빌드 시점 환경 변수로 분리.
+//   - VITE_DEBUG_SHOW_RANKING="true"           → 순위 항상 공개 (개발 전용)
+//   - VITE_DEBUG_ALLOW_EARLY_END_SUBMIT="true" → 종료일 전 종료 인증 허용
+// 운영 빌드에서는 변수를 비워두거나 "false" 로 설정하세요.
+const DEBUG_SHOW_RANKING =
+  (import.meta.env.VITE_DEBUG_SHOW_RANKING ?? '').toLowerCase() === 'true';
+const DEBUG_ALLOW_EARLY_END_SUBMIT =
+  (import.meta.env.VITE_DEBUG_ALLOW_EARLY_END_SUBMIT ?? '').toLowerCase() === 'true';
 
 const END_BTN_COLORS = [
   { main: '#16a34a', glow: 'rgba(22, 163, 74, 0.5)' },
@@ -239,7 +246,7 @@ export default function ChallengePage() {
 
   const handleUnlockRanking = () => {
     if (!challenge) return;
-    if (challenge.admin_pin) {
+    if (challenge.has_admin_pin) {
       openPinDialog('ranking');
     } else {
       doToggleRanking();
@@ -248,7 +255,7 @@ export default function ChallengePage() {
 
   const handleEditChallengeOpen = () => {
     if (!challenge) return;
-    if (challenge.admin_pin) {
+    if (challenge.has_admin_pin) {
       openPinDialog('editChallenge');
     } else {
       openChallengeEditDialog();
@@ -291,6 +298,22 @@ export default function ChallengePage() {
 
   const normalizeAdminPin = (p: string | null | undefined) => String(p ?? '').trim().replace(/\D/g, '');
 
+  // Sprint 0.1: 클라이언트 비교가 아닌 서버 RPC 로 PIN 검증
+  const verifyAdminPinOnServer = async (pin: string): Promise<boolean> => {
+    if (!challenge) return false;
+    const cleaned = normalizeAdminPin(pin);
+    if (cleaned.length !== 4) return false;
+    const { data, error } = await supabase.rpc('verify_admin_pin', {
+      p_challenge_id: challenge.id,
+      p_pin: cleaned,
+    });
+    if (error) {
+      // 네트워크/RPC 오류는 거부 처리. 사용자에게는 일반 메시지로 안내.
+      return false;
+    }
+    return data === true;
+  };
+
   const doToggleRanking = async (): Promise<boolean> => {
     if (!challenge) return false;
     const next = !(challenge.ranking_unlocked ?? false);
@@ -314,22 +337,28 @@ export default function ChallengePage() {
 
   const handlePinSubmit = async () => {
     if (!challenge) return;
-    const expected = normalizeAdminPin(challenge.admin_pin);
     const got = normalizeAdminPin(pinInput);
-    if (got.length !== 4 || got !== expected) {
+    if (got.length !== 4) {
+      setPinError('PIN은 숫자 4자리입니다.');
+      return;
+    }
+    setPinLoading(true);
+    setPinError('');
+    const ok = await verifyAdminPinOnServer(got);
+    if (!ok) {
+      setPinLoading(false);
       setPinError('PIN이 올바르지 않습니다.');
       return;
     }
     if (pendingPinAction === 'ranking') {
-      setPinLoading(true);
-      setPinError('');
-      const ok = await doToggleRanking();
+      const toggleOk = await doToggleRanking();
       setPinLoading(false);
-      if (ok) {
+      if (toggleOk) {
         setPinInput('');
         setPinDialog(false);
       }
     } else if (pendingPinAction === 'editChallenge') {
+      setPinLoading(false);
       setPinInput('');
       setPinDialog(false);
       openChallengeEditDialog();
@@ -643,16 +672,21 @@ export default function ChallengePage() {
                             {s.image_url ? (
                               <Tooltip title="탭하여 이미지 보기">
                                 <Button
-                                  component="a"
-                                  href={s.image_url}
-                                  target="_blank"
-                                  rel="noreferrer"
                                   size="small"
                                   variant="outlined"
                                   color="primary"
                                   startIcon={<PhotoCameraIcon sx={{ fontSize: 14 }} />}
                                   sx={{ minHeight: 28, minWidth: 40, py: 0.25, px: 0.75, fontSize: '0.75rem', flexShrink: 0 }}
                                   aria-label="인증 이미지 보기"
+                                  onClick={async () => {
+                                    // Sprint 0.3: storage path → signed URL (7일)
+                                    const url = await resolveImageUrl(s.image_url);
+                                    if (!url) {
+                                      setToast('이미지를 불러오지 못했습니다.');
+                                      return;
+                                    }
+                                    window.open(url, '_blank', 'noopener,noreferrer');
+                                  }}
                                 >
                                   보기
                                 </Button>
@@ -711,7 +745,7 @@ export default function ChallengePage() {
                 sx={{ flexShrink: 0 }}
               >
                 {showRanking ? '순위 잠금' : '중간 공개'}
-                {challenge?.admin_pin && (
+                {challenge?.has_admin_pin && (
                   <LockIcon sx={{ fontSize: 12, ml: 0.5, opacity: 0.6 }} />
                 )}
               </Button>

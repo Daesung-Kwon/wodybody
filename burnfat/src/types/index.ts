@@ -8,8 +8,11 @@ export interface Challenge {
   created_at: string;
   /** 중간 순위 공개 여부 — 마이그레이션 후 사용 가능 */
   ranking_unlocked?: boolean;
-  /** 순위 공개/잠금 보호 PIN (4자리 숫자, 미설정 시 누구나 가능) */
-  admin_pin?: string | null;
+  /**
+   * 관리자 PIN 설정 여부 (서버 측 generated 컬럼).
+   * 평문/해시는 클라이언트에 노출되지 않으며, 검증은 supabase.rpc('verify_admin_pin', ...) 으로만 수행.
+   */
+  has_admin_pin?: boolean;
 }
 
 export type Gender = 'M' | 'F';
@@ -44,6 +47,8 @@ export interface WeeklyLog {
   /** 식단 패턴 */
   diet_quality: DietQuality | null;
   note: string | null;
+  /** Sprint 0.2: device_secret_hash (SHA-256 hex). */
+  device_secret_hash?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -55,7 +60,13 @@ export interface Submission {
   participant_id: string;
   type: SubmissionType;
   body_fat_rate: number;
+  /**
+   * Storage 경로 또는 (구) public/sign URL.
+   * 신규 INSERT 는 path 만 저장하며 표시 시 resolveImageUrl 로 signed URL 생성.
+   */
   image_url: string | null;
+  /** Sprint 0.2: device_secret_hash (SHA-256 hex). 서버에서만 사용, 클라이언트는 plain만 보관. */
+  device_secret_hash?: string | null;
   created_at: string;
 }
 

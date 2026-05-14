@@ -11,6 +11,7 @@ import Typography from '@mui/material/Typography';
 import { supabase } from '../lib/supabase';
 import type { SubmissionType } from '../types';
 import ImageMaskEditor from './ImageMaskEditor';
+import { prepareDeviceSecret } from '../lib/deviceSecret';
 
 interface Props {
   open: boolean;
@@ -52,29 +53,37 @@ export default function SubmitModal({ open, participantId, participantNickname, 
     setLoading(true);
     setError('');
 
+    // Sprint 0.3: Storage path 만 저장 (표시 시 createSignedUrl). 버킷이 Private 화되어 있다고 가정.
     const path = `${participantId}/${type}-${Date.now()}.jpg`;
     const { error: uploadErr } = await supabase.storage.from('inbody').upload(path, maskedBlob, { upsert: true });
-    let imageUrl: string | null = null;
-    if (!uploadErr) {
-      const { data: pub } = supabase.storage.from('inbody').getPublicUrl(path);
-      imageUrl = pub.publicUrl;
-    } else {
+    if (uploadErr) {
       setError('이미지 업로드에 실패했습니다. ' + uploadErr.message);
       setLoading(false);
       return;
     }
 
-    const { error: insertErr } = await supabase.from('submissions').insert({
-      participant_id: participantId,
-      type,
-      body_fat_rate: rateRounded,
-      image_url: imageUrl,
-    });
+    // Sprint 0.2: device_secret 발급 → 해시는 서버에 저장, plain 은 INSERT 성공 후 localStorage 에 보관
+    const secret = await prepareDeviceSecret('submissions');
+
+    const { data: inserted, error: insertErr } = await supabase
+      .from('submissions')
+      .insert({
+        participant_id: participantId,
+        type,
+        body_fat_rate: rateRounded,
+        image_url: path,
+        device_secret_hash: secret.hash,
+      })
+      .select()
+      .single();
 
     setLoading(false);
     if (insertErr) {
       setError(insertErr.message.includes('unique') ? '이미 해당 구간 인증을 제출했습니다.' : insertErr.message);
       return;
+    }
+    if (inserted?.id) {
+      secret.persist(inserted.id);
     }
     onSuccess();
   };

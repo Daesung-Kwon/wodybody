@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { WeeklyLog } from '../types';
+import { loadDeviceSecret } from '../lib/deviceSecret';
 
 export function useWeeklyLogs(participantId: string | null) {
   const [logs, setLogs] = useState<WeeklyLog[]>([]);
@@ -36,9 +37,24 @@ export function useWeeklyLogs(participantId: string | null) {
     [fetch]
   );
 
+  // Sprint 0.2: RLS UPDATE 정책이 제거되었으므로 update_weekly_log RPC 사용.
+  //   - 같은 디바이스(localStorage 시크릿) + 24h 윈도우 안일 때만 성공.
   const update = useCallback(
     async (id: string, updates: Partial<WeeklyLog>) => {
-      const { error } = await supabase.from('weekly_logs').update(updates).eq('id', id);
+      const deviceSecret = loadDeviceSecret('weekly_logs', id);
+      if (!deviceSecret) {
+        throw new Error('이 기록은 다른 디바이스에서 입력되어 이 기기에서 수정할 수 없습니다.');
+      }
+      // device_secret_hash / created_at / updated_at 같은 컬럼은 패치에서 제거
+      const { id: _id, created_at: _c, updated_at: _u, device_secret_hash: _d, ...patch } =
+        updates as Partial<WeeklyLog> & { id?: string };
+      void _id; void _c; void _u; void _d;
+
+      const { error } = await supabase.rpc('update_weekly_log', {
+        p_id: id,
+        p_device_secret: deviceSecret,
+        p_patch: patch,
+      });
       if (error) throw error;
       await fetch();
     },

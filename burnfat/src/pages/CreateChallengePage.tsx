@@ -45,42 +45,50 @@ export default function CreateChallengePage() {
     setLoading(true);
     setError('');
 
-    let code = generateCode();
-    let attempts = 0;
-    const maxAttempts = 5;
-
-    while (attempts < maxAttempts) {
-      const { data: existing } = await supabase.from('challenges').select('id').eq('code', code).single();
-      if (!existing) break;
-      code = generateCode();
-      attempts++;
-    }
-
     if (adminPin && !/^\d{4}$/.test(adminPin)) {
       setError('관리자 PIN은 숫자 4자리로 입력하세요.');
       setLoading(false);
       return;
     }
 
-    const { data, error: err } = await supabase
-      .from('challenges')
-      .insert({
-        code,
-        title: title.trim() || '다이어트 챌린지',
-        start_date: startDate,
-        end_date: endDate,
-        stake_amount: stakeAmount,
-        admin_pin: adminPin.trim() || null,
-      })
-      .select()
-      .single();
+    // 코드 중복 회피 — 최대 5회 재시도
+    let code = generateCode();
+    let attempts = 0;
+    const maxAttempts = 5;
+    while (attempts < maxAttempts) {
+      const { data: existing } = await supabase.from('challenges').select('id').eq('code', code).maybeSingle();
+      if (!existing) break;
+      code = generateCode();
+      attempts++;
+    }
+
+    // Sprint 0.1: 평문 PIN INSERT 가 아닌 서버측 해시 RPC 사용
+    const { data, error: err } = await supabase.rpc('create_challenge_with_pin', {
+      p_code: code,
+      p_title: title.trim() || '다이어트 챌린지',
+      p_start_date: startDate,
+      p_end_date: endDate,
+      p_stake_amount: stakeAmount,
+      p_admin_pin: adminPin.trim() || null,
+    });
 
     setLoading(false);
     if (err) {
-      setError(err.message || '대결 생성에 실패했습니다.');
+      // RPC 측 예외(admin_pin_format 등) 처리
+      const msg = err.message || '';
+      if (msg.includes('admin_pin_format')) {
+        setError('관리자 PIN은 숫자 4자리로 입력하세요.');
+      } else {
+        setError(msg || '대결 생성에 실패했습니다.');
+      }
       return;
     }
-    navigate(`/c/${(data as Challenge).code}`);
+    const created = (Array.isArray(data) ? data[0] : data) as Challenge | null;
+    if (!created?.code) {
+      setError('대결 생성 응답이 비어 있습니다.');
+      return;
+    }
+    navigate(`/c/${created.code}`);
   };
 
   return (

@@ -17,6 +17,7 @@ import Box from '@mui/material/Box';
 import { supabase } from '../lib/supabase';
 import type { Participant, Gender, DietQuality } from '../types';
 import { getWeekNoForDate } from '../lib/weekUtils';
+import { prepareDeviceSecret } from '../lib/deviceSecret';
 
 interface Props {
   open: boolean;
@@ -92,25 +93,36 @@ export default function WeeklyLogForm({
     setLoading(true);
     setError('');
 
-    const { error: err } = await supabase.from('weekly_logs').insert({
-      participant_id: participant.id,
-      week_no: weekNo,
-      recorded_at: recordedAt,
-      age: age.trim() ? parseInt(age, 10) : null,
-      gender: gender || null,
-      weight_kg: weightKg.trim() ? parseFloat(weightKg) : null,
-      height_cm: heightCm.trim() ? parseFloat(heightCm) : null,
-      body_fat_rate: Math.round(rate * 100) / 100,
-      exercise_count: exerciseCount !== '' ? parseInt(exerciseCount, 10) : null,
-      sleep_hours: parsedSleepHours,
-      diet_quality: dietQuality || null,
-      note: note.trim() || null,
-    });
+    // Sprint 0.2: 본인 디바이스만 24h 내 수정할 수 있도록 device_secret 발급
+    const secret = await prepareDeviceSecret('weekly_logs');
+
+    const { data: inserted, error: err } = await supabase
+      .from('weekly_logs')
+      .insert({
+        participant_id: participant.id,
+        week_no: weekNo,
+        recorded_at: recordedAt,
+        age: age.trim() ? parseInt(age, 10) : null,
+        gender: gender || null,
+        weight_kg: weightKg.trim() ? parseFloat(weightKg) : null,
+        height_cm: heightCm.trim() ? parseFloat(heightCm) : null,
+        body_fat_rate: Math.round(rate * 100) / 100,
+        exercise_count: exerciseCount !== '' ? parseInt(exerciseCount, 10) : null,
+        sleep_hours: parsedSleepHours,
+        diet_quality: dietQuality || null,
+        note: note.trim() || null,
+        device_secret_hash: secret.hash,
+      })
+      .select()
+      .single();
 
     setLoading(false);
     if (err) {
       setError(err.message.includes('unique') ? '이미 해당 주차 기록이 있습니다.' : err.message);
       return;
+    }
+    if (inserted?.id) {
+      secret.persist(inserted.id);
     }
     onSuccess();
     onClose();

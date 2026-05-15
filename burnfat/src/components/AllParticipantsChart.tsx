@@ -24,6 +24,19 @@ export const CHART_COLORS = [
   '#ca8a04',
 ];
 
+// Sprint 1 a11y: 색약/흑백 인쇄 사용자를 위해 라인을 색상만이 아니라
+// 점선/실선 스타일로도 구분한다. CHART_COLORS 와 같은 길이로 순환.
+export const CHART_LINE_DASHES = [
+  '0',        // 실선
+  '6 3',      // 긴 점선
+  '2 3',      // 짧은 점선
+  '8 3 2 3',  // 일점쇄선
+  '1 4',      // 도트
+  '10 4',     // 더 긴 점선
+  '4 2 1 2',  // 촘촘한 쇄선
+  '12 3 3 3', // 긴 쇄선
+];
+
 interface Props {
   participants: ParticipantWithSubmissions[];
   logsByParticipant: Record<string, WeeklyLog[]>;
@@ -62,8 +75,11 @@ export default function AllParticipantsChart({ participants, logsByParticipant }
     );
   }
 
+  // a11y: 차트를 보지 못하는 사용자를 위한 요약 대체 텍스트.
+  const chartAlt = `${participants.length}명 참가자의 주차별 체지방률 추이 꺾은선 그래프. ${weekList.length}개 주차 기록.`;
+
   return (
-    <Box sx={{ width: '100%', height: 280 }}>
+    <Box sx={{ width: '100%', height: 280 }} role="img" aria-label={chartAlt}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 8, left: 4, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -85,6 +101,7 @@ export default function AllParticipantsChart({ participants, logsByParticipant }
               type="monotone"
               dataKey={p.nickname}
               stroke={CHART_COLORS[idx % CHART_COLORS.length]}
+              strokeDasharray={CHART_LINE_DASHES[idx % CHART_LINE_DASHES.length]}
               strokeWidth={2}
               dot={{ r: 3 }}
               connectNulls

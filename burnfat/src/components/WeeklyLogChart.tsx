@@ -78,7 +78,11 @@ export default function WeeklyLogChart({ logs, participant, startBodyFat }: Prop
           />
         </Box>
       )}
-      <Box sx={{ width: '100%', height: 240 }}>
+      <Box
+        sx={{ width: '100%', height: 240 }}
+        role="img"
+        aria-label={`${participant.nickname}님의 주차별 ${isWeight ? '몸무게' : '체지방률'} 추이 꺾은선 그래프`}
+      >
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 8, right: 8, left: 4, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />

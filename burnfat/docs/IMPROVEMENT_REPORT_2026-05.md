@@ -219,7 +219,7 @@ HomePage(코드 입력) → ChallengePage(/c/:code)
    - 버킷 Private 화, signed URL 7일 유효, 클라이언트에서 매번 갱신.
 4. **디버그 플래그 환경 변수화** (0.5일).
 
-### Sprint 1 — 2~3주차 (UX 임팩트 큰 빠른 승)
+### Sprint 1 — 2~3주차 (UX 임팩트 큰 빠른 승) ✅ **완료 (2026-05-15, [`SPRINT1_HANDOFF.md`](SPRINT1_HANDOFF.md))**
 
 1. **개인 상태 카드** (1일)
    - 닉네임 등록 시 `device_token` 생성 → localStorage 저장 → 재방문 시 자동 식별.

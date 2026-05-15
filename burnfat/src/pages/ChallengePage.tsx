@@ -50,7 +50,18 @@ import WeeklyLogsUpgradeNoticeDialog, {
 } from '../components/WeeklyLogsUpgradeNoticeDialog';
 import { useAllWeeklyLogsForChallenge } from '../hooks/useWeeklyLogs';
 import { useRecordStatus } from '../hooks/useRecordStatus';
+import { useParticipantIdentity } from '../hooks/useParticipantIdentity';
+import { useNextRecordableWeek } from '../hooks/useNextRecordableWeek';
 import { resolveImageUrl } from '../lib/signedImage';
+import { getDDayDisplay } from '../lib/challengeSchedule';
+import { hasSeenNotice, markNoticeSeen } from '../lib/oneTimeNotice';
+import MyStatusCard from '../components/MyStatusCard';
+import DDayChip from '../components/DDayChip';
+import EndingSoonDialog, {
+  shouldShowEndingSoonNotice,
+  dismissEndingSoonNotice,
+} from '../components/EndingSoonDialog';
+import RankingShareDialog from '../components/RankingShareDialog';
 
 // Sprint 0.4: 디버그 플래그를 빌드 시점 환경 변수로 분리.
 //   - VITE_DEBUG_SHOW_RANKING="true"           → 순위 항상 공개 (개발 전용)
@@ -121,6 +132,10 @@ export default function ChallengePage() {
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState('');
   const [loadingElapsedMs, setLoadingElapsedMs] = useState(0);
+  // Sprint 1: 개인 상태 카드 / 종료 임박 모달 / 랭킹 공유
+  const [showJoinForm, setShowJoinForm] = useState(false);
+  const [endingSoonOpen, setEndingSoonOpen] = useState(false);
+  const [rankingShareOpen, setRankingShareOpen] = useState(false);
 
   const fetchChallenge = useCallback(async () => {
     if (!code) {
@@ -229,21 +244,10 @@ export default function ChallengePage() {
     setWeeklyLogsNoticeOpen(false);
   };
 
-  const handleShareRanking = () => {
+  // Sprint 1: 결과 공유는 RankingShareDialog (PNG 이미지 + 텍스트) 로 일원화.
+  const handleOpenRankingShare = () => {
     if (!challenge || ranking.length === 0) return;
-    const medal = (n: number) => n === 1 ? '🥇' : n === 2 ? '🥈' : n === 3 ? '🥉' : `${n}위`;
-    const lines = [
-      `🔥 BurnFat 대결 결과`,
-      `📌 ${challenge.title}`,
-      `📅 ${challenge.start_date} ~ ${challenge.end_date}`,
-      '',
-      ...ranking.map((r) => `${medal(r.rank)} ${r.nickname}  -${r.reductionRate.toFixed(2)}%`),
-      '',
-      `🔗 ${shareUrl}`,
-    ];
-    navigator.clipboard.writeText(lines.join('\n')).then(() =>
-      setToast('결과가 클립보드에 복사되었습니다')
-    );
+    setRankingShareOpen(true);
   };
 
   const openPinDialog = (action: 'ranking' | 'editChallenge') => {
@@ -392,13 +396,49 @@ export default function ChallengePage() {
     setError('');
     setJoinNickname('');
     fetchParticipants();
+    // Sprint 1: 방금 등록한 참가자를 이 디바이스의 "나" 로 기억 → 재방문 시 개인 상태 카드.
+    rememberMe((newParticipant as ParticipantWithSubmissions).id);
+    setShowJoinForm(false);
     setBasicInfoDialog({ ...(newParticipant as ParticipantWithSubmissions), submissions: [] });
     setBasicInfoDialogAfterJoin(true);
   };
 
   const participantIds = participants.map((p) => p.id);
-  const { logsByParticipant, refetch: refetchLogs } = useAllWeeklyLogsForChallenge(participantIds);
+  const { logsByParticipant, loading: logsLoading, refetch: refetchLogs } =
+    useAllWeeklyLogsForChallenge(participantIds);
   const recordStatus = useRecordStatus(participants, logsByParticipant, challenge?.start_date || '');
+
+  // Sprint 1: 내 참가자 식별 + 내 주간 기록 상태
+  const { myParticipant, remember: rememberMe, forget: forgetMe } = useParticipantIdentity(
+    challenge?.id,
+    participants
+  );
+  const myWeekly = useNextRecordableWeek(
+    myParticipant ? logsByParticipant[myParticipant.id] || [] : [],
+    challenge?.start_date || '',
+    challenge?.end_date || ''
+  );
+
+  // Sprint 1: 종료 임박 모달 — 종료 24h 이내 진입 시 챌린지당 1회
+  useEffect(() => {
+    if (!challenge) return;
+    const dd = getDDayDisplay(challenge.start_date, challenge.end_date);
+    if (dd.endingSoon && shouldShowEndingSoonNotice(challenge.id)) {
+      setEndingSoonOpen(true);
+    }
+  }, [challenge]);
+
+  // Sprint 1: 백필 권고 토스트 — 내 미입력 주차가 2개 이상이면 챌린지당 1회
+  useEffect(() => {
+    if (!challenge || !myParticipant || logsLoading) return;
+    if (myWeekly.missingWeeks.length < 2) return;
+    const key = `backfill:${challenge.id}:${myParticipant.id}`;
+    if (hasSeenNotice(key)) return;
+    setToast(
+      `미입력 주차가 ${myWeekly.missingWeeks.length}개 있어요. 채워두면 AI 조언이 더 정확해집니다.`
+    );
+    markNoticeSeen(key);
+  }, [challenge, myParticipant, logsLoading, myWeekly.missingWeeks.length]);
 
   if (loading) {
     if (loadingElapsedMs < 300) {
@@ -448,6 +488,24 @@ export default function ChallengePage() {
   // end_date가 없으면 안전하게 차단(모달 열지 않음). 빈 문자열일 때 '' > today 는 false가 되어 잘못 모달이 열리는 버그 방지
   const isBeforeEndDate = !endDateOnly ? true : endDateOnly > today;
 
+  // Sprint 1: D-Day 표시 모델 (헤더 칩 + 종료 임박 모달이 공유)
+  const dday = getDDayDisplay(challenge.start_date, challenge.end_date);
+
+  // Sprint 1: 시작/종료 인증 모달 진입 — 개인 상태 카드와 참가자 카드가 공유.
+  const openStartAuth = (p: ParticipantWithSubmissions) => {
+    if (isBeforeStartDate) {
+      setToast(`시작일(${challenge.start_date}) 이후에 인증을 권장하지만, 미리 제출도 가능합니다.`);
+    }
+    setSubmitModal({ open: true, participantId: p.id, participantNickname: p.nickname, type: 'start' });
+  };
+  const openEndAuth = (p: ParticipantWithSubmissions) => {
+    if (isBeforeEndDate && !DEBUG_ALLOW_EARLY_END_SUBMIT) {
+      setEarlyEndBlockSnackbar(true);
+    } else {
+      setSubmitModal({ open: true, participantId: p.id, participantNickname: p.nickname, type: 'end' });
+    }
+  };
+
   const participantsWithStart = participants.filter((p) => p.submissions.some((s) => s.type === 'start'));
   const allEndComplete = participantsWithStart.length > 0 && participantsWithStart.every((p) =>
     p.submissions.some((s) => s.type === 'end')
@@ -489,46 +547,89 @@ export default function ChallengePage() {
               대결 코드: <strong>{challenge.code}</strong>
             </Typography>
           </Box>
-          <Box sx={{ display: 'flex', gap: 0.5 }}>
-            <Tooltip title="챌린지 정보 수정">
-              <IconButton onClick={handleEditChallengeOpen} size="small" color="default">
-                <EditIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="URL 복사">
-              <IconButton onClick={handleCopyShare} color="primary" size="small">
-                <ContentCopyIcon />
-              </IconButton>
-            </Tooltip>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
+            <DDayChip dday={dday} />
+            <Box sx={{ display: 'flex', gap: 0.5 }}>
+              <Tooltip title="챌린지 정보 수정">
+                <IconButton
+                  onClick={handleEditChallengeOpen}
+                  size="small"
+                  color="default"
+                  aria-label="챌린지 정보 수정"
+                >
+                  <EditIcon />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="URL 복사">
+                <IconButton
+                  onClick={handleCopyShare}
+                  color="primary"
+                  size="small"
+                  aria-label="대결 URL 복사"
+                >
+                  <ContentCopyIcon />
+                </IconButton>
+              </Tooltip>
+            </Box>
           </Box>
         </Box>
       </Box>
 
       {tab === 0 && (
-        <Card sx={{ mx: 2, mb: 2 }}>
-          <CardContent sx={{ p: 2 }}>
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              참가하기
-            </Typography>
-            <form onSubmit={handleJoin} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <TextField
-                size="small"
-                placeholder="닉네임"
-                value={joinNickname}
-                onChange={(e) => setJoinNickname(e.target.value)}
-                sx={{ flex: 1, minWidth: 0, '& .MuiInputBase-root': { minHeight: 40 } }}
-              />
-              <Button type="submit" variant="contained" size="small" disabled={joinLoading || !joinNickname.trim()} sx={{ minWidth: 80, minHeight: 40 }}>
-                참가
+        myParticipant && !showJoinForm ? (
+          <>
+            <MyStatusCard
+              participant={myParticipant}
+              logs={logsByParticipant[myParticipant.id] || []}
+              challengeStartDate={challenge.start_date}
+              challengeEndDate={challenge.end_date}
+              onAuthStart={() => openStartAuth(myParticipant)}
+              onAuthEnd={() => openEndAuth(myParticipant)}
+              onOpenWeeklyLog={(weekNo) => {
+                setTab(2);
+                setWeeklyLogTarget({ participant: myParticipant, defaultWeekNo: weekNo });
+              }}
+              onForget={forgetMe}
+            />
+            <Box sx={{ px: 2, mb: 1, textAlign: 'center' }}>
+              <Button size="small" variant="text" onClick={() => setShowJoinForm(true)}>
+                + 다른 참가자 추가
               </Button>
-            </form>
-            {error && (
-              <Typography color="error" variant="caption" sx={{ mt: 1, display: 'block' }}>
-                {error}
-              </Typography>
-            )}
-          </CardContent>
-        </Card>
+            </Box>
+          </>
+        ) : (
+          <Card sx={{ mx: 2, mb: 2 }}>
+            <CardContent sx={{ p: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  참가하기
+                </Typography>
+                {myParticipant && (
+                  <Button size="small" variant="text" color="inherit" onClick={() => setShowJoinForm(false)}>
+                    취소
+                  </Button>
+                )}
+              </Box>
+              <form onSubmit={handleJoin} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <TextField
+                  size="small"
+                  placeholder="닉네임"
+                  value={joinNickname}
+                  onChange={(e) => setJoinNickname(e.target.value)}
+                  sx={{ flex: 1, minWidth: 0, '& .MuiInputBase-root': { minHeight: 40 } }}
+                />
+                <Button type="submit" variant="contained" size="small" disabled={joinLoading || !joinNickname.trim()} sx={{ minWidth: 80, minHeight: 40 }}>
+                  참가
+                </Button>
+              </form>
+              {error && (
+                <Typography color="error" variant="caption" sx={{ mt: 1, display: 'block' }}>
+                  {error}
+                </Typography>
+              )}
+            </CardContent>
+          </Card>
+        )
       )}
 
       <Tabs
@@ -585,7 +686,12 @@ export default function ChallengePage() {
                     </Box>
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                       <Tooltip title="기본정보 수정">
-                        <IconButton size="small" onClick={() => { setBasicInfoDialog(p); setBasicInfoDialogAfterJoin(false); }} sx={{ p: 0.5, minWidth: 44, minHeight: 44 }}>
+                        <IconButton
+                          size="small"
+                          onClick={() => { setBasicInfoDialog(p); setBasicInfoDialogAfterJoin(false); }}
+                          sx={{ p: 0.5, minWidth: 44, minHeight: 44 }}
+                          aria-label={`${p.nickname} 기본정보 수정`}
+                        >
                           <EditIcon sx={{ fontSize: 18 }} />
                         </IconButton>
                       </Tooltip>
@@ -594,25 +700,14 @@ export default function ChallengePage() {
                           size="small"
                           variant="outlined"
                           startIcon={<AddIcon sx={{ fontSize: 16 }} />}
-                          onClick={() => {
-                            if (isBeforeStartDate) {
-                              setToast(`시작일(${challenge.start_date}) 이후에 인증을 권장하지만, 미리 제출도 가능합니다.`);
-                            }
-                            setSubmitModal({ open: true, participantId: p.id, participantNickname: p.nickname, type: 'start' });
-                          }}
+                          onClick={() => openStartAuth(p)}
                           sx={{ minHeight: 44, py: 0.75, px: 1.5, fontSize: '0.8125rem' }}
                         >
                           시작일 인증
                         </Button>
                       )}
                       {!p.submissions.some((s) => s.type === 'end') && (() => {
-                        const handleEndClick = () => {
-                          if (isBeforeEndDate && !DEBUG_ALLOW_EARLY_END_SUBMIT) {
-                            setEarlyEndBlockSnackbar(true);
-                          } else {
-                            setSubmitModal({ open: true, participantId: p.id, participantNickname: p.nickname, type: 'end' });
-                          }
-                        };
+                        const handleEndClick = () => openEndAuth(p);
                         const { main, glow } = getEndBtnColor(p.id);
                         const glowDim = glow.replace('0.5)', '0.4)');
                         return (
@@ -784,7 +879,7 @@ export default function ChallengePage() {
                   variant="outlined"
                   size="small"
                   startIcon={<ShareIcon />}
-                  onClick={handleShareRanking}
+                  onClick={handleOpenRankingShare}
                   sx={{ flexShrink: 0, minHeight: 44 }}
                 >
                   결과 공유
@@ -851,6 +946,8 @@ export default function ChallengePage() {
                           {medal ? (
                             <Box
                               component="span"
+                              role="img"
+                              aria-label={`${r.rank}위`}
                               sx={{
                                 fontSize: 32,
                                 lineHeight: 1,
@@ -1122,6 +1219,32 @@ export default function ChallengePage() {
             fetchParticipants();
             refetchLogs();
           }}
+        />
+      )}
+
+      {/* Sprint 1: 종료 임박 모달 */}
+      <EndingSoonDialog
+        open={endingSoonOpen}
+        ddayLabel={dday.label}
+        endDate={endDateOnly || challenge.end_date}
+        myEndPending={myParticipant ? !myParticipant.submissions.some((s) => s.type === 'end') : undefined}
+        onClose={() => {
+          dismissEndingSoonNotice(challenge.id);
+          setEndingSoonOpen(false);
+        }}
+        onAuthEnd={myParticipant ? () => openEndAuth(myParticipant) : undefined}
+      />
+
+      {/* Sprint 1: 랭킹 공유 (PNG + 텍스트) */}
+      {rankingShareOpen && (
+        <RankingShareDialog
+          open={rankingShareOpen}
+          challenge={challenge}
+          ranking={ranking}
+          participantCount={participants.length}
+          shareUrl={shareUrl}
+          onClose={() => setRankingShareOpen(false)}
+          onToast={(msg) => setToast(msg)}
         />
       )}
     </Box>

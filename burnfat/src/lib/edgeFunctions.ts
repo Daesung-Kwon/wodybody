@@ -10,12 +10,28 @@ function resolveAiAdviceUrl(): string {
   return fromEnv || WODYBODY_GROK_AI_URL;
 }
 
+/** Sprint 2: Grok 구조화 응답 — summary / 실천 항목 / 주의 항목. */
+export interface StructuredAdvice {
+  summary: string;
+  actionItems: string[];
+  cautions: string[];
+}
+
 export interface AIAdviceResponse {
+  /** 평문 조언 — 항상 존재 (구버전 백엔드 호환). */
   advice: string;
+  /** 구조화 조언 — 구버전 백엔드면 null (평문 폴백). */
+  structured: StructuredAdvice | null;
+  /** 서버 캐시에서 반환됐는지. */
+  cached: boolean;
+  /** 조언이 계산된 주차. 구버전 백엔드면 null. */
+  weekNo: number | null;
 }
 
 export interface AIAdviceRequest {
   participantId: string;
+  /** 캐시를 건너뛰고 새로 생성. */
+  forceRefresh?: boolean;
   userContext?: string;
   adviceStyle?: string;
   adviceGoal?: string;
@@ -55,6 +71,11 @@ function parseErrorMessage(res: Response, bodyText: string): string {
   return bodyText?.trim() || `AI 조언 요청 실패 (${res.status})`;
 }
 
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((v) => String(v ?? '').trim()).filter(Boolean);
+}
+
 export async function fetchAIAdvice(req: AIAdviceRequest): Promise<AIAdviceResponse> {
   const url = resolveAiAdviceUrl();
   const res = await fetch(url, {
@@ -62,6 +83,7 @@ export async function fetchAIAdvice(req: AIAdviceRequest): Promise<AIAdviceRespo
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       participant_id: req.participantId,
+      force_refresh: req.forceRefresh || undefined,
       user_context: req.userContext?.trim() || undefined,
       advice_style: req.adviceStyle || undefined,
       advice_goal: req.adviceGoal || undefined,
@@ -75,12 +97,35 @@ export async function fetchAIAdvice(req: AIAdviceRequest): Promise<AIAdviceRespo
 
   let data: unknown;
   try {
-    data = JSON.parse(text) as AIAdviceResponse;
+    data = JSON.parse(text);
   } catch {
     throw new Error('AI 응답을 해석할 수 없습니다.');
   }
-  if (typeof data === 'object' && data && 'advice' in data && typeof (data as AIAdviceResponse).advice === 'string') {
-    return data as AIAdviceResponse;
+  if (typeof data !== 'object' || data === null) {
+    throw new Error('AI 응답 형식이 올바르지 않습니다.');
   }
-  throw new Error('AI 응답 형식이 올바르지 않습니다.');
+
+  const obj = data as Record<string, unknown>;
+  const advice = typeof obj.advice === 'string' ? obj.advice : '';
+  const summary = typeof obj.summary === 'string' ? obj.summary : '';
+  const actionItems = toStringArray(obj.action_items);
+  const cautions = toStringArray(obj.cautions);
+
+  // 구버전 백엔드는 구조화 필드가 없다 → structured=null, 평문 advice 폴백.
+  const hasStructured = summary !== '' || actionItems.length > 0;
+  const structured: StructuredAdvice | null = hasStructured
+    ? { summary, actionItems, cautions }
+    : null;
+
+  const effectiveAdvice = advice || summary;
+  if (!effectiveAdvice) {
+    throw new Error('AI 응답 형식이 올바르지 않습니다.');
+  }
+
+  return {
+    advice: effectiveAdvice,
+    structured,
+    cached: obj.cached === true,
+    weekNo: typeof obj.week_no === 'number' ? obj.week_no : null,
+  };
 }

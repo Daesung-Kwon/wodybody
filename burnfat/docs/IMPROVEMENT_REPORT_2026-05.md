@@ -281,7 +281,7 @@ HomePage(코드 입력) → ChallengePage(/c/:code)
 
 ---
 
-### Sprint 2 — 4~5주차 (제품 가치 확장)
+### Sprint 2 — 4~5주차 (제품 가치 확장) ✅ **완료 (2026-05-15, [`SPRINT2_HANDOFF.md`](SPRINT2_HANDOFF.md))**
 
 1. **AI 조언 서버 캐시 + JSON 응답** (3~5일)
    - 신규 테이블 `weekly_ai_advice`. 동일 (participant, week_no) 캐시 hit률 80%+ 기대.

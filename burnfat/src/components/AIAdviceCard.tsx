@@ -20,7 +20,10 @@ import PsychologyIcon from '@mui/icons-material/Psychology';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
+import TaskAltIcon from '@mui/icons-material/TaskAlt';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { useAIAdvice } from '../hooks/useAIAdvice';
+import type { StructuredAdvice } from '../lib/edgeFunctions';
 import type { ParticipantWithSubmissions, WeeklyLog } from '../types';
 
 interface Props {
@@ -45,8 +48,51 @@ const ADVICE_STYLES = [
   { value: '운동 중심으로', label: '운동 중심으로' },
 ];
 
+/** Sprint 2: 구조화 조언 섹션 (summary / 이번 주 실천 / 주의). */
+function StructuredAdviceView({ structured }: { structured: StructuredAdvice }) {
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, mb: 1 }}>
+      {structured.summary && (
+        <Typography variant="body2" fontWeight={600}>
+          {structured.summary}
+        </Typography>
+      )}
+      {structured.actionItems.length > 0 && (
+        <Box>
+          <Typography variant="caption" fontWeight={700} color="primary.dark" sx={{ display: 'block', mb: 0.5 }}>
+            이번 주 실천
+          </Typography>
+          <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            {structured.actionItems.map((item, i) => (
+              <Box component="li" key={i} sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.75 }}>
+                <TaskAltIcon sx={{ fontSize: 16, color: 'success.main', mt: '2px', flexShrink: 0 }} aria-hidden />
+                <Typography variant="body2">{item}</Typography>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      )}
+      {structured.cautions.length > 0 && (
+        <Box>
+          <Typography variant="caption" fontWeight={700} color="warning.dark" sx={{ display: 'block', mb: 0.5 }}>
+            주의
+          </Typography>
+          <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            {structured.cautions.map((item, i) => (
+              <Box component="li" key={i} sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.75 }}>
+                <WarningAmberIcon sx={{ fontSize: 16, color: 'warning.main', mt: '2px', flexShrink: 0 }} aria-hidden />
+                <Typography variant="body2">{item}</Typography>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
 export default function AIAdviceCard({ participant, logs, onOpenBasicInfo, onOpenLogForm }: Props) {
-  const { advice, loading, error, isCached, load, reset } = useAIAdvice();
+  const { result, loading, error, load, reset } = useAIAdvice();
   const [requested, setRequested] = useState(false);
   const [contextDialogOpen, setContextDialogOpen] = useState(false);
   const [userContext, setUserContext] = useState('');
@@ -156,14 +202,18 @@ export default function AIAdviceCard({ participant, logs, onOpenBasicInfo, onOpe
             {error}
           </Typography>
         )}
-        {advice && !loading && (
+        {result && !loading && (
           <>
-            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: 1 }}>
-              {advice}
-            </Typography>
-            {isCached && (
-              <Typography variant="caption" color="text.disabled">
-                오늘 캐시된 조언 · 새로 받으려면 아래 버튼을 누르세요
+            {result.structured ? (
+              <StructuredAdviceView structured={result.structured} />
+            ) : (
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: 1 }}>
+                {result.advice}
+              </Typography>
+            )}
+            {result.cached && (
+              <Typography variant="caption" color="text.disabled" display="block">
+                공동 캐시된 조언{result.weekNo != null ? ` · ${result.weekNo}주차` : ''} · 새로 받으려면 아래 버튼을 누르세요
               </Typography>
             )}
           </>
@@ -195,7 +245,7 @@ export default function AIAdviceCard({ participant, logs, onOpenBasicInfo, onOpe
             )}
           </>
         )}
-        {requested && !loading && advice && (
+        {requested && !loading && result && (
           <Button
             size="small"
             variant="outlined"
@@ -241,7 +291,8 @@ export default function AIAdviceCard({ participant, logs, onOpenBasicInfo, onOpe
             label="현재 상황/고민"
             placeholder="예: 이번 주 회식이 2번 있었고 수면이 부족했어요. 운동은 2번밖에 못 했고 체중은 그대로입니다."
             value={userContext}
-            onChange={(e) => setUserContext(e.target.value)}
+            onChange={(e) => setUserContext(e.target.value.slice(0, 500))}
+            helperText={`${userContext.length}/500자`}
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>

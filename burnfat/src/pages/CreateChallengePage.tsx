@@ -11,6 +11,8 @@ import LockIcon from '@mui/icons-material/Lock';
 import InputAdornment from '@mui/material/InputAdornment';
 import { supabase } from '../lib/supabase';
 import type { Challenge } from '../types';
+import ChallengeTemplatePicker from '../components/ChallengeTemplatePicker';
+import { CHALLENGE_TEMPLATES, templateEndDate, type ChallengeTemplate } from '../lib/challengeTemplates';
 
 function generateCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -39,6 +41,24 @@ export default function CreateChallengePage() {
   const [adminPin, setAdminPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // Sprint 2: 선택된 챌린지 템플릿 id. 사용자가 값을 직접 수정하면 null(직접 설정).
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+
+  // 템플릿 선택 → 종료일·참가비 자동 채움.
+  const handleSelectTemplate = (t: ChallengeTemplate) => {
+    setSelectedTemplateId(t.id);
+    setEndDate(templateEndDate(startDate, t.weeks));
+    setStakeAmount(t.stakeAmount);
+  };
+
+  // 시작일 변경 — 템플릿이 선택돼 있으면 종료일을 다시 계산해 일관성 유지.
+  const handleStartDateChange = (next: string) => {
+    setStartDate(next);
+    const tpl = selectedTemplateId
+      ? CHALLENGE_TEMPLATES.find((t) => t.id === selectedTemplateId)
+      : undefined;
+    if (tpl) setEndDate(templateEndDate(next, tpl.weeks));
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,6 +123,7 @@ export default function CreateChallengePage() {
 
       <Card sx={{ maxWidth: 480, mt: 2 }}>
         <CardContent sx={{ p: 3 }}>
+          <ChallengeTemplatePicker selectedId={selectedTemplateId} onSelect={handleSelectTemplate} />
           <form onSubmit={handleCreate}>
             <TextField
               fullWidth
@@ -116,7 +137,7 @@ export default function CreateChallengePage() {
               label="시작일"
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => handleStartDateChange(e.target.value)}
               InputLabelProps={{ shrink: true }}
               sx={{ mb: 2 }}
             />
@@ -125,7 +146,7 @@ export default function CreateChallengePage() {
               label="종료일"
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={(e) => { setEndDate(e.target.value); setSelectedTemplateId(null); }}
               InputLabelProps={{ shrink: true }}
               sx={{ mb: 2 }}
             />
@@ -134,7 +155,7 @@ export default function CreateChallengePage() {
               label="참가비 (원)"
               type="number"
               value={stakeAmount}
-              onChange={(e) => setStakeAmount(Number(e.target.value) || 0)}
+              onChange={(e) => { setStakeAmount(Number(e.target.value) || 0); setSelectedTemplateId(null); }}
               sx={{ mb: 2 }}
             />
             <TextField

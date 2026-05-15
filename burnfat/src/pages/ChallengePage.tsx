@@ -62,6 +62,7 @@ import EndingSoonDialog, {
   dismissEndingSoonNotice,
 } from '../components/EndingSoonDialog';
 import RankingShareDialog from '../components/RankingShareDialog';
+import GoalProgressWidget from '../components/GoalProgressWidget';
 
 // Sprint 0.4: 디버그 플래그를 빌드 시점 환경 변수로 분리.
 //   - VITE_DEBUG_SHOW_RANKING="true"           → 순위 항상 공개 (개발 전용)
@@ -1012,6 +1013,14 @@ export default function ChallengePage() {
               개인 락 없음 · 공동 입력 · 공동 확인
             </Typography>
           </Box>
+          {/* Sprint 2: 목표 진행률 위젯 — 식별된 "나" 에 대해 상단 고정 */}
+          {myParticipant && (
+            <GoalProgressWidget
+              participant={myParticipant}
+              logs={logsByParticipant[myParticipant.id] || []}
+              onOpenBasicInfo={() => { setBasicInfoDialog(myParticipant); setBasicInfoDialogAfterJoin(false); }}
+            />
+          )}
           <RecordStatusSummary
             currentWeek={recordStatus.currentWeek}
             completedCount={recordStatus.completedCount}

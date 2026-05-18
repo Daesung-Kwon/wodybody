@@ -356,6 +356,9 @@ def _stream_grok(messages: list[dict[str, str]]) -> Iterator[str]:
         XAI_API_URL, json=payload, headers=headers, timeout=XAI_TIMEOUT_SECONDS, stream=True
     )
     resp.raise_for_status()
+    # text/event-stream 은 charset 미표기 시 requests 가 Latin-1 로 추정 → 한글이 깨진다.
+    # xAI SSE 본문은 UTF-8 이므로 명시적으로 지정.
+    resp.encoding = "utf-8"
     for line in resp.iter_lines(decode_unicode=True):
         if not line or not line.startswith("data:"):
             continue

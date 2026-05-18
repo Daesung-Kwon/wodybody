@@ -14,6 +14,7 @@ BurnFat 대화형 코치 — Sprint 2.5.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import logging
@@ -125,6 +126,22 @@ def _sse(obj: dict[str, Any]) -> str:
 
 def _device_secret() -> str:
     return (request.headers.get("X-Device-Secret") or "").strip()
+
+
+def _service_key_role() -> str:
+    """SUPABASE_SERVICE_ROLE_KEY(JWT) 의 role 클레임만 디코드해 반환.
+    coach_* 테이블 쓰기는 service_role 이 필수 — 'anon' 이면 INSERT 가 RLS 로 막힌다.
+    키 값 자체는 노출하지 않고 role 만 본다(서명 검증 불필요)."""
+    _, key = _get_supabase_config()
+    if not key:
+        return "missing"
+    try:
+        payload_b64 = key.split(".")[1]
+        payload_b64 += "=" * (-len(payload_b64) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(payload_b64))
+        return str(payload.get("role") or "unknown")
+    except Exception:  # noqa: BLE001 — 진단용, 모든 파싱 실패는 unparseable
+        return "unparseable"
 
 
 # ── Supabase REST 헬퍼 (insert/patch/count) ────────────────────────────────
@@ -459,6 +476,9 @@ def coach_health():
         "supabase_configured": bool(supabase_url and supabase_key),
         "xai_configured": bool(os.environ.get("XAI_API_KEY")),
         "coach_tables_ready": ready,
+        # coach_* 쓰기는 service_role 필수. 'anon' 이면 SUPABASE_SERVICE_ROLE_KEY
+        # 환경변수가 잘못 설정된 것(INSERT 가 401 로 실패).
+        "service_key_role": _service_key_role(),
         "model": XAI_MODEL,
     }), 200
 

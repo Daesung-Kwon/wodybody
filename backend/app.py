@@ -207,10 +207,13 @@ CORS(app,
          "origins": cors_origins,
          "supports_credentials": True,
          "allow_headers": [
-             "Content-Type", "Authorization", "X-Requested-With", 
+             "Content-Type", "Authorization", "X-Requested-With",
              "Cache-Control", "Accept", "Accept-Language",
              "Sec-Fetch-Site", "Sec-Fetch-Mode", "Sec-Fetch-Dest",
-             "Origin", "X-Safari-Auth-Token", "User-Agent"
+             "Origin", "X-Safari-Auth-Token", "User-Agent",
+             # BurnFat 코치(Sprint 2.5): 세션 소유권 검증용 커스텀 헤더.
+             # 누락 시 CORS preflight 가 막혀 코치 요청이 "Load failed" 로 실패.
+             "X-Device-Secret"
          ],
          "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
      }})

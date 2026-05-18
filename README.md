@@ -76,3 +76,15 @@ npm run dev
 - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` — AI 컨텍스트 조회용(백엔드 전용)
 - `CORS_ORIGINS`에 `https://burnfat.wodybody.com` 추가
 
+## 배포 매트릭스
+
+각 브랜치가 어떤 배포 대상에 연결되는지 정리한 표입니다. 신규 브랜치 작업 전 참고하세요.
+
+| 브랜치 | burnfat (Vercel) | crossfit 프런트 (Vercel) | Railway 백엔드 | 비고 |
+|--------|------------------|--------------------------|----------------|------|
+| `main` | ✅ | ✅ (legacy) | ✅ | 모든 활성 작업 |
+| `backend` (legacy) | ❌ | ❌ | ❌ (archived 예정) | 폐기 대상 |
+| `frontend` (legacy) | ❌ | ✅ | ❌ | crossfit 별도 |
+| `develop` | ❌ | ❌ | ❌ | 미사용 |
+| `gh-pages` | ❌ | ❌ | ❌ | docs only |
+

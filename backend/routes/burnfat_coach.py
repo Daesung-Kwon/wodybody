@@ -38,6 +38,7 @@ from routes.burnfat_ai import (
     _fetch_participant,
     _fetch_weekly_logs,
     _get_supabase_config,
+    _mark_advice_success,
     _supabase_get,
 )
 
@@ -355,6 +356,11 @@ def _stream_grok(messages: list[dict[str, str]]) -> Iterator[str]:
     resp = requests.post(
         XAI_API_URL, json=payload, headers=headers, timeout=XAI_TIMEOUT_SECONDS, stream=True
     )
+    # BE-2: 오류 응답 본문을 로그에 캡처 — 원인 파악(잘못된 모델명·쿼터 등)에 필수.
+    if not resp.ok:
+        logger.error(
+            "Grok HTTP error %s body=%s", resp.status_code, (resp.text or "")[:500]
+        )
     resp.raise_for_status()
     # text/event-stream 은 charset 미표기 시 requests 가 Latin-1 로 추정 → 한글이 깨진다.
     # xAI SSE 본문은 UTF-8 이므로 명시적으로 지정.
@@ -737,6 +743,7 @@ def post_message():
             )
         except (requests.RequestException, RuntimeError) as e:
             logger.warning("coach assistant store failed: %s", e)
+        _mark_advice_success()  # BE-3: SSE 응답 완료 시점 기록
         yield _sse({"done": True, "session_id": sid, "message": stored, "references": refs})
 
     return Response(

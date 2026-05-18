@@ -32,9 +32,21 @@ bp = Blueprint("burnfat_ai", __name__, url_prefix="/api/burnfat")
 logger = logging.getLogger(__name__)
 
 XAI_API_URL = "https://api.x.ai/v1/chat/completions"
+XAI_MODELS_URL = "https://api.x.ai/v1/models"
 XAI_MODEL = os.environ.get("XAI_MODEL", "grok-4-1-fast-non-reasoning")
 XAI_MAX_TOKENS = int(os.environ.get("XAI_MAX_TOKENS", "700"))
 XAI_TIMEOUT_SECONDS = int(os.environ.get("XAI_TIMEOUT_SECONDS", "30"))
+# BE-1: XAI_MODEL 이 부팅 검증에서 사용 불가로 확인되면 자동 전환할 폴백 모델.
+XAI_MODEL_FALLBACK = os.environ.get("XAI_MODEL_FALLBACK", "grok-2-1212")
+
+# BE-1: 부팅 시 1회 xAI 모델 검증 결과.
+#   _model_validated — /v1/models 조회가 성공해 모델 가용성을 실제 확인했는지.
+#   _active_model    — 실제 호출에 사용할 모델. XAI_MODEL 이 목록에 없으면 폴백으로 전환됨.
+_model_validated: bool = False
+_active_model: str = XAI_MODEL
+
+# BE-3: 마지막으로 AI 조언이 성공 응답된 시각 (health 진단용). coach 엔드포인트와 공유.
+_last_advice_success_at: datetime | None = None
 
 # 프롬프트/응답 스키마 버전. 프롬프트가 바뀌면 올려서 과거 캐시를 자연 무효화.
 PROMPT_VERSION = "sprint2-json-v1"
@@ -399,6 +411,11 @@ def _call_grok(user_content: str) -> dict[str, Any]:
     resp = requests.post(
         XAI_API_URL, json=payload, headers=headers, timeout=XAI_TIMEOUT_SECONDS
     )
+    # BE-2: 오류 응답 본문을 로그에 캡처 — 원인 파악(잘못된 모델명·쿼터 등)에 필수.
+    if not resp.ok:
+        logger.error(
+            "Grok HTTP error %s body=%s", resp.status_code, (resp.text or "")[:500]
+        )
     resp.raise_for_status()
     data = resp.json()
     choices = data.get("choices") or []
@@ -429,6 +446,61 @@ def _advice_payload(
         "model": model,
         "prompt_version": PROMPT_VERSION,
     }
+
+
+# --------------------------------------------------------------------------
+# 운영 안전망 (BE-1 / BE-3)
+# --------------------------------------------------------------------------
+
+def _validate_model() -> None:
+    """BE-1: 부팅 시 1회 xAI 모델 가용성 검증.
+
+    XAI_MODEL 이 /v1/models 응답 목록에 없으면 경고 로그 후 XAI_MODEL_FALLBACK 으로
+    자동 전환한다. 키 미설정·네트워크 오류 등으로 검증 자체가 불가능하면 _model_validated
+    를 False 로 두고 설정값(XAI_MODEL)을 그대로 사용한다(조언 생성은 계속 동작)."""
+    global _model_validated, _active_model, XAI_MODEL
+
+    api_key = os.environ.get("XAI_API_KEY")
+    if not api_key:
+        logger.warning("XAI model validation skipped: XAI_API_KEY not configured")
+        return
+    try:
+        resp = requests.get(
+            XAI_MODELS_URL,
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=8,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except (requests.RequestException, ValueError) as e:
+        logger.warning("XAI model validation skipped: %s", e)
+        return
+
+    models = {str(m.get("id")) for m in (data.get("data") or []) if m.get("id")}
+    if not models:
+        logger.warning("XAI model validation skipped: empty model list")
+        return
+
+    _model_validated = True
+    if XAI_MODEL in models:
+        _active_model = XAI_MODEL
+        logger.info("XAI model validated: %s", XAI_MODEL)
+    else:
+        logger.warning(
+            "XAI_MODEL %r not in available models %s — falling back to %r",
+            XAI_MODEL,
+            sorted(models),
+            XAI_MODEL_FALLBACK,
+        )
+        _active_model = XAI_MODEL_FALLBACK
+        # XAI_MODEL 전역도 교체 — coach 모듈 등 import 측이 폴백 모델을 사용하도록.
+        XAI_MODEL = XAI_MODEL_FALLBACK
+
+
+def _mark_advice_success() -> None:
+    """BE-3: AI 조언이 성공 응답된 시각을 기록. coach 엔드포인트와 공유."""
+    global _last_advice_success_at
+    _last_advice_success_at = datetime.now(timezone.utc)
 
 
 # --------------------------------------------------------------------------
@@ -489,6 +561,7 @@ def ai_advice():
                 if isinstance(cached_json, dict)
                 else _parse_advice_json(str(cached.get("advice_md") or ""))
             )
+            _mark_advice_success()  # BE-3
             return (
                 jsonify(
                     _advice_payload(
@@ -528,6 +601,7 @@ def ai_advice():
     if not has_user_input:
         _store_advice(participant_id, week_no, advice_md, structured)
 
+    _mark_advice_success()  # BE-3
     return jsonify(_advice_payload(structured, advice_md, week_no, cached=False, model=XAI_MODEL)), 200
 
 
@@ -540,6 +614,13 @@ def ai_health():
         "xai_configured": bool(os.environ.get("XAI_API_KEY")),
         "model": XAI_MODEL,
         "prompt_version": PROMPT_VERSION,
+        # BE-1: 부팅 시 모델 가용성 검증 결과.
+        "model_validated": _model_validated,
+        "active_model": _active_model,
+        # BE-3: 마지막 AI 조언 성공 응답 시각 (없으면 null).
+        "last_advice_success_at": (
+            _last_advice_success_at.isoformat() if _last_advice_success_at else None
+        ),
     }), 200
 
 
@@ -579,3 +660,7 @@ def ai_debug():
         }), 200
     except requests.RequestException as exc:
         return jsonify({"ok": False, "error": str(exc)}), 502
+
+
+# BE-1: 모듈 로드 시점에 1회 모델 검증 실행.
+_validate_model()

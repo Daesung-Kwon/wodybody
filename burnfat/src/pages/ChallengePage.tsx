@@ -36,7 +36,6 @@ import DialogActions from '@mui/material/DialogActions';
 import InputAdornment from '@mui/material/InputAdornment';
 import { supabase } from '../lib/supabase';
 import type { Challenge, ParticipantWithSubmissions, RankingRow } from '../types';
-import { CHALLENGE_PUBLIC_COLUMNS } from '../types';
 import SubmitModal from '../components/SubmitModal';
 import ParticipantBasicInfoDialog from '../components/ParticipantBasicInfoDialog';
 import WeeklyLogForm from '../components/WeeklyLogForm';
@@ -143,11 +142,13 @@ export default function ChallengePage() {
       setLoading(false);
       return;
     }
-    // Sprint 0 hotfix: anon 에 `admin_pin_hash` SELECT 권한이 없어 `.select('*')` 가
-    // `permission denied for column admin_pin_hash` 로 실패한다. 공개 컬럼만 명시 SELECT.
+    // Sprint 3 Phase A: 공개 컬럼만 노출하는 challenges_public VIEW 사용.
+    // VIEW 는 admin_pin_hash 를 포함하지 않으므로 `.select('*')` 가 안전하다
+    // (Sprint 0 의 컬럼 레벨 GRANT 회귀를 구조적으로 차단). 마이그레이션
+    // 20260601000001_challenges_public_view.sql 참고.
     const { data, error: err } = await supabase
-      .from('challenges')
-      .select(CHALLENGE_PUBLIC_COLUMNS)
+      .from('challenges_public')
+      .select('*')
       .eq('code', code.toUpperCase())
       .single();
     if (err || !data) {

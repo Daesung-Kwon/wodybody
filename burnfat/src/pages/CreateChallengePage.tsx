@@ -76,7 +76,8 @@ export default function CreateChallengePage() {
     let attempts = 0;
     const maxAttempts = 5;
     while (attempts < maxAttempts) {
-      const { data: existing } = await supabase.from('challenges').select('id').eq('code', code).maybeSingle();
+      // Sprint 3 Phase A: 코드 중복 확인도 challenges_public VIEW 로 일관 적용.
+      const { data: existing } = await supabase.from('challenges_public').select('id').eq('code', code).maybeSingle();
       if (!existing) break;
       code = generateCode();
       attempts++;

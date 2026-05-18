@@ -34,6 +34,10 @@ jobs:
           VITE_AI_ADVICE_URL: ${{ secrets.BURNFAT_AI_ADVICE_URL }}
         run: npm run build
 
+      - name: Test (Vitest)
+        working-directory: ./burnfat
+        run: npm test
+
       # Vercel 배포는 Vercel Git Integration 쪽에서 처리 (이 워크플로우는 빌드 검증만 수행).
       # 만약 수동 배포가 필요하면 아래 주석 블록을 활성화하고 Vercel 토큰을 등록하세요.
       # - name: Deploy to Vercel

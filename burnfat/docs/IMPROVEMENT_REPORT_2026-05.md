@@ -476,8 +476,17 @@ user    : 새 사용자 메시지
 
 ---
 
-### Sprint 3 — 6~8주차 (구조 개편 + 측정)
+### Sprint 3 — 6~8주차 (구조 개편 + 측정) — Phase A ✅ **완료 (2026-05-18, 커밋 `__SPRINT3A_SHA__`, [`SPRINT3A_HANDOFF.md`](SPRINT3A_HANDOFF.md))**
 
+Sprint 3 은 위험·범위를 고려해 **Phase A(저위험 인프라 정리)** 와 **Phase B(구조 개편)** 로 나눠 진행한다.
+
+**Phase A — 저위험 인프라 정리 ✅ 완료**
+- 배포 토폴로지 정리(root `railway.json` gunicorn 통일, README 배포 매트릭스).
+- `challenges_public` VIEW 도입 — `.select('*')` 회귀를 구조적으로 차단.
+- 운영 안전망 BE-1/2/3 — xAI 모델 부팅 검증, Grok 오류 본문 로깅, `last_advice_success_at` health 노출.
+- Vitest 인프라(jsdom + testing-library) 셋업 + CI 배선. 실제 훅/컴포넌트 테스트는 Phase B.
+
+**Phase B — 구조 개편 (미착수)**
 1. **`ChallengePage` 분해** (3~5일)
    - `useChallengeData` hook으로 fetch 통합, Supabase 임베드 쿼리로 N+1 제거.
    - 탭별 컴포넌트 분리.

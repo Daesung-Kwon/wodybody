@@ -21,9 +21,10 @@ export interface Challenge {
  * 이 상태에서 클라이언트가 `.select('*')` 를 호출하면 PostgREST 가
  * `permission denied for column admin_pin_hash` 로 *전체 SELECT 자체* 를 실패시킨다.
  *
- * 따라서 challenges 를 클라이언트에서 조회할 때는 반드시 이 상수를 사용해
- * 공개 컬럼만 명시적으로 SELECT 한다. 새 공개 컬럼이 추가되면 여기와
- * `Challenge` 인터페이스 양쪽을 함께 갱신.
+ * @deprecated Sprint 3 Phase A 에서 `challenges_public` VIEW 가 도입되어
+ * SELECT 는 `.from('challenges_public').select('*')` 로 전환됐다. 이 상수는 더 이상
+ * 새 코드에서 사용하지 말 것. (마이그레이션 `20260601000001_challenges_public_view.sql`)
+ * 호환을 위해 당분간 유지하며, Sprint 4 에서 잔여 참조 정리 후 제거를 검토한다.
  */
 export const CHALLENGE_PUBLIC_COLUMNS =
   'id, code, title, start_date, end_date, stake_amount, created_at, ranking_unlocked, has_admin_pin';

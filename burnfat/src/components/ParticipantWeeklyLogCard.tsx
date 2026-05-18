@@ -187,6 +187,7 @@ export default function ParticipantWeeklyLogCard({
           <AIAdviceCard
             participant={participant}
             logs={logs}
+            challengeStartDate={challengeStartDate}
             onOpenBasicInfo={onOpenBasicInfo}
             onOpenLogForm={() => onOpenLogForm()}
           />

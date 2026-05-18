@@ -438,6 +438,10 @@ app.register_blueprint(email_verification.bp)
 from routes import burnfat_ai
 app.register_blueprint(burnfat_ai.bp)
 
+# BurnFat 대화형 코치 라우트 (Sprint 2.5, SSE 스트리밍, /api/burnfat/coach/*)
+from routes import burnfat_coach
+app.register_blueprint(burnfat_coach.bp)
+
 # WODYBODY PT — 사용자 선호 설정
 from routes import preferences as pt_preferences
 app.register_blueprint(pt_preferences.bp)

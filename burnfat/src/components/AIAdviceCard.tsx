@@ -22,13 +22,18 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import { useAIAdvice } from '../hooks/useAIAdvice';
 import type { StructuredAdvice } from '../lib/edgeFunctions';
 import type { ParticipantWithSubmissions, WeeklyLog } from '../types';
+import { getCurrentWeekNo } from '../lib/weekUtils';
+import CoachChatDialog from './CoachChatDialog';
 
 interface Props {
   participant: ParticipantWithSubmissions;
   logs: WeeklyLog[];
+  /** Sprint 2.5: 코치 모달의 주차 계산용. */
+  challengeStartDate: string;
   onOpenBasicInfo: () => void;
   onOpenLogForm: () => void;
 }
@@ -91,13 +96,20 @@ function StructuredAdviceView({ structured }: { structured: StructuredAdvice }) 
   );
 }
 
-export default function AIAdviceCard({ participant, logs, onOpenBasicInfo, onOpenLogForm }: Props) {
+export default function AIAdviceCard({
+  participant,
+  logs,
+  challengeStartDate,
+  onOpenBasicInfo,
+  onOpenLogForm,
+}: Props) {
   const { result, loading, error, load, reset } = useAIAdvice();
   const [requested, setRequested] = useState(false);
   const [contextDialogOpen, setContextDialogOpen] = useState(false);
   const [userContext, setUserContext] = useState('');
   const [adviceGoal, setAdviceGoal] = useState('이번 주 전략');
   const [adviceStyle, setAdviceStyle] = useState('현실적으로');
+  const [coachOpen, setCoachOpen] = useState(false);
 
   const readinessItems = [
     { label: '나이', ready: participant.age != null },
@@ -261,6 +273,19 @@ export default function AIAdviceCard({ participant, logs, onOpenBasicInfo, onOpe
             닫기
           </Button>
         )}
+        {/* Sprint 2.5: 대화형 코치 진입 — 카드 하단에 항상 노출 */}
+        <Box sx={{ flexBasis: '100%', mt: 0.5 }}>
+          <Button
+            size="small"
+            variant="outlined"
+            color="primary"
+            fullWidth
+            startIcon={<ChatBubbleOutlineIcon sx={{ fontSize: 16 }} />}
+            onClick={() => setCoachOpen(true)}
+          >
+            코치와 대화하기
+          </Button>
+        </Box>
       </CardActions>
       <Dialog open={contextDialogOpen} onClose={() => setContextDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>새 조언을 위한 추가 입력</DialogTitle>
@@ -302,6 +327,15 @@ export default function AIAdviceCard({ participant, logs, onOpenBasicInfo, onOpe
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Sprint 2.5: 대화형 코치 모달 — 현재 조언을 시드로 전달 */}
+      <CoachChatDialog
+        open={coachOpen}
+        onClose={() => setCoachOpen(false)}
+        participant={participant}
+        weekNo={getCurrentWeekNo(challengeStartDate)}
+        seedContent={result?.advice ?? ''}
+      />
     </Card>
   );
 }

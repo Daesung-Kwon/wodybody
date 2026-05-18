@@ -95,3 +95,39 @@ export interface RankingRow {
   /** 체지방 감소율 (%) = (시작 - 종료) / 시작 × 100 */
   reductionRate: number;
 }
+
+/* ── Sprint 2.5: 대화형 코치 ───────────────────────────────────────────── */
+
+/** 코치 톤 — strict(엄격) / friendly(친근) / scientist(과학적). */
+export type CoachPersona = 'strict' | 'friendly' | 'scientist';
+/** 세션 공개 범위 — private(나만) / room(대결방 멤버 열람 가능). */
+export type CoachVisibility = 'private' | 'room';
+export type CoachSessionStatus = 'active' | 'archived';
+export type CoachMessageRole = 'system' | 'assistant' | 'user';
+
+export interface CoachSession {
+  id: string;
+  participant_id: string;
+  week_no: number;
+  persona: CoachPersona;
+  status: CoachSessionStatus;
+  visibility: CoachVisibility;
+  created_at: string;
+  updated_at: string;
+}
+
+/** 발화가 인용한 근거 (weekly_log 의 week_no 등). */
+export interface CoachMessageReference {
+  week_no?: number;
+}
+
+export interface CoachMessage {
+  id: string;
+  session_id: string;
+  role: CoachMessageRole;
+  content: string;
+  tokens_in: number | null;
+  tokens_out: number | null;
+  references_jsonb: CoachMessageReference[] | null;
+  created_at: string;
+}

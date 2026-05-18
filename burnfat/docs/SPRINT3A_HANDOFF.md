@@ -114,14 +114,13 @@ curl -s https://<railway-host>/api/burnfat/ai/health | jq
 Railway 로그에서 부팅 시 `XAI model validated: ...` 또는 `XAI_MODEL ... not in available models`
 경고 라인을 확인.
 
-### V4. gunicorn 전환 확인 (`backend/railway.toml` startCommand 변경 후)
+### V4. 배포 정상성 확인 (`backend/railway.toml` 정리 후)
 
-A1 후속 정리에서 활성 설정 `backend/railway.toml` 의 startCommand 를 `python app.py`(Flask
-개발 서버) → gunicorn 으로 교체했다. 재배포 후 다음을 확인:
+A1 후속 정리에서 활성 설정 `backend/railway.toml` 을 SSOT 로 확정했다. gunicorn 전환은
+eventlet/distutils 블로커(§4)로 보류되어 startCommand 는 `python app.py` 를 유지한다.
+재배포 후 다음을 확인:
 
-- Railway 배포 로그에서 `WARNING: This is a development server` / `Werkzeug appears to be used
-  in a production deployment` 경고가 **사라졌는지** 확인.
-- gunicorn worker 시작 로그(`Starting gunicorn ...`, `Booting worker with pid ...`) 가 찍히는지 확인.
+- Railway Deployments 에서 최신 커밋 배포가 `Success`/`ACTIVE` 인지 확인.
 - 동시 5개 요청을 보내 모두 `200` 응답하는지 확인:
   ```bash
   for i in $(seq 5); do
@@ -130,6 +129,10 @@ A1 후속 정리에서 활성 설정 `backend/railway.toml` 의 startCommand 를
   done; wait
   ```
   → `200` 5개가 출력되어야 한다.
+
+> gunicorn 전환을 재시도할 때(eventlet 업그레이드 후)는 추가로 배포 로그에서
+> `WARNING: This is a development server` 경고가 사라지고 `Booting worker ...` 로그가
+> 찍히는지 확인할 것.
 
 ---
 
@@ -158,15 +161,21 @@ GRANT SELECT ON public.challenges_public TO anon, authenticated;
 
 ## 4. 알려진 잔여 / 후속 처리
 
-- **`backend/railway.{json,toml,yml}` 미삭제**: Root Directory 가 `/backend` 라서 자동 삭제를 보류함.
-  운영자 결정 필요 — 두 가지 선택지:
-  1. **(권장)** Railway 서비스 Root Directory 를 `/` 로 변경 → 루트 `railway.toml`/`Procfile` 이
-     활성화됨(둘 다 gunicorn) → 그 후 `backend/railway.*` 3개 안전 삭제.
-  2. Root Directory 를 `/backend` 로 유지한다면, 활성 설정인 `backend/railway.toml` 의
-     `startCommand` 가 현재 `python app.py`(Flask 개발 서버)다. 운영 안정성을 위해 gunicorn 으로
-     맞추는 것을 권장(루트와 동일 명령). 이 경우 `backend/railway.json`·`railway.yml` 은 중복이라 제거 가능.
-  → 어느 쪽이든 Railway 대시보드 작업이 동반되어 본 작업 범위 밖. 운영자가 결정 후 진행.
-- **`origin/backend` 브랜치 archive**: 폐기 대상이나 자동 삭제하지 않았다. 운영자 확인 후 결정.
+- **배포 설정 정리 완료 (후속 커밋 `7aa7ac4`)**: Root Directory 는 `/backend` 유지로 결정.
+  활성 설정 `backend/railway.toml` 을 SSOT 로 확정하고, 중복인 `backend/railway.json`·`railway.yml`
+  은 삭제. 루트 `railway.*`/`Procfile` 은 비활성 안내 주석을 달아 보존.
+- **⚠️ gunicorn 전환 보류 — eventlet/distutils 블로커**: `backend/railway.toml` 의 startCommand 를
+  gunicorn(`--worker-class eventlet`) 으로 바꿔 배포했으나 **기동 실패**. 원인: 컨테이너 Python 3.12
+  에서 표준 라이브러리 `distutils` 가 제거됐는데 `eventlet==0.33.3` 이 `distutils.version` 을
+  import → gunicorn 의 `geventlet` 워커 로드 불가(`class uri 'eventlet' invalid or not found`).
+  Railway 가 크래시 배포를 승격하지 않아 **프로덕션 무중단**. startCommand 를 `python app.py` 로
+  롤백함.
+  - 후속(별도 작업): `backend/requirements.txt` 의 `eventlet` 을 Python 3.12 호환 버전(≥0.35)
+    으로 올리고, Flask-SocketIO 5.3.6 / python-socketio 5.8.0 과의 호환·웹소켓 동작을 검증한 뒤
+    gunicorn 전환을 재시도한다. 의존성 변경 + 실배포 검증이 필요해 Phase A 범위 밖.
+  - 참고: 루트 `railway.toml`/`Procfile` 의 gunicorn 명령도 동일 사유로 현재는 동작하지 않는다
+    (단, RD=`/backend` 라 비활성이므로 운영 영향 없음).
+- **`origin/backend` 브랜치**: 보존(legacy 참조용) 결정. archive/삭제하지 않음.
 - **`CHALLENGE_PUBLIC_COLUMNS` 상수**: `@deprecated` 표기 후 호환을 위해 잔존. 더 이상 참조처가
   없으므로 Sprint 4 에서 상수·`Challenge` 인터페이스 동기화와 함께 제거 검토.
 - **`fetchParticipants` 등 잔여 `.select('*')`**: `participants`/`submissions`/`weekly_logs` 는

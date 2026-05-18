@@ -1,5 +1,6 @@
 {
     "$schema": "https://railway.app/railway.schema.json",
+    "//": "NOTE: Railway 서비스의 Root Directory = /backend 이므로 이 파일은 사용되지 않음. 실제 활성 설정 = backend/railway.toml (SSOT).",
     "build": {
         "builder": "NIXPACKS"
     },

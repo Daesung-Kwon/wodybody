@@ -114,6 +114,23 @@ curl -s https://<railway-host>/api/burnfat/ai/health | jq
 Railway 로그에서 부팅 시 `XAI model validated: ...` 또는 `XAI_MODEL ... not in available models`
 경고 라인을 확인.
 
+### V4. gunicorn 전환 확인 (`backend/railway.toml` startCommand 변경 후)
+
+A1 후속 정리에서 활성 설정 `backend/railway.toml` 의 startCommand 를 `python app.py`(Flask
+개발 서버) → gunicorn 으로 교체했다. 재배포 후 다음을 확인:
+
+- Railway 배포 로그에서 `WARNING: This is a development server` / `Werkzeug appears to be used
+  in a production deployment` 경고가 **사라졌는지** 확인.
+- gunicorn worker 시작 로그(`Starting gunicorn ...`, `Booting worker with pid ...`) 가 찍히는지 확인.
+- 동시 5개 요청을 보내 모두 `200` 응답하는지 확인:
+  ```bash
+  for i in $(seq 5); do
+    curl -s -o /dev/null -w "%{http_code}\n" \
+      https://wodybody-production.up.railway.app/api/burnfat/ai/health &
+  done; wait
+  ```
+  → `200` 5개가 출력되어야 한다.
+
 ---
 
 ## 3. 운영자가 실행할 SQL (Supabase SQL Editor)

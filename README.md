@@ -80,10 +80,13 @@ npm run dev
 
 각 브랜치가 어떤 배포 대상에 연결되는지 정리한 표입니다. 신규 브랜치 작업 전 참고하세요.
 
+> Railway 서비스 Root Directory = `/backend`, 활성 설정 = `backend/railway.toml` (SSOT).
+> 루트의 `railway.*` / `Procfile` 은 비활성 참조용.
+
 | 브랜치 | burnfat (Vercel) | crossfit 프런트 (Vercel) | Railway 백엔드 | 비고 |
 |--------|------------------|--------------------------|----------------|------|
 | `main` | ✅ | ✅ (legacy) | ✅ | 모든 활성 작업 |
-| `backend` (legacy) | ❌ | ❌ | ❌ (archived 예정) | 폐기 대상 |
+| `backend` (legacy) | ❌ | ❌ | ❌ | 보존, 미배포 (legacy 참조용) |
 | `frontend` (legacy) | ❌ | ✅ | ❌ | crossfit 별도 |
 | `develop` | ❌ | ❌ | ❌ | 미사용 |
 | `gh-pages` | ❌ | ❌ | ❌ | docs only |

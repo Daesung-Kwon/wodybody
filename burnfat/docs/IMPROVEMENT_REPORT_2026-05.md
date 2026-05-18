@@ -476,7 +476,7 @@ user    : 새 사용자 메시지
 
 ---
 
-### Sprint 3 — 6~8주차 (구조 개편 + 측정) — Phase A ✅ **완료 (2026-05-18, 커밋 `__SPRINT3A_SHA__`, [`SPRINT3A_HANDOFF.md`](SPRINT3A_HANDOFF.md))**
+### Sprint 3 — 6~8주차 (구조 개편 + 측정) — Phase A ✅ **완료 (2026-05-18, 커밋 `c27626f`, [`SPRINT3A_HANDOFF.md`](SPRINT3A_HANDOFF.md))**
 
 Sprint 3 은 위험·범위를 고려해 **Phase A(저위험 인프라 정리)** 와 **Phase B(구조 개편)** 로 나눠 진행한다.
 

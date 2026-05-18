@@ -2,7 +2,7 @@
 
 > **상태**: ✅ 완료 (코드)
 > **날짜**: 2026-05-18
-> **커밋**: `__SPRINT3A_SHA__` (origin/main)
+> **커밋**: `c27626f` (origin/main)
 > **배포**: Vercel 자동 배포 트리거 (burnfat) / Railway 자동 재배포 (백엔드)
 > **DB 적용 필요**: `20260601000001_challenges_public_view.sql` 1건 — 운영자가 SQL Editor 에서 직접 실행 (§3)
 

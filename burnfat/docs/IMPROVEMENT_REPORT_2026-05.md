@@ -476,17 +476,18 @@ user    : 새 사용자 메시지
 
 ---
 
-### Sprint 3 — 6~8주차 (구조 개편 + 측정) — Phase A ✅ **완료 (2026-05-18, 커밋 `c27626f`, [`SPRINT3A_HANDOFF.md`](SPRINT3A_HANDOFF.md))**
+### Sprint 3 — 6~8주차 (구조 개편 + 측정) ✅ **완료 (Phase A/B/C 전부, 2026-05-19, [`SPRINT3_FINAL_HANDOFF.md`](SPRINT3_FINAL_HANDOFF.md))**
 
-Sprint 3 은 위험·범위를 고려해 **Phase A(저위험 인프라 정리)** 와 **Phase B(구조 개편)** 로 나눠 진행한다.
+Sprint 3 은 위험·범위를 고려해 **Phase A(저위험 인프라 정리)** / **Phase B(구조 개편)** /
+**Phase C(E2E + 측정 + 종결)** 로 나눠 진행했으며, 세 단계 모두 완료되었다.
 
-**Phase A — 저위험 인프라 정리 ✅ 완료**
+**Phase A — 저위험 인프라 정리 ✅ 완료 (2026-05-18, 커밋 `c27626f`, [`SPRINT3A_HANDOFF.md`](SPRINT3A_HANDOFF.md))**
 - 배포 토폴로지 정리(root `railway.json` gunicorn 통일, README 배포 매트릭스).
 - `challenges_public` VIEW 도입 — `.select('*')` 회귀를 구조적으로 차단.
 - 운영 안전망 BE-1/2/3 — xAI 모델 부팅 검증, Grok 오류 본문 로깅, `last_advice_success_at` health 노출.
 - Vitest 인프라(jsdom + testing-library) 셋업 + CI 배선. 실제 훅/컴포넌트 테스트는 Phase B.
 
-**Phase B — 구조 개편 ✅ 완료 (2026-05-19, [`SPRINT3B_HANDOFF.md`](SPRINT3B_HANDOFF.md))**
+**Phase B — 구조 개편 ✅ 완료 (2026-05-19, 커밋 `9bfd702`, [`SPRINT3B_HANDOFF.md`](SPRINT3B_HANDOFF.md))**
 1. **`ChallengePage` 분해 ✅** — `ChallengePage.tsx` 1,262줄 → 345줄(73%↓). `useChallengeData`
    훅 + 신규 11개 파일(`rankAnimations`/`ChallengeHeader`/`ChallengeTabs`/3개 탭/`AdminPinDialog`/
    `ChallengeEditDialog`/`ChallengeOverlays`/`ParticipantsTabHeader`)로 분리.
@@ -495,18 +496,24 @@ Sprint 3 은 위험·범위를 고려해 **Phase A(저위험 인프라 정리)**
 3. **단위 테스트 ✅** — Vitest 48 → 79(신규 31). `useRecordStatus`/`useWeeklyLogs`/`useAIAdvice`/
    `useCoachSession`/`signedImage` + `deviceSecret` 보강.
 
-**Phase C — 미착수**
-- Playwright 1개 E2E (참가→시작 인증→주간 기록 골든 패스).
-- 분석 이벤트 — PostHog/Plausible 도입 → 챌린지 생성/참가/인증/AI 요청 5개 이벤트만.
-- `ChallengePage` 추가 축소(`useChallengePage` 컨트롤러 훅).
+**Phase C — E2E + 측정 + Sprint 3 종결 ✅ 완료 (2026-05-19, 커밋 `<Phase C 커밋 SHA>`, [`SPRINT3_FINAL_HANDOFF.md`](SPRINT3_FINAL_HANDOFF.md))**
+1. **Playwright E2E ✅** — 챌린지 핵심 경로 1개 스펙(생성→참가→기본정보→시작 인증(이미지 마스킹)→
+   주간 기록→AI 조언→코치 대화→새로고침 유지). `page.route` 로 네트워크 전면 모킹 + `.env.test`
+   이중 격리 → 운영 Supabase/Grok 호출 0건(테스트 내 request 리스너 검증). CI 배선 완료.
+2. **분석 이벤트 ✅** — 도구 독립적 `track()` 래퍼(`lib/analytics.ts`, PII 자동 필터·no-op 폴백)
+   + 6종 이벤트(challenge_created / participant_joined / submission_submitted /
+   weekly_log_created / ai_advice_requested / coach_modal_opened·coach_message_sent). Plausible 채택.
+3. **Sprint 3 종결 ✅** — [`SPRINT3_FINAL_HANDOFF.md`](SPRINT3_FINAL_HANDOFF.md) 작성,
+   분기 백로그를 [`ROADMAP_NEXT_2026-Q3.md`](ROADMAP_NEXT_2026-Q3.md) 로 이관.
+
+> ⚠️ MSW(playwright-msw) 는 msw@2(ESM)/playwright-msw@3(CJS) 비호환으로 Playwright 의 네이티브
+> `page.route` 로 대체했다. 격리 보장은 동일. `ChallengePage` 추가 축소(`useChallengePage` 컨트롤러
+> 훅)는 회귀 위험 대비 가치가 낮아 보류했다 — 상세는 핸드오프 §4.
 
 ### 분기 백로그 (3~6개월)
 
-- 결과 리포트 PDF / 카카오톡 공유 카드.
-- Supabase Auth 정식 도입(이메일 매직 링크) + 옵션 토글로 *익명/식별* 챌린지 모드 선택.
-- 팀 vs 팀 모드 (스키마 변경 동반).
-- 다크 모드 + 디자인 토큰 정리.
-- 다국어(en) — 동남아 운동 커뮤니티 시범.
+→ **[`ROADMAP_NEXT_2026-Q3.md`](ROADMAP_NEXT_2026-Q3.md) 로 이관됨.** Sprint 3 으로 본 보고서의
+실행 로드맵은 공식 종료되며, 다음 분기 작업은 ROADMAP_NEXT 문서가 단일 출처다.
 
 ---
 
@@ -558,7 +565,15 @@ Sprint 3 은 위험·범위를 고려해 **Phase A(저위험 인프라 정리)**
 
 ---
 
-## 9. 부록 — 분석 시 참고한 파일
+## 9. Sprint 3 종결 — 다음 분기로
+
+Sprint 0 → 3(Phase A/B/C)으로 본 보고서의 실행 로드맵은 **공식 종료**된다. 다음 분기 작업의
+단일 출처는 [`ROADMAP_NEXT_2026-Q3.md`](ROADMAP_NEXT_2026-Q3.md) 이며, Sprint 3 통합 결과·
+운영자 작업·잔여 항목은 [`SPRINT3_FINAL_HANDOFF.md`](SPRINT3_FINAL_HANDOFF.md) 를 참고한다.
+
+---
+
+## 10. 부록 — 분석 시 참고한 파일
 
 - `burnfat/src/App.tsx`
 - `burnfat/src/pages/HomePage.tsx`, `CreateChallengePage.tsx`, `ChallengePage.tsx`
@@ -575,7 +590,7 @@ Sprint 3 은 위험·범위를 고려해 **Phase A(저위험 인프라 정리)**
 
 ---
 
-## 10. 핫픽스 로그
+## 11. 핫픽스 로그
 
 | 날짜 | 배포 | 증상 | 핵심 변경 | 상세 |
 |------|------|------|----------|------|

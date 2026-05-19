@@ -38,6 +38,25 @@ jobs:
         working-directory: ./burnfat
         run: npm test
 
+      # Sprint 3 Phase C: Playwright E2E.
+      # 네트워크는 page.route 로 전면 모킹되고, dev 서버는 .env.test(`vite --mode test`)
+      # 로 기동되어 운영 Supabase/Grok 자격증명이 일절 주입되지 않는다 → 시크릿 불필요.
+      - name: Install Playwright browser (chromium)
+        working-directory: ./burnfat
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E (Playwright)
+        working-directory: ./burnfat
+        run: npm run e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: burnfat/playwright-report
+          retention-days: 7
+
       # Vercel 배포는 Vercel Git Integration 쪽에서 처리 (이 워크플로우는 빌드 검증만 수행).
       # 만약 수동 배포가 필요하면 아래 주석 블록을 활성화하고 Vercel 토큰을 등록하세요.
       # - name: Deploy to Vercel

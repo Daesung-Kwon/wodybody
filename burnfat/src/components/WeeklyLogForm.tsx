@@ -18,6 +18,7 @@ import { supabase } from '../lib/supabase';
 import type { Participant, Gender, DietQuality } from '../types';
 import { getWeekNoForDate } from '../lib/weekUtils';
 import { prepareDeviceSecret } from '../lib/deviceSecret';
+import { track } from '../lib/analytics';
 
 interface Props {
   open: boolean;
@@ -149,6 +150,10 @@ export default function WeeklyLogForm({
     if (inserted?.id) {
       secret.persist(inserted.id);
     }
+    track('weekly_log_created', {
+      week_no: weekNo,
+      has_lifestyle: exerciseCount !== '' || parsedSleepHours !== null || dietQuality !== '',
+    });
     onSuccess();
     onClose();
   };

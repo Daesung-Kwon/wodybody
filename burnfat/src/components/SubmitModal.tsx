@@ -12,6 +12,13 @@ import { supabase } from '../lib/supabase';
 import type { SubmissionType } from '../types';
 import ImageMaskEditor from './ImageMaskEditor';
 import { prepareDeviceSecret } from '../lib/deviceSecret';
+import { track } from '../lib/analytics';
+
+/** 체지방률을 5%p 구간 라벨로 버킷팅 (예: 28.0 → "25-30"). PII·정밀값 노출 방지. */
+function bodyFatBucket(rate: number): string {
+  const lo = Math.max(0, Math.floor(rate / 5) * 5);
+  return `${lo}-${lo + 5}`;
+}
 
 interface Props {
   open: boolean;
@@ -85,6 +92,7 @@ export default function SubmitModal({ open, participantId, participantNickname, 
     if (inserted?.id) {
       secret.persist(inserted.id);
     }
+    track('submission_submitted', { type, body_fat_rate_bucket: bodyFatBucket(rateRounded) });
     onSuccess();
   };
 

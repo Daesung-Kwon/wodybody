@@ -2,11 +2,11 @@
 builder = "NIXPACKS"
 
 [deploy]
-# NOTE: gunicorn(--worker-class eventlet) 전환은 Python 3.12 + eventlet 0.33.3 의
-# distutils 제거 충돌로 기동 실패함(2026-05-18, 커밋 7aa7ac4). gunicorn 전환은
-# eventlet 업그레이드(>=0.35) 선행이 필요하며, 그때까지 python app.py 를 유지한다.
-# 상세·후속 계획: burnfat/docs/SPRINT3A_HANDOFF.md §4
-startCommand = "python app.py"
+# gunicorn + eventlet 워커. Root Directory=/backend 이므로 cd 불필요.
+# eventlet 0.36.1 로 Python 3.12 distutils 충돌 해소(2026-05-19). WSGI 타깃은
+# app:app — Flask-SocketIO 의 socketio 객체는 WSGI 콜러블이 아니라서
+# app:socketio 는 "Application object must be callable" 로 기동 실패한다.
+startCommand = "gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT --timeout 120 --keep-alive 5 --log-level info app:app"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"

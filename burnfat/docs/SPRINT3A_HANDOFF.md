@@ -164,17 +164,20 @@ GRANT SELECT ON public.challenges_public TO anon, authenticated;
 - **배포 설정 정리 완료 (후속 커밋 `7aa7ac4`)**: Root Directory 는 `/backend` 유지로 결정.
   활성 설정 `backend/railway.toml` 을 SSOT 로 확정하고, 중복인 `backend/railway.json`·`railway.yml`
   은 삭제. 루트 `railway.*`/`Procfile` 은 비활성 안내 주석을 달아 보존.
-- **⚠️ gunicorn 전환 보류 — eventlet/distutils 블로커**: `backend/railway.toml` 의 startCommand 를
-  gunicorn(`--worker-class eventlet`) 으로 바꿔 배포했으나 **기동 실패**. 원인: 컨테이너 Python 3.12
-  에서 표준 라이브러리 `distutils` 가 제거됐는데 `eventlet==0.33.3` 이 `distutils.version` 을
-  import → gunicorn 의 `geventlet` 워커 로드 불가(`class uri 'eventlet' invalid or not found`).
-  Railway 가 크래시 배포를 승격하지 않아 **프로덕션 무중단**. startCommand 를 `python app.py` 로
-  롤백함.
-  - 후속(별도 작업): `backend/requirements.txt` 의 `eventlet` 을 Python 3.12 호환 버전(≥0.35)
-    으로 올리고, Flask-SocketIO 5.3.6 / python-socketio 5.8.0 과의 호환·웹소켓 동작을 검증한 뒤
-    gunicorn 전환을 재시도한다. 의존성 변경 + 실배포 검증이 필요해 Phase A 범위 밖.
-  - 참고: 루트 `railway.toml`/`Procfile` 의 gunicorn 명령도 동일 사유로 현재는 동작하지 않는다
-    (단, RD=`/backend` 라 비활성이므로 운영 영향 없음).
+- **✅ gunicorn 전환 블로커 해소 (2026-05-19)**: 직전(`7aa7ac4`)의 gunicorn 전환은 두 가지
+  버그로 기동 실패했고, 두 버그를 모두 잡아 재전환했다.
+  1. **eventlet/distutils**: 컨테이너 Python 3.12 에서 stdlib `distutils` 가 제거됐는데
+     `eventlet==0.33.3` 이 `distutils.version` 을 import → `geventlet` 워커 로드 불가.
+     → `backend/requirements.txt` 의 eventlet 을 `0.36.1` 로 업그레이드(distutils 미사용).
+  2. **잘못된 WSGI 타깃**: startCommand 가 `app:socketio` 였으나 Flask-SocketIO 의 `socketio`
+     객체는 WSGI 콜러블이 아니다 → `Application object must be callable` 로 App 로드 실패.
+     (1번 블로커가 워커 로드 단계에서 먼저 죽어 이 버그가 가려져 있었다.)
+     → 올바른 타깃 `app:app`(Flask 앱) 으로 교정. 루트 `railway.*`/`Procfile` 의 타깃도 동일 교정.
+  - 로컬 검증: Python 3.12 venv 에서 eventlet 0.36.1 import·`geventlet` 워커 로드·
+    `gunicorn --worker-class eventlet app:app` 기동·`/api/health` 200·동시 5요청 200 확인.
+  - `backend/runtime.txt`(`python-3.12`) 추가 — Nixpacks 가 Python 버전을 임의로 올리지 못하게 고정.
+  - 운영 검증(배포 후): Railway 로그에서 Werkzeug 개발 서버 경고 소멸 + `Booting worker` 확인,
+    동시 5요청 200, 코치 SSE 스트리밍 정상.
 - **`origin/backend` 브랜치**: 보존(legacy 참조용) 결정. archive/삭제하지 않음.
 - **`CHALLENGE_PUBLIC_COLUMNS` 상수**: `@deprecated` 표기 후 호환을 위해 잔존. 더 이상 참조처가
   없으므로 Sprint 4 에서 상수·`Challenge` 인터페이스 동기화와 함께 제거 검토.

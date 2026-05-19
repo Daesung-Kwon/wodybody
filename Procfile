@@ -1,3 +1,3 @@
 # NOTE: Railway 서비스의 Root Directory = /backend 이므로 이 파일은 사용되지 않음.
 # 실제 활성 설정 = backend/railway.toml (SSOT).
-web: cd backend && gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT --timeout 120 --keep-alive 5 --log-level info app:socketio
+web: cd backend && gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT --timeout 120 --keep-alive 5 --log-level info app:app

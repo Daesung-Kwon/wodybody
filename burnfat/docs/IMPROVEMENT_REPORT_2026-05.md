@@ -486,14 +486,19 @@ Sprint 3 은 위험·범위를 고려해 **Phase A(저위험 인프라 정리)**
 - 운영 안전망 BE-1/2/3 — xAI 모델 부팅 검증, Grok 오류 본문 로깅, `last_advice_success_at` health 노출.
 - Vitest 인프라(jsdom + testing-library) 셋업 + CI 배선. 실제 훅/컴포넌트 테스트는 Phase B.
 
-**Phase B — 구조 개편 (미착수)**
-1. **`ChallengePage` 분해** (3~5일)
-   - `useChallengeData` hook으로 fetch 통합, Supabase 임베드 쿼리로 N+1 제거.
-   - 탭별 컴포넌트 분리.
-2. **테스트 베이스라인** (3일)
-   - Vitest 단위 테스트(훅 3종), Playwright 1개 E2E, GitHub Actions에 배선.
-3. **분석 이벤트** (2일)
-   - PostHog/Plausible 도입 → 챌린지 생성/참가/인증/AI 요청 5개 이벤트만.
+**Phase B — 구조 개편 ✅ 완료 (2026-05-19, [`SPRINT3B_HANDOFF.md`](SPRINT3B_HANDOFF.md))**
+1. **`ChallengePage` 분해 ✅** — `ChallengePage.tsx` 1,262줄 → 345줄(73%↓). `useChallengeData`
+   훅 + 신규 11개 파일(`rankAnimations`/`ChallengeHeader`/`ChallengeTabs`/3개 탭/`AdminPinDialog`/
+   `ChallengeEditDialog`/`ChallengeOverlays`/`ParticipantsTabHeader`)로 분리.
+   ⚠️ DoD ≤100줄은 미달(345줄) — 탭 교차 모달 조율이 페이지에 남음. 핸드오프 §1 참고.
+2. **N+1 쿼리 제거 ✅** — `participants.select('*, submissions(*)')` 임베드. 진입 REST 호출 `2+N` → `3`.
+3. **단위 테스트 ✅** — Vitest 48 → 79(신규 31). `useRecordStatus`/`useWeeklyLogs`/`useAIAdvice`/
+   `useCoachSession`/`signedImage` + `deviceSecret` 보강.
+
+**Phase C — 미착수**
+- Playwright 1개 E2E (참가→시작 인증→주간 기록 골든 패스).
+- 분석 이벤트 — PostHog/Plausible 도입 → 챌린지 생성/참가/인증/AI 요청 5개 이벤트만.
+- `ChallengePage` 추가 축소(`useChallengePage` 컨트롤러 훅).
 
 ### 분기 백로그 (3~6개월)
 

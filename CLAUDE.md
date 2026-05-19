@@ -53,7 +53,8 @@ crossfit-system/
 | **2** | AI 조언 서버 캐시 + JSON 응답 / 목표 진행률 / 챌린지 템플릿 | ✅ **완료 (코드)** — `weekly_ai_advice` 캐시 테이블 + `burnfat_ai.py` JSON 구조화·서버 캐시·입력 가드 / `GoalProgressWidget`+`goalProgress.ts` / `ChallengeTemplatePicker`+`challengeTemplates.ts` + vitest 44/44. ⚠️ 마이그레이션·백엔드 배포 필요. 상세: [`burnfat/docs/SPRINT2_HANDOFF.md`](burnfat/docs/SPRINT2_HANDOFF.md) |
 | **2.5** | 대화형 코치 모달 + 세션·장기 메모리 영속화 | ✅ **완료 (코드)** — `coach_sessions`/`coach_messages`/`participant_coach_memory` 마이그레이션 3건 + `burnfat_coach.py`(SSE 스트리밍·세션·메모리·가드) + `CoachChatDialog`/`useCoachSession`/`coachClient` + AIAdviceCard "코치와 대화하기" CTA. ⚠️ 마이그레이션·백엔드 배포 필요. 상세: [`burnfat/docs/SPRINT2_5_HANDOFF.md`](burnfat/docs/SPRINT2_5_HANDOFF.md) |
 | **3 — Phase A** | 배포 토폴로지 정리 / `challenges_public` VIEW / 운영 안전망 BE-1·2·3 / Vitest 인프라(jsdom) | ✅ **완료 (코드)** — root `railway.json` gunicorn 통일 + README 배포 매트릭스 / `challenges_public` VIEW 마이그레이션 + 클라이언트 전환 / `burnfat_ai.py`·`burnfat_coach.py` 모델 부팅 검증·Grok 오류 본문 로깅·`last_advice_success_at` health 노출 / Vitest jsdom + testing-library + CI 배선 + vitest 48/48. ⚠️ VIEW 마이그레이션 적용·백엔드 배포 필요. `backend/railway.*` 삭제는 보류(Root Directory `/backend`). 상세: [`burnfat/docs/SPRINT3A_HANDOFF.md`](burnfat/docs/SPRINT3A_HANDOFF.md) |
-| **3 — Phase B** | ChallengePage 분해 / N+1 제거 / 기존 훅 테스트 작성 / Playwright / 분석 이벤트 | ⏳ 미착수 |
+| **3 — Phase B** | ChallengePage 분해 / N+1 제거 / 훅·lib 단위 테스트 | ✅ **완료 (코드)** — `ChallengePage.tsx` 1,262→345줄 + `useChallengeData` 훅·신규 11개 파일 분리 / `participants.select('*, submissions(*)')` 임베드로 진입 REST `2+N`→`3` / Vitest 48→79. ⚠️ DoD ≤100줄 미달(345줄, 탭 교차 모달 조율 잔존). 배포·DB 변경 없음(프런트 전용). 상세: [`burnfat/docs/SPRINT3B_HANDOFF.md`](burnfat/docs/SPRINT3B_HANDOFF.md) |
+| **3 — Phase C** | Playwright E2E / 분석 이벤트 / ChallengePage 추가 축소 | ⏳ 미착수 |
 
 작업 시작 시 항상 다음 순서를 지키세요.
 

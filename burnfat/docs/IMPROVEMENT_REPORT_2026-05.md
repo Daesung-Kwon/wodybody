@@ -496,7 +496,7 @@ Sprint 3 은 위험·범위를 고려해 **Phase A(저위험 인프라 정리)**
 3. **단위 테스트 ✅** — Vitest 48 → 79(신규 31). `useRecordStatus`/`useWeeklyLogs`/`useAIAdvice`/
    `useCoachSession`/`signedImage` + `deviceSecret` 보강.
 
-**Phase C — E2E + 측정 + Sprint 3 종결 ✅ 완료 (2026-05-19, 커밋 `<Phase C 커밋 SHA>`, [`SPRINT3_FINAL_HANDOFF.md`](SPRINT3_FINAL_HANDOFF.md))**
+**Phase C — E2E + 측정 + Sprint 3 종결 ✅ 완료 (2026-05-19, 커밋 `67bc07f`, [`SPRINT3_FINAL_HANDOFF.md`](SPRINT3_FINAL_HANDOFF.md))**
 1. **Playwright E2E ✅** — 챌린지 핵심 경로 1개 스펙(생성→참가→기본정보→시작 인증(이미지 마스킹)→
    주간 기록→AI 조언→코치 대화→새로고침 유지). `page.route` 로 네트워크 전면 모킹 + `.env.test`
    이중 격리 → 운영 Supabase/Grok 호출 0건(테스트 내 request 리스너 검증). CI 배선 완료.

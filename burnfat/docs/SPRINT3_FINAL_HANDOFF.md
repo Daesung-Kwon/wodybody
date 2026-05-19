@@ -13,7 +13,7 @@
 |-------|------|------|-----------|
 | **A** | 저위험 인프라 정리 | `c27626f` | `challenges_public` VIEW · 배포 토폴로지 정리 · 운영 안전망 BE-1/2/3 · Vitest(jsdom) 인프라. 상세: [`SPRINT3A_HANDOFF.md`](SPRINT3A_HANDOFF.md) |
 | **B** | 구조 개편 | `9bfd702` | `ChallengePage` 1,262→345줄 분해(11개 신규 파일) · N+1 제거(`2+N`→`3`) · Vitest 48→79. 상세: [`SPRINT3B_HANDOFF.md`](SPRINT3B_HANDOFF.md) |
-| **C** | E2E + 측정 + 종결 | `<Phase C 커밋 SHA>` | Playwright E2E 1스펙(핵심 경로 11단계) · 분석 이벤트 6종(`track()` 래퍼) · Sprint 3 종결 문서. 본 문서. |
+| **C** | E2E + 측정 + 종결 | `67bc07f` | Playwright E2E 1스펙(핵심 경로 11단계) · 분석 이벤트 6종(`track()` 래퍼) · Sprint 3 종결 문서. 본 문서. |
 
 ### Phase C 세부 산출물
 

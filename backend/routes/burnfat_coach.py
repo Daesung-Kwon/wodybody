@@ -59,11 +59,42 @@ VALID_VISIBILITY = {"private", "room"}
 
 # ── 시스템 프롬프트 ────────────────────────────────────────────────────────
 _COACH_SYSTEM = """당신은 BurnFat 의 체지방 감량 코치입니다. 참가자와 *대화* 합니다.
-- 항상 한국어로, 간결하고 따뜻하게 답하세요. 한 응답은 5문장 이내.
-- <PROFILE_AND_STATS> 의 실제 기록 수치를 인용해 말하세요. 일반론 반복 금지.
-- 근거가 된 주차를 언급할 때는 본문에서 자연스럽게 말하고, 메시지 맨 끝에
-  `[ref:W2,W3]` 형식으로 인용 주차를 표기하세요 (없으면 생략).
-- 이전 대화 맥락과 약속을 이어가세요."""
+
+## 응답 스타일
+- 항상 한국어로, 따뜻하지만 간결하게 답하세요.
+- 기본 길이는 3~5문장. 단, 사용자가 식단표·운동 루틴·여러 옵션 등 *나열형* 또는
+  *구체 계획* 을 요청하면 그 요청을 채우는 데 필요한 만큼 길어져도 됩니다.
+- 매 응답의 도입부와 마무리 표현을 *반드시 다르게* 합니다.
+  - "OO님, N주차 XX%..." 같은 정형 도입부를 반복하지 마세요.
+  - "목표 XX%로 한 걸음 더!", "운동 N회 + 수면 X시간" 같은 정형 마무리를 매번 반복하지 마세요.
+  - 호명("OO님")은 첫 응답 또는 필요할 때만, 매 응답에 넣지 않아도 됩니다.
+
+## 데이터 인용 원칙
+- <PROFILE_AND_STATS> 의 수치는 *질문과 직접 관련 있을 때만* 인용합니다.
+  - 정체 원인 분석·진단성 답변에는 수치 인용이 가치 있습니다.
+  - 단순 식단 추천·메뉴 나열 등 데이터가 큰 의미를 주지 않는 답변에는 강제로 끼워 넣지 마세요.
+- 같은 수치(예: "3주차 29.2%")를 매 응답 도입부에 반복해서 인용하지 마세요.
+  이미 한 번 다룬 수치는 새 관점에서만 다시 언급합니다.
+- 근거 주차를 명시할 *필요가 있을 때만* 메시지 맨 끝에 `[ref:W2,W3]` 형식으로 표기.
+  근거가 없거나 답변이 일반 코칭이면 생략합니다.
+
+## 사용자 요청 존중 (매우 중요)
+- 사용자가 "다양한", "반복 말고", "또 다른", "새로운", "다르게", "지겨워" 같은 표현을 쓰면,
+  *직전 응답에서 사용한 항목·메뉴·표현을 그대로 다시 쓰지 말고* 완전히 다른 옵션을 제시합니다.
+- 사용자가 "N가지" 또는 "M일치" 같은 *수량* 을 명시하면 정확히 그 수량을 제공합니다.
+  - "1주일치 식단" → 7일 각각 다른 구성(월·화·수·목·금·토·일), 식재료가 겹치지 않도록.
+  - "3가지 옵션" → 정확히 3가지, 각 옵션의 주재료가 서로 겹치지 않게.
+- 식단 제안은 한식·일식·양식·중식·간편식 등 다양한 카테고리에서 변주하세요.
+  (닭가슴살·연어·오트밀·그릭요거트만 매번 사용하지 마세요.)
+
+## 마무리 가이드
+- 모든 응답이 "운동 N회 + 수면 X시간" 같은 정형 CTA 로 끝날 필요는 없습니다.
+- 짧은 질문(예: "이 중 어떤 게 가장 끌리세요?"), 공감 한 문장, 단순한 확인으로 마무리해도 좋습니다.
+
+## 이전 대화 활용
+- 이전 대화 맥락과 약속은 이어가되, 같은 조언을 똑같은 표현으로 반복하지 마세요.
+- 이미 한 번 권한 행동(예: 수면 7시간)은 매 응답마다 다시 권하지 말고, 새로 발견한
+  포인트 위주로 이야기하세요."""
 
 _SAFETY_GUARD = """## 안전 가드 (반드시 준수)
 다음 주제는 조언하지 말고, 정중히 거부한 뒤 의사·영양사 등 전문가 상담을 권유하세요:
@@ -88,6 +119,15 @@ _REF_PATTERN = re.compile(r"\[ref:\s*([0-9Ww,\s]+)\]")
 _EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 _PHONE_RE = re.compile(r"01[016789][-\s]?\d{3,4}[-\s]?\d{4}")
 
+# 사용자가 *응답 변주* 를 명시적으로 요구하는 패턴 — 매칭되면 anti-repetition 신호 강화.
+_VARIETY_TRIGGERS: tuple[str, ...] = (
+    "다양", "반복", "또 다", "또다", "다른 거", "다른걸", "다른 걸",
+    "새로운", "다르게", "또추천", "또 추천", "변화", "지겨", "질렸", "비슷",
+)
+
+# 사용자가 *수량* 을 명시하는 표현(가짓수/일수). 매칭되면 max_tokens 상향.
+_LIST_PATTERN = re.compile(r"\d+\s*(가지|개|일치|주일|일분|일 분|일치를)")
+
 
 # ── 공용 헬퍼 ──────────────────────────────────────────────────────────────
 
@@ -105,6 +145,45 @@ def _mask_pii(text: str) -> str:
     masked = _EMAIL_RE.sub("[이메일 가림]", text or "")
     masked = _PHONE_RE.sub("[전화번호 가림]", masked)
     return masked
+
+
+def _wants_variety(user_text: str) -> bool:
+    """사용자 메시지에 응답 변주를 요구하는 표현이 있는지 판단."""
+    if not user_text:
+        return False
+    return any(token in user_text for token in _VARIETY_TRIGGERS)
+
+
+def _wants_list(user_text: str) -> bool:
+    """사용자 메시지에 'N가지', 'M일치' 등 수량 표현이 있는지 판단."""
+    if not user_text:
+        return False
+    if _LIST_PATTERN.search(user_text):
+        return True
+    return "1주일" in user_text or "한 주" in user_text or "일주일" in user_text
+
+
+def _recent_assistant_signatures(
+    history: list[dict[str, Any]], n: int = 3
+) -> list[str]:
+    """직전 어시스턴트 응답 N개에서 도입부/마무리 발췌. 모델에 '이 패턴은
+    피하라' 신호를 주기 위한 용도 — 정밀한 키워드 추출이 아니라 발췌이다."""
+    recent = [
+        str(m.get("content") or "").strip()
+        for m in history
+        if m.get("role") == "assistant"
+    ]
+    recent = [t for t in recent if t][-n:]
+    snippets: list[str] = []
+    for text in recent:
+        flat = " ".join(text.split())
+        head = flat[:60]
+        tail = flat[-50:] if len(flat) > 60 else ""
+        if tail:
+            snippets.append(f"- 도입: \"{head}…\"  /  마무리: \"…{tail}\"")
+        else:
+            snippets.append(f"- \"{head}\"")
+    return snippets
 
 
 def _extract_references(text: str) -> tuple[str, list[dict[str, int]]]:
@@ -340,16 +419,30 @@ def _weekly_usage(participant_id: str) -> dict[str, int]:
 
 # ── Grok 호출 ──────────────────────────────────────────────────────────────
 
-def _stream_grok(messages: list[dict[str, str]]) -> Iterator[str]:
-    """xAI chat.completions stream=true → content 토큰 조각을 yield."""
+def _stream_grok(
+    messages: list[dict[str, str]],
+    *,
+    temperature: float = 0.75,
+    max_tokens: int = ASSISTANT_MAX_TOKENS,
+    frequency_penalty: float = 0.3,
+    presence_penalty: float = 0.2,
+) -> Iterator[str]:
+    """xAI chat.completions stream=true → content 토큰 조각을 yield.
+
+    반복 응답 완화를 위해 OpenAI 호환 페널티 파라미터를 함께 보낸다.
+    frequency_penalty/presence_penalty 는 일부 모델에서 무시될 수 있지만, 지원하는
+    모델에서는 같은 토큰·표현의 재등장 빈도를 낮춰준다.
+    """
     api_key = os.environ.get("XAI_API_KEY")
     if not api_key:
         raise RuntimeError("XAI_API_KEY not configured")
     payload = {
         "model": XAI_MODEL,
         "messages": messages,
-        "max_tokens": ASSISTANT_MAX_TOKENS,
-        "temperature": 0.7,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "frequency_penalty": frequency_penalty,
+        "presence_penalty": presence_penalty,
         "stream": True,
     }
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
@@ -416,6 +509,9 @@ def _build_system_prompt(
     start_date: str,
     end_date: str,
     memory_summary: str | None,
+    recent_signatures: list[str] | None = None,
+    variety_requested: bool = False,
+    list_requested: bool = False,
 ) -> str:
     parts = [
         _COACH_SYSTEM,
@@ -430,6 +526,30 @@ def _build_system_prompt(
             + memory_summary
             + "\n위 <MEMORY> 는 지난 주까지의 흐름·약속이다. "
             "세션 첫 응답에서 지난 약속을 자연스럽게 인용하라."
+        )
+    # 안티-반복 신호: 직전 어시스턴트 응답의 도입/마무리를 보여주고 *피하라* 고 지시.
+    if recent_signatures:
+        parts.append(
+            "<RECENT_ASSISTANT_PATTERNS>\n"
+            + "\n".join(recent_signatures)
+            + "\n위는 *직전 어시스턴트 응답들* 의 도입/마무리 발췌입니다. "
+            "이번 응답에서는 같은 도입·같은 마무리·같은 표현을 반복하지 마세요. "
+            "새로운 도입, 다른 표현, 다른 마무리를 사용합니다."
+        )
+    if variety_requested:
+        parts.append(
+            "<VARIETY_DIRECTIVE>\n"
+            "사용자가 명시적으로 *다양함/변주* 를 요청했습니다. "
+            "직전 응답에서 등장한 식단 항목·운동 종목·표현을 *그대로 재사용하지 마세요.* "
+            "완전히 다른 옵션·재료·표현을 사용합니다. 예: 직전이 '닭가슴살·연어'였다면 "
+            "이번은 '두부·새우·계란·소고기·돼지고기 등 다른 단백질원' 으로 바꿉니다."
+        )
+    if list_requested:
+        parts.append(
+            "<LIST_DIRECTIVE>\n"
+            "사용자가 *수량(N가지/M일치)* 을 명시했습니다. 정확히 그 수량을 채우고, "
+            "각 항목의 *주재료·조리법* 이 서로 겹치지 않도록 구성합니다. "
+            "예: '1주일치' → 월~일 7일 각각 다른 단백질·다른 탄수원·다른 채소 조합."
         )
     return "\n\n".join(parts)
 
@@ -703,12 +823,32 @@ def post_message():
         prior = []
     # 방금 저장한 user 메시지는 별도로 붙이므로 prior 에서 마지막 user 1건 제외
     history = [m for m in prior if not (m.get("role") == "user" and m.get("content") == content)]
+
+    # 응답 변주·나열 요청 감지 → 시스템 프롬프트에 추가 지침 주입, 페널티/토큰 상향.
+    variety_requested = _wants_variety(content)
+    list_requested = _wants_list(content)
+    recent_signatures = _recent_assistant_signatures(history, n=3)
+
     system_prompt = _build_system_prompt(
-        session.get("persona", persona), participant, logs, start_date, end_date, memory
+        session.get("persona", persona),
+        participant,
+        logs,
+        start_date,
+        end_date,
+        memory,
+        recent_signatures=recent_signatures,
+        variety_requested=variety_requested,
+        list_requested=list_requested,
     )
     chat_messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
     chat_messages.extend(_trim_turns(history, system_prompt, content))
     chat_messages.append({"role": "user", "content": content})
+
+    # 변주·리스트 요청 시 다양성을 더 높이고, 리스트는 길이 상한도 키운다.
+    stream_temperature = 0.9 if variety_requested else 0.78
+    stream_frequency_penalty = 0.6 if variety_requested else 0.35
+    stream_presence_penalty = 0.5 if variety_requested else 0.2
+    stream_max_tokens = 900 if list_requested else ASSISTANT_MAX_TOKENS
 
     def generate() -> Iterator[str]:
         yield _sse({
@@ -719,7 +859,13 @@ def post_message():
         })
         collected: list[str] = []
         try:
-            for piece in _stream_grok(chat_messages):
+            for piece in _stream_grok(
+                chat_messages,
+                temperature=stream_temperature,
+                max_tokens=stream_max_tokens,
+                frequency_penalty=stream_frequency_penalty,
+                presence_penalty=stream_presence_penalty,
+            ):
                 collected.append(piece)
                 yield _sse({"delta": piece})
         except (requests.RequestException, RuntimeError) as e:

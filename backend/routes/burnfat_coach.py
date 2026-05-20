@@ -54,6 +54,11 @@ DAILY_TOKENS_OUT_LIMIT = 10_000
 RECENT_TURNS = 12                  # 컨텍스트에 싣는 최근 턴 수
 MAX_INPUT_TOKENS = 6_000           # 입력 토큰 상한(추정) — 초과 시 오래된 턴부터 제거
 
+# xAI Grok 의 일부 모델(예: grok-4.3)은 OpenAI 호환 페널티 파라미터를
+# 받아들이지 않고 400 으로 거부한다. 디폴트는 미송신이며, 지원 모델로 운영할 때만
+# 환경변수 XAI_SEND_PENALTIES=1 로 명시 활성화한다.
+XAI_SEND_PENALTIES = os.environ.get("XAI_SEND_PENALTIES", "").lower() in {"1", "true", "yes"}
+
 VALID_PERSONAS = {"strict", "friendly", "scientist"}
 VALID_VISIBILITY = {"private", "room"}
 
@@ -429,22 +434,24 @@ def _stream_grok(
 ) -> Iterator[str]:
     """xAI chat.completions stream=true → content 토큰 조각을 yield.
 
-    반복 응답 완화를 위해 OpenAI 호환 페널티 파라미터를 함께 보낸다.
-    frequency_penalty/presence_penalty 는 일부 모델에서 무시될 수 있지만, 지원하는
-    모델에서는 같은 토큰·표현의 재등장 빈도를 낮춰준다.
+    OpenAI 호환 페널티 파라미터(frequency_penalty/presence_penalty)는 일부 xAI
+    모델(grok-4.3 등)이 400 으로 거부한다. 따라서 XAI_SEND_PENALTIES 환경변수가
+    켜진 경우에만 payload 에 포함한다 — 안티-반복은 시스템 프롬프트와 temperature
+    변주로 1차 방어한다.
     """
     api_key = os.environ.get("XAI_API_KEY")
     if not api_key:
         raise RuntimeError("XAI_API_KEY not configured")
-    payload = {
+    payload: dict[str, Any] = {
         "model": XAI_MODEL,
         "messages": messages,
         "max_tokens": max_tokens,
         "temperature": temperature,
-        "frequency_penalty": frequency_penalty,
-        "presence_penalty": presence_penalty,
         "stream": True,
     }
+    if XAI_SEND_PENALTIES:
+        payload["frequency_penalty"] = frequency_penalty
+        payload["presence_penalty"] = presence_penalty
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     resp = requests.post(
         XAI_API_URL, json=payload, headers=headers, timeout=XAI_TIMEOUT_SECONDS, stream=True
@@ -609,6 +616,7 @@ def coach_health():
         # 환경변수가 잘못 설정된 것(INSERT 가 401 로 실패).
         "service_key_role": _service_key_role(),
         "model": XAI_MODEL,
+        "penalties_enabled": XAI_SEND_PENALTIES,
     }), 200
 
 

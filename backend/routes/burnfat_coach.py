@@ -853,10 +853,13 @@ def post_message():
     chat_messages.append({"role": "user", "content": content})
 
     # 변주·리스트 요청 시 다양성을 더 높이고, 리스트는 길이 상한도 키운다.
+    # 1주일치(7일×3끼=21항목) 같은 대형 리스트는 900 토큰이면 마지막 한 줄에서
+    # 잘리는 사례가 확인돼 1400 으로 상향. xAI grok-4.3 일일 출력 토큰 쿼터(10k)
+    # 대비 ~7회 분량이라 여유 있음.
     stream_temperature = 0.9 if variety_requested else 0.78
     stream_frequency_penalty = 0.6 if variety_requested else 0.35
     stream_presence_penalty = 0.5 if variety_requested else 0.2
-    stream_max_tokens = 900 if list_requested else ASSISTANT_MAX_TOKENS
+    stream_max_tokens = 1400 if list_requested else ASSISTANT_MAX_TOKENS
 
     def generate() -> Iterator[str]:
         yield _sse({

@@ -5,3 +5,8 @@ dist
 *.log
 .DS_Store
 *.tsbuildinfo
+
+# Playwright E2E 산출물
+test-results
+playwright-report
+playwright/.cache

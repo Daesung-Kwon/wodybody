@@ -26,6 +26,7 @@ import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import type { CoachPersona, Participant } from '../types';
 import { useCoachSession } from '../hooks/useCoachSession';
 import CoachMessageBubble from './CoachMessageBubble';
+import { track } from '../lib/analytics';
 
 interface Props {
   open: boolean;
@@ -68,6 +69,15 @@ export default function CoachChatDialog({ open, onClose, participant, weekNo, se
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const trackedOpenRef = useRef(false);
+
+  // 모달 첫 진입 1회만 측정 (재오픈/리렌더 시 중복 전송 방지).
+  useEffect(() => {
+    if (open && !trackedOpenRef.current) {
+      trackedOpenRef.current = true;
+      track('coach_modal_opened', { week_no: weekNo, persona: coach.persona });
+    }
+  }, [open, weekNo, coach.persona]);
 
   // 새 메시지/스트리밍 시 자동 스크롤
   useEffect(() => {

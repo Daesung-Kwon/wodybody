@@ -57,22 +57,25 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         cache: 'npm'
         cache-dependency-path: frontend/package-lock.json
     
     - name: Install frontend dependencies
       working-directory: ./frontend
-      run: npm ci --legacy-peer-deps
+      run: npm ci
     
     - name: Run frontend tests
       working-directory: ./frontend
-      run: npm test -- --coverage --watchAll=false
+      run: npm test
     
     - name: Build frontend
       working-directory: ./frontend
       env:
-        REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
+        VITE_API_URL: ${{ secrets.REACT_APP_API_URL }}
+        VITE_SUPABASE_URL: ${{ secrets.BURNFAT_SUPABASE_URL }}
+        VITE_SUPABASE_ANON_KEY: ${{ secrets.BURNFAT_SUPABASE_ANON_KEY }}
+        VITE_AI_ADVICE_URL: ${{ secrets.BURNFAT_AI_ADVICE_URL }}
       run: npm run build
 
   deploy-backend:

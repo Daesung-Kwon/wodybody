@@ -15,7 +15,15 @@ export default defineConfig({
       recharts: path.resolve(__dirname, './node_modules/recharts'),
       '@supabase/supabase-js': path.resolve(__dirname, './node_modules/@supabase/supabase-js'),
     },
-    dedupe: ['react', 'react-dom', '@mui/material', '@emotion/react', '@emotion/styled'],
+    dedupe: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@mui/material',
+      '@mui/icons-material',
+      '@emotion/react',
+      '@emotion/styled',
+    ],
   },
   test: {
     environment: 'jsdom',

@@ -23,7 +23,8 @@
       "@burnfat/*": ["../burnfat/src/*"],
       "html-to-image": ["./node_modules/html-to-image"],
       "recharts": ["./node_modules/recharts"],
-      "@supabase/supabase-js": ["./node_modules/@supabase/supabase-js"]
+      "@supabase/supabase-js": ["./node_modules/@supabase/supabase-js"],
+      "*": ["./node_modules/@types/*", "./node_modules/*"]
     }
   },
   "include": ["src"],

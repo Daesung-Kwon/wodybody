@@ -17,7 +17,7 @@ mobile/
 └── android/              # `npx cap add android` 후 생성
 ```
 
-`webDir`은 `../frontend/build` — CRA의 빌드 산출물을 그대로 번들링한다.
+`webDir`은 `../frontend/dist` — Vite 빌드 산출물을 그대로 번들링한다.
 
 ## 처음 셋업
 

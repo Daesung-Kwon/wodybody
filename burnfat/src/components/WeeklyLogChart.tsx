@@ -94,9 +94,10 @@ export default function WeeklyLogChart({ logs, participant, startBodyFat }: Prop
               width={isWeight ? 58 : 52}
             />
             <Tooltip
-              formatter={(value: number | undefined) =>
-                value != null ? [`${value}${yUnit}`, isWeight ? '몸무게' : '체지방률'] : null
-              }
+              formatter={(value) => [
+                `${value ?? ''}${yUnit}`,
+                isWeight ? '몸무게' : '체지방률',
+              ]}
               labelFormatter={(label) => label}
             />
             {!isWeight && targetBodyFat != null && (

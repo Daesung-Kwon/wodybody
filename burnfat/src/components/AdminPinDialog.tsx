@@ -21,7 +21,7 @@ interface AdminPinDialogProps {
    * PIN 검증 성공 후 실행할 후속 액션.
    * 반환 boolean 이 true 면 다이얼로그를 닫는다 (false 면 열린 채 유지).
    */
-  onConfirmed: () => Promise<boolean>;
+  onConfirmed: (pin: string) => Promise<boolean>;
 }
 
 const normalizeAdminPin = (p: string | null | undefined) =>
@@ -77,7 +77,7 @@ export default function AdminPinDialog({
       setPinError('PIN이 올바르지 않습니다.');
       return;
     }
-    const done = await onConfirmed();
+    const done = await onConfirmed(got);
     setPinLoading(false);
     if (done) {
       setPinInput('');

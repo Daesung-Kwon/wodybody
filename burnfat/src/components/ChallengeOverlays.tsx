@@ -44,7 +44,8 @@ interface ChallengeOverlaysProps {
 
   pinAction: AdminPinAction | null;
   onClosePin: () => void;
-  onPinConfirmed: () => Promise<boolean>;
+  onPinConfirmed: (pin: string) => Promise<boolean>;
+  adminPin: string;
 
   editOpen: boolean;
   onCloseEdit: () => void;
@@ -87,6 +88,7 @@ export default function ChallengeOverlays({
   pinAction,
   onClosePin,
   onPinConfirmed,
+  adminPin,
   editOpen,
   onCloseEdit,
   onSavedEdit,
@@ -140,6 +142,7 @@ export default function ChallengeOverlays({
       <ChallengeEditDialog
         open={editOpen}
         challenge={challenge}
+        adminPin={adminPin}
         onClose={onCloseEdit}
         onSaved={onSavedEdit}
       />

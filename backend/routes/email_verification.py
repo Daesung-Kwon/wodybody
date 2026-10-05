@@ -56,7 +56,7 @@ def request_verification():
             return jsonify({'message': message}), 500
         
         from flask import current_app
-        current_app.logger.info(f'회원가입 이메일 인증 요청: {email} (코드: {email_verification.verification_code})')
+        current_app.logger.info('회원가입 이메일 인증 요청: %s', email)
         
         return jsonify({
             'message': '인증번호가 이메일로 전송되었습니다. (10분간 유효)',

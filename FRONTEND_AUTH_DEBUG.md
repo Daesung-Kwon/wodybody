@@ -203,7 +203,7 @@ await fetch('http://localhost:5001/api/login', {
   headers: {'Content-Type': 'application/json'},
   body: JSON.stringify({
     email: 'simadeit@naver.com', 
-    password: 'Daon!161219'
+    password: '<rotated-password>'
   })
 }).then(r => r.json()).then(d => {
   console.log('Login response:', d);

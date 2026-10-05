@@ -10,6 +10,7 @@ from models.notification import Notifications
 from models.user import Users
 from utils.validators import validate_program
 from utils.timezone import format_korea_time
+from utils.auth import get_current_user_id as get_user_id_from_session_or_cookies
 from datetime import datetime, timedelta
 
 # 블루프린트 생성
@@ -238,7 +239,6 @@ def create_program():
     """프로그램 생성"""
     try:
         # Safari 호환 인증 방식을 위해 app.py의 함수 사용
-        from app import get_user_id_from_session_or_cookies
         user_id = get_user_id_from_session_or_cookies()
         if not user_id:
             return jsonify({'message': '로그인이 필요합니다'}), 401
@@ -762,12 +762,6 @@ def create_notification(user_id, notification_type, title, message, program_id=N
         print(f'❌ 알림 생성 오류: {str(e)}')
         db.session.rollback()
         return None
-
-def get_user_id_from_session_or_cookies():
-    """세션 또는 쿠키에서 사용자 ID를 가져오는 함수"""
-    from app import get_user_id_from_session_or_cookies as get_user_id
-    return get_user_id()
-
 
 @bp.route('/programs/<int:program_id>', methods=['PUT'])
 def update_program(program_id):

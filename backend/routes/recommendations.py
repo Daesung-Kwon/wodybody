@@ -19,6 +19,7 @@ import requests
 from flask import Blueprint, jsonify, request, current_app
 
 from config.database import db
+from utils.auth import get_current_user_id as get_user_id_from_session_or_cookies
 from models.daily_assignment import DailyAssignments
 from models.preference import UserPreferences
 from models.program import Programs
@@ -468,11 +469,6 @@ def generate_recommendation(
 
     db.session.commit()
     return existing
-
-
-def get_user_id_from_session_or_cookies():
-    from app import get_user_id_from_session_or_cookies as get_user_id
-    return get_user_id()
 
 
 # --------------------------------------------------------------------

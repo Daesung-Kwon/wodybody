@@ -1,7 +1,7 @@
 /**
  * 개발 환경 전용 데모 페이지
  * 
- * 이 페이지는 process.env.NODE_ENV === 'development' 환경에서만 접근 가능합니다.
+ * 이 페이지는 개발 빌드에서만 접근 가능합니다.
  * 프로덕션 빌드 시 자동으로 제외됩니다.
  * 
  * 접근 방법: http://localhost:3000/#demo
@@ -84,7 +84,7 @@ const DemoPage: React.FC = () => {
                         ℹ️ 이 페이지는 개발 환경에서만 표시됩니다
                     </Typography>
                     <Typography variant="caption">
-                        • NODE_ENV: {process.env.NODE_ENV}<br />
+                        • MODE: {import.meta.env.MODE}<br />
                         • 프로덕션 빌드 시 자동 제외됨<br />
                         • 접근 URL: http://localhost:3000/#demo
                     </Typography>
@@ -326,7 +326,7 @@ const DemoPage: React.FC = () => {
                                 }}
                             >
                                 <Typography variant="caption" sx={{ fontFamily: 'monospace', display: 'block' }}>
-                                    {process.env.REACT_APP_API_URL || 'http://localhost:5000'}
+                                    {import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_API_URL || 'http://localhost:5001'}
                                 </Typography>
                             </Paper>
                         </CardContent>

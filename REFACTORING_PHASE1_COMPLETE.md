@@ -152,7 +152,7 @@ npm start
 3. Console 탭 선택
 4. 로그인:
    - Email: simadeit@naver.com
-   - Password: Daon!161219
+   - Password: <rotated-password>
 5. Console에서 확인:
    [auth] access_token received, storing to localStorage
    [auth] Token successfully stored: eyJ...

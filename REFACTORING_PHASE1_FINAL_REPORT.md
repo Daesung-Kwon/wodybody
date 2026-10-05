@@ -476,7 +476,7 @@ curl http://localhost:5001/api/programs
 # 로그인 (테스트)
 curl -X POST http://localhost:5001/api/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"simadeit@naver.com","password":"Daon!161219"}'
+  -d '{"email":"simadeit@naver.com","password":"<rotated-password>"}'
 ```
 
 ---

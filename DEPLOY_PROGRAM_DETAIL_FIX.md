@@ -107,7 +107,7 @@ $ git push origin backend
 # 1. 로그인하여 토큰 받기
 TOKEN=$(curl -s -X POST https://wodybody-production.up.railway.app/api/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"simadeit@naver.com","password":"Daon!161219"}' | jq -r '.access_token')
+  -d '{"email":"simadeit@naver.com","password":"<rotated-password>"}' | jq -r '.access_token')
 
 # 2. 비공개 프로그램 조회 (creator)
 curl -H "Authorization: Bearer $TOKEN" \

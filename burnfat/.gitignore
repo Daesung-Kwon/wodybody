@@ -5,3 +5,7 @@ dist
 *.log
 .DS_Store
 *.tsbuildinfo
+
+# Claude Code — 개인 환경/로컬 설정
+.claude/settings.local.json
+.claude/.cache/

@@ -57,6 +57,9 @@ function parseErrorMessage(res: Response, bodyText: string): string {
       if (j.error === 'Supabase not configured') {
         return '서버 설정 오류입니다. 관리자에게 문의해 주세요.';
       }
+      if (j.error === 'device_secret required') {
+        return '이 기기에서 작성한 기록이 있어야 AI 조언을 받을 수 있어요.';
+      }
       return j.error;
     }
   } catch {
@@ -76,11 +79,32 @@ function toStringArray(value: unknown): string[] {
   return value.map((v) => String(v ?? '').trim()).filter(Boolean);
 }
 
+function getAdviceDeviceSecret(): string {
+  try {
+    const coach = window.localStorage.getItem('burnfat:coach:deviceSecret');
+    if (coach) return coach;
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const key = window.localStorage.key(i);
+      if (key && key.startsWith('burnfat:device:')) {
+        const value = window.localStorage.getItem(key);
+        if (value) return value;
+      }
+    }
+  } catch {
+    /* private mode */
+  }
+  return '';
+}
+
 export async function fetchAIAdvice(req: AIAdviceRequest): Promise<AIAdviceResponse> {
   const url = resolveAiAdviceUrl();
+  const deviceSecret = getAdviceDeviceSecret();
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(deviceSecret ? { 'X-Device-Secret': deviceSecret } : {}),
+    },
     body: JSON.stringify({
       participant_id: req.participantId,
       force_refresh: req.forceRefresh || undefined,

@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Read",
+      "Grep",
+      "Glob",
+      "Edit",
+      "Write",
+      "Bash(npm run dev)",
+      "Bash(npm run build)",
+      "Bash(npm test)",
+      "Bash(npm run test:*)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx vitest *)",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git branch*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(git checkout -b *)",
+      "Bash(supabase migration *)",
+      "Bash(supabase db push)",
+      "Bash(npx playwright *)",
+      "Bash(npm run e2e*)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(supabase db reset*)",
+      "Bash(curl * | sh)",
+      "Write(**/.env)",
+      "Write(**/.env.*)",
+      "Edit(**/.env)",
+      "Edit(**/.env.*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && (echo \"$CLAUDE_TOOL_INPUT\" | grep -Eq '\\.(ts|tsx)\"' && npx tsc --noEmit -p tsconfig.json 2>&1 | tail -20) || true"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"$CLAUDE_TOOL_INPUT\" | grep -Eq 'git commit' && (cd \"$CLAUDE_PROJECT_DIR\" && npx vitest run --reporter=dot && npx tsc --noEmit) || exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}

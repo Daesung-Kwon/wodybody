@@ -1,39 +1,19 @@
 """알림 관련 라우트"""
 
-from flask import Blueprint, request, jsonify, session, current_app
+from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime
 from config.database import db
 from models.notification import Notifications
+from utils.auth import get_current_user_id as get_user_id_from_session_or_cookies
 
 # 블루프린트 생성
 bp = Blueprint('notifications', __name__, url_prefix='/api')
-
-
-def get_user_id_from_session_or_cookies():
-    """세션 또는 쿠키에서 사용자 ID를 가져오는 함수"""
-    # TODO: 중앙화된 인증 미들웨어로 교체 예정
-    from app import get_user_id_from_session_or_cookies as get_user_id
-    return get_user_id()
 
 
 @bp.route('/notifications', methods=['GET'])
 def get_notifications():
     """사용자의 알림 목록 조회"""
     user_id = get_user_id_from_session_or_cookies()
-    
-    # Safari 대안: User-Agent로 Safari 감지 시 자동 인증 (개선된 버전)
-    if not user_id:
-        user_agent = request.headers.get('User-Agent', '').lower()
-        if 'safari' in user_agent and 'chrome' not in user_agent:
-            # Safari 전용 세션 확인
-            safari_user_id = session.get('safari_user_id')
-            if safari_user_id:
-                current_app.logger.info(f'Safari 전용 세션에서 사용자 ID 확인: {safari_user_id}')
-                user_id = safari_user_id
-                session['user_id'] = user_id  # 일반 세션에도 복사
-            else:
-                current_app.logger.warning('Safari 브라우저이지만 전용 세션이 없음 - 인증 필요')
-    
     if not user_id:
         return jsonify({'message': '로그인이 필요합니다'}), 401
     

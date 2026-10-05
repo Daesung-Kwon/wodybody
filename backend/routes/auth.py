@@ -11,10 +11,13 @@ bp = Blueprint('auth', __name__, url_prefix='/api')
 @bp.route('/user/profile', methods=['GET'])
 def profile():
     """사용자 프로필 조회"""
-    if 'user_id' not in session:
+    from utils.auth import get_current_user_id
+
+    user_id = get_current_user_id()
+    if not user_id:
         return jsonify({'message': 'Unauthorized'}), 401
     
-    user = Users.query.get(session['user_id'])
+    user = Users.query.get(user_id)
     if not user:
         return jsonify({'message': 'User not found'}), 404
     

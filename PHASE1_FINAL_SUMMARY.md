@@ -97,7 +97,7 @@ f15fbc8 - refactor: 라우트 분리 및 모듈화 완료
 **지금 브라우저에서 확인**:
 
 - [ ] http://localhost:3000 접속 (완전 새로고침: ⌘+Shift+R)
-- [ ] 로그인: simadeit@naver.com / Daon!161219
+- [ ] 로그인: simadeit@naver.com / <rotated-password>
 - [ ] F12 개발자 도구 → Console 확인
   - [ ] WebSocket 오류 없음 ✅
   - [ ] 토큰 로그 확인: `[auth] Token successfully stored`

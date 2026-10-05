@@ -23,90 +23,17 @@ import {
     PushTokenRegistration,
     PushTokenInfo
 } from '../types';
+import { getAccessToken, setAccessToken } from '../lib/tokenStore';
+import { apiBaseUrl } from '../lib/env';
 
-// API 기본 설정
-const DEFAULT_API_BASE = (() => {
-    if (typeof window !== 'undefined') {
-        const host = window.location.hostname;
-        if (host === 'localhost' || host === '127.0.0.1') {
-            return 'http://localhost:5001';
-        }
-    }
-    return 'https://wodybody-production.up.railway.app';
-})();
+const API_BASE = apiBaseUrl();
 
-const API_BASE = process.env.REACT_APP_API_URL || DEFAULT_API_BASE;
-
-// 전역 리다이렉트 함수 (AuthProvider에서 설정됨)
 let globalRedirectToLogin: (() => void) | null = null;
 
 export const setGlobalRedirectToLogin = (redirectFn: () => void): void => {
     globalRedirectToLogin = redirectFn;
 };
 
-// Safari 브라우저 감지
-const isSafari = (): boolean => {
-    const userAgent = navigator.userAgent.toLowerCase();
-    return userAgent.includes('safari') && !userAgent.includes('chrome');
-};
-
-// 모바일 Safari 감지
-const isMobileSafari = (): boolean => {
-    const userAgent = navigator.userAgent.toLowerCase();
-    return userAgent.includes('safari') &&
-        !userAgent.includes('chrome') &&
-        (userAgent.includes('iphone') || userAgent.includes('ipad') || userAgent.includes('mobile'));
-};
-
-// Safari 브라우저 쿠키 전송 강제 설정
-const getSafariFetchOptions = (): RequestInit => {
-    if (isSafari() || isMobileSafari()) {
-        return {
-            credentials: 'include',
-            mode: 'cors',
-            cache: 'no-cache',
-            redirect: 'follow',
-            referrerPolicy: 'strict-origin-when-cross-origin'
-        };
-    }
-    return {};
-};
-
-// Safari 대안 인증 토큰 관리
-const getSafariAuthToken = (): string | null => {
-    if (typeof window !== 'undefined') {
-        return localStorage.getItem('safari_auth_token');
-    }
-    return null;
-};
-
-const setSafariAuthToken = (token: string): void => {
-    if (typeof window !== 'undefined') {
-        localStorage.setItem('safari_auth_token', token);
-    }
-};
-
-const removeSafariAuthToken = (): void => {
-    if (typeof window !== 'undefined') {
-        localStorage.removeItem('safari_auth_token');
-    }
-};
-
-// 토큰 저장소
-const TOKEN_KEY = 'access_token';
-
-const getAccessToken = (): string | null => {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem(TOKEN_KEY);
-};
-
-const setAccessToken = (token: string | null): void => {
-    if (typeof window === 'undefined') return;
-    if (token) localStorage.setItem(TOKEN_KEY, token);
-    else localStorage.removeItem(TOKEN_KEY);
-};
-
-// 공통 fetch 함수
 async function apiRequest<T>(
     endpoint: string,
     options: RequestInit = {}
@@ -116,70 +43,29 @@ async function apiRequest<T>(
         ...(options.headers as Record<string, string> || {}),
     };
 
-    // Authorization 헤더 (토큰 우선)
-    const accessToken = getAccessToken();
+    const accessToken = await getAccessToken();
     if (accessToken) {
         headers['Authorization'] = `Bearer ${accessToken}`;
-        // 디버깅: 토큰이 제대로 전달되는지 확인
-        if (process.env.NODE_ENV === 'development') {
-            console.log(`[API] ${endpoint} - Token: ${accessToken.substring(0, 20)}...`);
-        }
-    } else if (process.env.NODE_ENV === 'development') {
-        console.warn(`[API] ${endpoint} - No token!`);
     }
-
-    // Safari 브라우저를 위한 추가 헤더 설정 (Cache-Control 제거)
-    if (isSafari()) {
-        headers['X-Requested-With'] = 'XMLHttpRequest';
-        // Cache-Control 헤더 제거 - CORS 문제 해결
-        // headers['Cache-Control'] = 'no-cache';
-    }
-
-    // 모바일 Safari를 위한 추가 헤더 설정 (Cache-Control 제거)
-    if (isMobileSafari()) {
-        headers['X-Requested-With'] = 'XMLHttpRequest';
-        // Cache-Control 헤더 제거 - CORS 문제 해결
-        // headers['Cache-Control'] = 'no-cache';
-        headers['Accept'] = 'application/json, text/plain, */*';
-        headers['Accept-Language'] = 'ko-KR,ko;q=0.9,en;q=0.8';
-        // 모바일 Safari를 위한 추가 보안 헤더
-        headers['Sec-Fetch-Site'] = 'cross-site';
-        headers['Sec-Fetch-Mode'] = 'cors';
-        headers['Sec-Fetch-Dest'] = 'empty';
-    }
-
-    // Safari 대안 인증 헤더 제거 (토큰 방식으로 대체)
-
-    // Safari 브라우저를 위한 특별한 fetch 옵션
-    const safariOptions = getSafariFetchOptions();
-
-    // URL 파라미터 우회 제거 (토큰 방식으로 대체)
-    let finalEndpoint = endpoint;
 
     const fetchOptions: RequestInit = {
-        credentials: 'include',
+        credentials: 'omit',
+        ...options,
         headers,
-        ...safariOptions,  // Safari 전용 옵션 먼저 적용
-        ...options,        // 사용자 옵션이 있으면 덮어쓰기
     };
 
-    const response = await fetch(`${API_BASE}${finalEndpoint}`, fetchOptions);
+    const response = await fetch(`${API_BASE}${endpoint}`, fetchOptions);
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
 
-        // 401 오류인 경우 - 로그인 API가 아닌 경우에만 자동 리다이렉트
         if (response.status === 401) {
-            // 로그인 API인 경우 서버 메시지를 그대로 사용
             if (endpoint === '/api/login') {
                 throw new Error(errorData.message || '로그인에 실패했습니다');
             }
-
-            // 다른 API인 경우에만 자동으로 로그인 페이지로 이동
-            // 토큰 제거 후 로그인 리다이렉트
-            setAccessToken(null);
+            await setAccessToken(null);
             if (globalRedirectToLogin) globalRedirectToLogin();
-            else window.location.href = '/';
+            else if (typeof window !== 'undefined') window.location.href = '/login';
             throw new Error('로그인이 필요합니다');
         }
 
@@ -204,19 +90,7 @@ export const userApi = {
 
         // access_token 저장 (사파리 포함 전 브라우저 공통)
         if (response.access_token) {
-            console.log('[auth] access_token received, storing to localStorage');
-            setAccessToken(response.access_token);
-
-            // 저장 확인 (타이밍 이슈 방지)
-            await new Promise(resolve => setTimeout(resolve, 50));
-            const stored = getAccessToken();
-            if (stored) {
-                console.log('[auth] Token successfully stored:', stored.substring(0, 20) + '...');
-            } else {
-                console.error('[auth] Token storage failed!');
-            }
-        } else {
-            console.log('[auth] no access_token in login response');
+            await setAccessToken(response.access_token);
         }
 
         return response;
@@ -231,9 +105,7 @@ export const userApi = {
 
     // 로그아웃
     logout: async (): Promise<{ message: string }> => {
-        // 토큰 제거
-        setAccessToken(null);
-
+        await setAccessToken(null);
         return apiRequest<{ message: string }>('/api/logout', {
             method: 'POST',
         });

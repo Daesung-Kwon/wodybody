@@ -1,20 +1,14 @@
 """운동 기록 관련 라우트"""
 
-from flask import Blueprint, request, jsonify, session, current_app
+from flask import Blueprint, request, jsonify, current_app
 from config.database import db
 from models.user import Users
 from models.program import Programs, ProgramParticipants, Registrations
 from models.workout_record import WorkoutRecords
+from utils.auth import get_current_user_id as get_user_id_from_session_or_cookies
 
 # 블루프린트 생성
 bp = Blueprint('workout_records', __name__, url_prefix='/api')
-
-
-def get_user_id_from_session_or_cookies():
-    """세션 또는 쿠키에서 사용자 ID를 가져오는 함수"""
-    # TODO: 중앙화된 인증 미들웨어로 교체 예정
-    from app import get_user_id_from_session_or_cookies as get_user_id
-    return get_user_id()
 
 
 @bp.route('/programs/<int:program_id>/records', methods=['POST'])
@@ -121,16 +115,6 @@ def get_user_records():
     """사용자의 개인 운동 기록 조회"""
     try:
         user_id = get_user_id_from_session_or_cookies()
-        
-        # Safari 대안: User-Agent로 Safari 감지 시 자동 인증
-        if not user_id:
-            user_agent = request.headers.get('User-Agent', '').lower()
-            if 'safari' in user_agent and 'chrome' not in user_agent:
-                current_app.logger.info('Safari 브라우저 자동 인증 적용 (records)')
-                user_id = 1  # simadeit@naver.com
-                session['user_id'] = user_id
-                session.permanent = True
-        
         if not user_id:
             return jsonify({'error': '로그인이 필요합니다'}), 401
         
@@ -244,16 +228,6 @@ def get_user_stats():
     """사용자의 개인 통계 조회"""
     try:
         user_id = get_user_id_from_session_or_cookies()
-        
-        # Safari 대안: User-Agent로 Safari 감지 시 자동 인증
-        if not user_id:
-            user_agent = request.headers.get('User-Agent', '').lower()
-            if 'safari' in user_agent and 'chrome' not in user_agent:
-                current_app.logger.info('Safari 브라우저 자동 인증 적용 (stats)')
-                user_id = 1  # simadeit@naver.com
-                session['user_id'] = user_id
-                session.permanent = True
-        
         if not user_id:
             return jsonify({'error': '로그인이 필요합니다'}), 401
         

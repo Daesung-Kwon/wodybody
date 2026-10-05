@@ -1,19 +1,13 @@
 """개인 목표 관련 라우트"""
 
-from flask import Blueprint, request, jsonify, session, current_app
+from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime
 from config.database import db
 from models.program import Programs, ProgramParticipants, PersonalGoals
+from utils.auth import get_current_user_id as get_user_id_from_session_or_cookies
 
 # 블루프린트 생성
 bp = Blueprint('goals', __name__, url_prefix='/api')
-
-
-def get_user_id_from_session_or_cookies():
-    """세션 또는 쿠키에서 사용자 ID를 가져오는 함수"""
-    # TODO: 중앙화된 인증 미들웨어로 교체 예정
-    from app import get_user_id_from_session_or_cookies as get_user_id
-    return get_user_id()
 
 
 @bp.route('/users/goals', methods=['GET'])
@@ -21,16 +15,6 @@ def get_user_goals():
     """사용자의 개인 목표 조회"""
     try:
         user_id = get_user_id_from_session_or_cookies()
-        
-        # Safari 대안: User-Agent로 Safari 감지 시 자동 인증
-        if not user_id:
-            user_agent = request.headers.get('User-Agent', '').lower()
-            if 'safari' in user_agent and 'chrome' not in user_agent:
-                current_app.logger.info('Safari 브라우저 자동 인증 적용 (goals)')
-                user_id = 1  # simadeit@naver.com
-                session['user_id'] = user_id
-                session.permanent = True
-        
         if not user_id:
             return jsonify({'error': '로그인이 필요합니다'}), 401
         

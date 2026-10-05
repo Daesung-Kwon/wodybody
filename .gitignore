@@ -33,6 +33,7 @@ node_modules/
 .env.local
 instance/
 *.db
+backend/logs/
 
 # Railway 마이그레이션 스크립트 (민감한 정보 포함)
 migrate_railway.py
@@ -43,6 +44,8 @@ burnfat/dist/
 burnfat/.env
 burnfat/.env.local
 
-# 루트의 lib/ ignore 규칙에서 BurnFat 소스 lib는 제외
+# 루트의 lib/ ignore 규칙에서 앱 소스 lib는 제외
 !burnfat/src/lib/
 !burnfat/src/lib/**
+!frontend/src/lib/
+!frontend/src/lib/**

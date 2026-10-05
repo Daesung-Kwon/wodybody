@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { bfPath } from '../lib/paths';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
@@ -118,12 +119,12 @@ export default function CreateChallengePage() {
       has_admin_pin: Boolean(adminPin.trim()),
       duration_days: durationDays,
     });
-    navigate(`/c/${created.code}`);
+    navigate(bfPath(`/c/${created.code}`));
   };
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', p: 2 }}>
-      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/')} sx={{ mb: 2 }}>
+      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(bfPath('/'))} sx={{ mb: 2 }}>
         홈
       </Button>
 

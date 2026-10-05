@@ -1,6 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { Page } from './types';
-import { setGlobalRedirectToLogin } from './utils/api';
+import React, { useCallback, useEffect } from 'react';
+import {
+    BrowserRouter,
+    Navigate,
+    Outlet,
+    Route,
+    Routes,
+    useLocation,
+    useNavigate,
+} from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider, useNotifications } from './contexts/NotificationContext';
 import MuiLoginPage from './components/MuiLoginPage';
@@ -12,180 +19,198 @@ import MuiPreferencesPage from './components/MuiPreferencesPage';
 import MuiPersonalRecordsPage from './components/MuiPersonalRecordsPage';
 import MuiStepBasedCreateProgramPage from './components/MuiStepBasedCreateProgramPage';
 import MuiNotificationsPage from './components/MuiNotificationsPage';
-import MuiWebSocketDebugger from './components/MuiWebSocketDebugger';
+import { isBurnFatHost } from './lib/env';
+
+const BurnFatApp = React.lazy(() => import('./pages/BurnFatApp'));
 import {
     initNativeShell,
     attachDeepLinkHandler,
     attachPushNotificationTapHandler,
 } from './utils/native';
 
-// 개발 환경 전용 컴포넌트
-const DemoPage = process.env.NODE_ENV === 'development'
+const DemoPage = import.meta.env.DEV
     ? React.lazy(() => import('./components/DemoPage'))
     : null;
 
-const AppContent: React.FC = () => {
+const MuiWebSocketDebugger = import.meta.env.DEV
+    ? React.lazy(() => import('./components/MuiWebSocketDebugger'))
+    : null;
+
+const RequireAuth: React.FC = () => {
+    const { user, ready } = useAuth();
+    const location = useLocation();
+    if (!ready) return null;
+    if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
+    return <Outlet />;
+};
+
+const GuestOnly: React.FC = () => {
+    const { user, ready } = useAuth();
+    if (!ready) return null;
+    if (user) return <Navigate to="/today" replace />;
+    return <Outlet />;
+};
+
+const AppShellLayout: React.FC = () => {
     const { user, logout } = useAuth();
-    const [page, setPage] = useState<Page>('login');
-    const [showNotifications, setShowNotifications] = useState(false);
+    const { unreadCount } = useNotifications();
+    const navigate = useNavigate();
+    const location = useLocation();
 
     useEffect(() => {
-        if (user) {
-            setPage('today');
-        } else {
-            const hash = window.location.hash.substring(1);
-            if (hash === 'demo' && process.env.NODE_ENV === 'development') {
-                setPage('demo');
-            } else {
-                setPage('login');
-            }
-        }
-    }, [user]);
-
-    useEffect(() => {
-        const handleHashChange = () => {
-            const hash = window.location.hash.substring(1);
-            if (hash === 'demo' && !user && process.env.NODE_ENV === 'development') {
-                setPage('demo');
-            } else if (hash === '' && !user) {
-                setPage('login');
-            }
-        };
-        window.addEventListener('hashchange', handleHashChange);
-        return () => window.removeEventListener('hashchange', handleHashChange);
-    }, [user]);
-
-    const redirectToLogin = (): void => {
-        setPage('login');
-    };
-
-    useEffect(() => {
-        setGlobalRedirectToLogin(redirectToLogin);
-    }, []);
-
-    // 네이티브 셸 초기화 (웹에서는 자동 no-op).
-    useEffect(() => {
-        initNativeShell().catch(() => {});
+        initNativeShell().catch(() => undefined);
         let detachDeep: undefined | (() => void);
         let detachTap: undefined | (() => void);
-        attachDeepLinkHandler((p) => setPage(p as Page))
+        attachDeepLinkHandler((path) => navigate(path))
             .then((fn) => { detachDeep = fn; })
-            .catch(() => {});
+            .catch(() => undefined);
         attachPushNotificationTapHandler((data) => {
             const target = data?.deeplink || data?.target;
             if (typeof target === 'string') {
-                if (target.includes('today')) setPage('today');
-                else if (target.includes('history')) setPage('history');
-                else if (target.includes('library')) setPage('library');
-                else if (target.includes('preferences')) setPage('preferences');
+                if (target.includes('burnfat')) navigate(target.startsWith('/') ? target : `/${target}`);
+                else if (target.includes('today')) navigate('/today');
+                else if (target.includes('history')) navigate('/history');
+                else if (target.includes('library')) navigate('/library');
+                else if (target.includes('preferences')) navigate('/preferences');
+                else navigate('/today');
             } else {
-                setPage('today');
+                navigate('/today');
             }
         })
             .then((fn) => { detachTap = fn; })
-            .catch(() => {});
+            .catch(() => undefined);
         return () => {
             detachDeep?.();
             detachTap?.();
         };
-    }, []);
+    }, [navigate]);
+
+    const page = location.pathname.replace(/^\//, '').split('/')[0] || 'today';
 
     return (
-        <NotificationProvider userId={user?.id}>
-            <AppWithNotifications
-                user={user}
-                page={page}
-                setPage={setPage}
-                logout={logout}
-                showNotifications={showNotifications}
-                setShowNotifications={setShowNotifications}
+        <>
+            <MuiNavigation
+                user={user!}
+                currentPage={page}
+                onPageChange={(p: string) => navigate(`/${p}`)}
+                onLogout={() => { void logout(); }}
+                onNotifications={() => navigate('/notifications')}
+                unreadCount={unreadCount}
             />
+            <Outlet />
+            {MuiWebSocketDebugger ? (
+                <React.Suspense fallback={null}>
+                    <MuiWebSocketDebugger />
+                </React.Suspense>
+            ) : null}
+        </>
+    );
+};
+
+const AppShell: React.FC = () => {
+    const { user } = useAuth();
+    return (
+        <NotificationProvider userId={user?.id}>
+            <AppShellLayout />
         </NotificationProvider>
     );
 };
 
-const AppWithNotifications: React.FC<{
-    user: any;
-    page: Page;
-    setPage: (page: Page) => void;
-    logout: () => void;
-    showNotifications: boolean;
-    setShowNotifications: (show: boolean) => void;
-}> = ({ user, page, setPage, logout, showNotifications, setShowNotifications }) => {
-    const { unreadCount } = useNotifications();
+const AppRoutes: React.FC = () => {
+    const navigate = useNavigate();
 
     return (
-        <div>
-            {user ? (
-                <>
-                    <MuiNavigation
-                        user={user}
-                        currentPage={page}
-                        onPageChange={(p: string) => setPage(p as Page)}
-                        onLogout={logout}
-                        onNotifications={() => setShowNotifications(true)}
-                        unreadCount={unreadCount}
-                    />
-
-                    {showNotifications ? (
-                        <MuiNotificationsPage onBack={() => setShowNotifications(false)} />
-                    ) : (
-                        <>
-                            {page === 'today' && (
-                                <MuiTodayPage goPreferences={() => setPage('preferences')} />
-                            )}
-                            {page === 'history' && <MuiPersonalRecordsPage />}
-                            {page === 'library' && (
-                                <MuiStepBasedCreateProgramPage
-                                    goMy={() => setPage('library')}
-                                    goPrograms={() => setPage('today')}
-                                />
-                            )}
-                            {page === 'preferences' && (
-                                <MuiPreferencesPage goBack={() => setPage('today')} />
-                            )}
-                            {page === 'create' && (
-                                <MuiStepBasedCreateProgramPage
-                                    goMy={() => setPage('library')}
-                                    goPrograms={() => setPage('today')}
-                                />
-                            )}
-                        </>
+        <Routes>
+            <Route element={<GuestOnly />}>
+                <Route
+                    path="/login"
+                    element={(
+                        <MuiLoginPage
+                            setUser={() => undefined}
+                            goRegister={() => navigate('/register')}
+                            goPrograms={() => navigate('/today')}
+                            goPasswordReset={() => navigate('/reset-password')}
+                        />
                     )}
-                </>
-            ) : (
-                page === 'demo' && process.env.NODE_ENV === 'development' && DemoPage ? (
-                    <React.Suspense fallback={<div>로딩 중...</div>}>
-                        <DemoPage />
-                    </React.Suspense>
-                ) : page === 'login' ? (
-                    <MuiLoginPage
-                        setUser={() => { }}
-                        goRegister={() => setPage('register')}
-                        goPrograms={() => setPage('today')}
-                        goPasswordReset={() => setPage('passwordReset')}
+                />
+                <Route path="/register" element={<MuiRegisterPage goLogin={() => navigate('/login')} />} />
+                <Route path="/reset-password" element={<MuiPasswordResetPage goLogin={() => navigate('/login')} />} />
+                {DemoPage ? (
+                    <Route
+                        path="/demo"
+                        element={(
+                            <React.Suspense fallback={<div>로딩 중...</div>}>
+                                <DemoPage />
+                            </React.Suspense>
+                        )}
                     />
-                ) : page === 'register' ? (
-                    <MuiRegisterPage goLogin={() => setPage('login')} />
-                ) : page === 'passwordReset' ? (
-                    <MuiPasswordResetPage goLogin={() => setPage('login')} />
-                ) : null
-            )}
-            <MuiWebSocketDebugger />
-        </div>
+                ) : null}
+            </Route>
+
+            <Route element={<RequireAuth />}>
+                <Route element={<AppShell />}>
+                    <Route path="/today" element={<MuiTodayPage goPreferences={() => navigate('/preferences')} />} />
+                    <Route path="/history" element={<MuiPersonalRecordsPage />} />
+                    <Route
+                        path="/library"
+                        element={(
+                            <MuiStepBasedCreateProgramPage
+                                goMy={() => navigate('/library')}
+                                goPrograms={() => navigate('/today')}
+                            />
+                        )}
+                    />
+                    <Route
+                        path="/create"
+                        element={(
+                            <MuiStepBasedCreateProgramPage
+                                goMy={() => navigate('/library')}
+                                goPrograms={() => navigate('/today')}
+                            />
+                        )}
+                    />
+                    <Route path="/preferences" element={<MuiPreferencesPage goBack={() => navigate('/today')} />} />
+                    <Route path="/notifications" element={<MuiNotificationsPage onBack={() => navigate(-1)} />} />
+                </Route>
+            </Route>
+
+            <Route
+                path="/burnfat/*"
+                element={(
+                    <React.Suspense fallback={null}>
+                        <BurnFatApp />
+                    </React.Suspense>
+                )}
+            />
+            <Route path="/" element={<Navigate to="/today" replace />} />
+            <Route path="*" element={<Navigate to="/today" replace />} />
+        </Routes>
     );
 };
 
-const App: React.FC = () => {
-    const redirectToLogin = (): void => {
-        // 페이지 상태는 AppContent에서 관리.
-    };
+const AppInner: React.FC = () => {
+    const navigate = useNavigate();
+    const redirectToLogin = useCallback(() => {
+        navigate('/login', { replace: true });
+    }, [navigate]);
 
     return (
         <AuthProvider onRedirectToLogin={redirectToLogin}>
-            <AppContent />
+            <AppRoutes />
         </AuthProvider>
     );
 };
+
+const App: React.FC = () => (
+    <BrowserRouter>
+        {isBurnFatHost() ? (
+            <React.Suspense fallback={null}>
+                <BurnFatApp />
+            </React.Suspense>
+        ) : (
+            <AppInner />
+        )}
+    </BrowserRouter>
+);
 
 export default App;

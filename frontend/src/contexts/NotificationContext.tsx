@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { io, Socket } from 'socket.io-client';
 import { Notification, NotificationContextType } from '../types';
 import { notificationApi } from '../utils/api';
+import { getAccessToken } from '../lib/tokenStore';
+import { apiBaseUrl } from '../lib/env';
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
@@ -23,123 +25,55 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         }
     }, []);
 
-    // WebSocket 연결 설정
     useEffect(() => {
-        if (userId) {
-            console.log('WebSocket 연결 시도 중...', userId);
-            // 모바일 Safari 감지
-            const userAgent = navigator.userAgent.toLowerCase();
-            const isMobileSafari = userAgent.includes('safari') &&
-                !userAgent.includes('chrome') &&
-                (userAgent.includes('iphone') || userAgent.includes('ipad') || userAgent.includes('mobile'));
+        if (!userId) return;
+        let cancelled = false;
+        let newSocket: Socket | null = null;
 
-            // localStorage에서 토큰 가져오기 (모바일 Safari 대응)
-            const authToken = localStorage.getItem('access_token');
-            console.log('모바일 Safari 감지:', isMobileSafari, '| 인증 토큰:', authToken ? '있음' : '없음');
+        const connect = async () => {
+            const authToken = await getAccessToken();
+            if (cancelled || !authToken) return;
 
-            // API Base URL 결정 (로컬/프로덕션 환경)
-            const apiBaseUrl = (() => {
-                if (typeof window !== 'undefined') {
-                    const host = window.location.hostname;
-                    if (host === 'localhost' || host === '127.0.0.1') {
-                        return 'http://localhost:5001';
-                    }
-                }
-                return process.env.REACT_APP_API_URL || 'https://wodybody-production.up.railway.app';
-            })();
+            const socketUrl = apiBaseUrl();
+            if (!socketUrl) return;
 
-            console.log('WebSocket 연결 URL:', apiBaseUrl);
-
-            // Safari 최적화: polling 전용 모드로 시작하여 안정성 향상
-            const socketConfig: any = {
-                path: '/socket.io/',  // 명시적 경로 지정
-                transports: ['polling'],  // 모든 브라우저에서 polling만 사용 (안정성 우선)
+            newSocket = io(socketUrl, {
+                path: '/socket.io/',
+                transports: ['polling', 'websocket'],
                 autoConnect: true,
                 reconnection: true,
                 reconnectionDelay: 2000,
                 reconnectionAttempts: 10,
-                withCredentials: false,  // Safari CORS 문제 회피 (토큰 인증 사용)
-                forceNew: true,
-                upgrade: false,  // polling 유지 (Safari 호환)
+                withCredentials: false,
                 timeout: 20000,
-                closeOnBeforeunload: false,  // 페이지 이동 시에도 연결 유지 시도
-            };
-
-            // 인증 토큰 전달 (쿠키 대신 토큰 기반)
-            // 모바일 Safari는 extraHeaders를 CORS에서 차단하므로 auth와 query만 사용
-            if (authToken) {
-                socketConfig.auth = { token: authToken };
-                socketConfig.query = { token: authToken, user_id: userId.toString() };
-            } else {
-                socketConfig.query = { user_id: userId.toString() };
-            }
-
-            console.log('Socket.IO 연결 설정:', socketConfig);
-
-            const newSocket = io(apiBaseUrl, socketConfig);
+                auth: { token: authToken },
+            });
 
             newSocket.on('connect', () => {
-                console.log('✅ WebSocket 연결 성공!', newSocket.id);
-                console.log('Transport:', newSocket.io.engine.transport.name);
-                // 사용자 방에 참여
-                newSocket.emit('join_user_room', { user_id: userId });
-                console.log('사용자 방 참여 요청 전송:', userId);
+                newSocket?.emit('join_user_room');
             });
 
-            newSocket.on('disconnect', (reason) => {
-                console.log('⚠️ WebSocket 연결 해제:', reason);
-            });
-
-            newSocket.on('connect_error', (error) => {
-                console.error('❌ WebSocket 연결 오류:', error.message);
-                console.error('오류 상세:', error);
-                // Socket.IO가 자동으로 재연결을 시도함 (reconnection: true)
-                // 중복 재연결 로직 제거 - 무한 루프 및 CORS 충돌 방지
-            });
-
-            // 방 참여 성공/실패 이벤트
-            newSocket.on('join_success', (data) => {
-                console.log('✅ 방 참여 성공:', data);
-            });
-
-            newSocket.on('join_error', (data) => {
-                console.error('❌ 방 참여 오류:', data);
-            });
-
-            // 모바일 Safari 정보
-            newSocket.on('mobile_safari_info', (data) => {
-                console.log('📱 모바일 Safari 정보:', data);
-            });
-
-            // 개인 알림 수신
             newSocket.on('notification', (notification: Notification) => {
-                console.log('개인 알림 수신:', notification);
                 addNotification(notification);
             });
 
-            // 프로그램 알림 수신
-            newSocket.on('program_notification', (notification: any) => {
-                console.log('프로그램 알림 수신:', notification);
-                // 프로그램 알림을 개인 알림으로 변환
-                const personalNotification: Notification = {
-                    id: Date.now(), // 임시 ID
-                    type: notification.type,
-                    title: notification.title,
-                    message: notification.message,
-                    program_id: notification.program_id,
+            newSocket.on('program_notification', (notification: Notification) => {
+                addNotification({
+                    ...notification,
+                    id: notification.id || Date.now(),
                     is_read: false,
-                    created_at: notification.created_at
-                };
-                addNotification(personalNotification);
+                });
             });
 
             setSocket(newSocket);
+        };
 
-            return () => {
-                newSocket.emit('leave_user_room', { user_id: userId });
-                newSocket.disconnect();
-            };
-        }
+        void connect();
+        return () => {
+            cancelled = true;
+            newSocket?.emit('leave_user_room');
+            newSocket?.disconnect();
+        };
     }, [userId, addNotification]);
 
     // 알림 조회

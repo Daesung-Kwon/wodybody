@@ -11,17 +11,13 @@ from flask import Blueprint, request, jsonify, current_app
 
 from config.database import db
 from models.push_token import PushTokens
+from utils.auth import get_current_user_id as get_user_id_from_session_or_cookies
 
 
 bp = Blueprint('push', __name__, url_prefix='/api/me')
 
 
 VALID_PLATFORMS = {'ios', 'android', 'web'}
-
-
-def get_user_id_from_session_or_cookies():
-    from app import get_user_id_from_session_or_cookies as get_user_id
-    return get_user_id()
 
 
 @bp.route('/push-tokens', methods=['GET'])

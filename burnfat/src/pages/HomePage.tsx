@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { bfPath, isBurnFatStandalone } from '../lib/paths';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
@@ -16,7 +17,7 @@ export default function HomePage() {
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = code.trim().toUpperCase();
-    if (trimmed) navigate(`/c/${trimmed}`);
+    if (trimmed) navigate(bfPath(`/c/${trimmed}`));
   };
 
   return (
@@ -65,10 +66,15 @@ export default function HomePage() {
         variant="text"
         color="primary"
         sx={{ mt: 3 }}
-        onClick={() => navigate('/create')}
+        onClick={() => navigate(bfPath('/create'))}
       >
         새 대결 만들기
       </Button>
+      {!isBurnFatStandalone() ? (
+        <Button variant="text" color="inherit" sx={{ mt: 1 }} onClick={() => navigate('/today')}>
+          WODYBODY로
+        </Button>
+      ) : null}
     </Box>
   );
 }

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { fetchAIAdvice, type AIAdviceRequest, type AIAdviceResponse } from '../lib/edgeFunctions';
+import { track } from '../lib/analytics';
 
 /**
  * Sprint 2: 디바이스 단위 localStorage 캐시 제거.
@@ -24,6 +25,11 @@ export function useAIAdvice() {
       try {
         const res = await fetchAIAdvice({ participantId, forceRefresh, ...options });
         setResult(res);
+        track('ai_advice_requested', {
+          cached: res.cached,
+          force_refresh: forceRefresh,
+          has_user_context: Boolean(options?.userContext?.trim()),
+        });
       } catch (e) {
         setError(e instanceof Error ? e.message : 'AI 조언을 불러올 수 없습니다.');
       } finally {

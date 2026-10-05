@@ -8,6 +8,7 @@ import {
   streamCoachMessage,
   stripRefMarkers,
 } from '../lib/coachClient';
+import { track } from '../lib/analytics';
 
 /** 화면에 그리는 코치 메시지 (system 역할은 제외). */
 export interface CoachUiMessage {
@@ -106,10 +107,12 @@ export function useCoachSession({ participantId, weekNo, seedContent, open }: Us
       setSending(true);
       setStreaming('');
       streamingRef.current = '';
-      setMessages((prev) => [
-        ...prev,
-        { id: `u-${Date.now()}`, role: 'user', content: text, references: [] },
-      ]);
+      // 이번 전송의 0-based 턴 인덱스 — 현재까지의 user 메시지 수.
+      let turnIndex = 0;
+      setMessages((prev) => {
+        turnIndex = prev.filter((m) => m.role === 'user').length;
+        return [...prev, { id: `u-${Date.now()}`, role: 'user', content: text, references: [] }];
+      });
       const isFirst = sessionId == null;
       await streamCoachMessage(
         {
@@ -144,6 +147,8 @@ export function useCoachSession({ participantId, weekNo, seedContent, open }: Us
             streamingRef.current = '';
             setStreaming('');
             setSending(false);
+            // 메시지 전송 성공 (SSE done) — 분석 이벤트.
+            track('coach_message_sent', { turn_index: turnIndex, persona });
           },
           onError: (msg) => {
             setError(msg);

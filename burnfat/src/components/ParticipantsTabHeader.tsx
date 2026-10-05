@@ -8,6 +8,7 @@ import Typography from '@mui/material/Typography';
 import { supabase } from '../lib/supabase';
 import type { Challenge, ParticipantWithSubmissions, WeeklyLog } from '../types';
 import MyStatusCard from './MyStatusCard';
+import { track } from '../lib/analytics';
 
 interface ParticipantsTabHeaderProps {
   challenge: Challenge;
@@ -65,6 +66,11 @@ export default function ParticipantsTabHeader({
     }
     setJoinError('');
     setJoinNickname('');
+    const challengeAgeDays = Math.max(
+      0,
+      Math.round((Date.now() - new Date(challenge.created_at).getTime()) / 86_400_000)
+    );
+    track('participant_joined', { challenge_age_days: challengeAgeDays });
     onRefetch();
     const joined = { ...(newParticipant as ParticipantWithSubmissions), submissions: [] };
     // Sprint 1: 방금 등록한 참가자를 이 디바이스의 "나" 로 기억.

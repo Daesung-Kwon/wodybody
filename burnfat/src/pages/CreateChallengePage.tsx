@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase';
 import type { Challenge } from '../types';
 import ChallengeTemplatePicker from '../components/ChallengeTemplatePicker';
 import { CHALLENGE_TEMPLATES, templateEndDate, type ChallengeTemplate } from '../lib/challengeTemplates';
+import { track } from '../lib/analytics';
 
 function generateCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -109,6 +110,14 @@ export default function CreateChallengePage() {
       setError('대결 생성 응답이 비어 있습니다.');
       return;
     }
+    const durationDays = Math.round(
+      (new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000
+    );
+    track('challenge_created', {
+      stake_amount: stakeAmount,
+      has_admin_pin: Boolean(adminPin.trim()),
+      duration_days: durationDays,
+    });
     navigate(`/c/${created.code}`);
   };
 

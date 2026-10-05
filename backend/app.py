@@ -14,9 +14,10 @@ from logging.handlers import RotatingFileHandler
 from sqlalchemy import text
 from pathlib import Path
 
-# .env.local 파일 로드 (로컬 PostgreSQL 사용)
+# .env.local 파일 로드 (로컬 PostgreSQL 사용). Tests set FLASK_ENV=testing
+# before import and must not pick up a developer DATABASE_URL.
 env_file = Path(__file__).parent / '.env.local'
-if env_file.exists():
+if env_file.exists() and os.environ.get('FLASK_ENV') != 'testing':
     try:
         from dotenv import load_dotenv
         load_dotenv(env_file)
@@ -34,97 +35,7 @@ if env_file.exists():
 
 # Utils import
 from utils.timezone import format_korea_time, get_korea_time
-
-# ==================================================================
-# 인증 헬퍼 함수 (다른 모듈에서 import하므로 여기 유지)
-# ==================================================================
-
-def get_user_id_from_session_or_cookies():
-    """세션 또는 쿠키에서 사용자 ID를 가져오는 함수 (Safari 호환)"""
-    # 0) Authorization: Bearer <token>
-    auth_header = request.headers.get('Authorization') or request.headers.get('authorization')
-    if auth_header and isinstance(auth_header, str) and auth_header.lower().startswith('bearer '):
-        token = auth_header.split(' ', 1)[1].strip()
-        try:
-            from utils.token import verify_access_token
-            user_id_from_token = verify_access_token(token)
-            if user_id_from_token:
-                session['user_id'] = user_id_from_token
-                session.permanent = True
-                app.logger.info(f'Authorization 토큰에서 사용자 ID 확인: {user_id_from_token}')
-                return user_id_from_token
-        except Exception as e:
-            app.logger.info(f'Authorization 토큰 검증 실패: {e}')
-    
-    # 세션에서 확인
-    user_id = session.get('user_id')
-    if user_id:
-        app.logger.info(f'세션에서 사용자 ID 확인: {user_id}')
-        return user_id
-    
-    # Safari 대안: URL 파라미터
-    user_id_param = request.args.get('user_id')
-    if not user_id_param:
-        query_string = request.query_string.decode('utf-8')
-        if 'user_id=' in query_string:
-            try:
-                user_id_param = query_string.split('user_id=')[1].split('&')[0]
-            except Exception:
-                pass
-    
-    if user_id_param:
-        try:
-            user_id = int(user_id_param)
-            session['user_id'] = user_id
-            session.permanent = True
-            return user_id
-        except (ValueError, TypeError):
-            pass
-
-    # Safari 대안 인증 헤더
-    safari_auth_header = (request.headers.get('X-Safari-Auth-Token') or 
-                         request.headers.get('X-SAFARI-AUTH-TOKEN'))
-    
-    if safari_auth_header:
-        try:
-            import base64
-            from models.user import Users as User
-            parts = safari_auth_header.rsplit('_', 2)
-            if len(parts) >= 2:
-                email = base64.b64decode(parts[0]).decode('utf-8')
-                user = User.query.filter_by(email=email).first()
-                if user:
-                    session['user_id'] = user.id
-                    session.permanent = True
-                    return user.id
-        except Exception:
-            pass
-
-    # Safari 쿠키들
-    for cookie_name in ['safari_auth', 'safari_session_backup', 'mobile_safari_auth']:
-        cookie_value = request.cookies.get(cookie_name)
-        if cookie_value:
-            try:
-                parts = cookie_value.split('_')
-                if len(parts) >= 2:
-                    user_id = int(parts[1])
-                    session['user_id'] = user_id
-                    session.permanent = True
-                    return user_id
-            except (ValueError, IndexError):
-                pass
-
-    # Safari 브라우저 자동 인증
-    user_agent = request.headers.get('User-Agent', '').lower()
-    is_safari = 'safari' in user_agent and 'chrome' not in user_agent
-    if is_safari:
-        safari_user_id = session.get('safari_user_id')
-        if safari_user_id:
-            session['user_id'] = safari_user_id
-            session.permanent = True
-            return safari_user_id
-
-    return None
+from utils.auth import get_current_user_id as get_user_id_from_session_or_cookies  # noqa: F401
 
 
 # ==================================================================
@@ -133,45 +44,25 @@ def get_user_id_from_session_or_cookies():
 
 app = Flask(__name__)
 
-# SocketIO 초기화 (Safari/Mobile 호환)
-# CORS 허용 도메인 설정 - 동적 검증 함수 사용
-def is_allowed_origin(origin):
-    """Origin이 허용되는지 동적으로 검증"""
-    if not origin:
-        return False
-    
-    allowed_patterns = [
-        'https://wodybody-web.vercel.app',  # 프로덕션
-        'http://localhost:3000',  # 로컬 개발
-        'http://127.0.0.1:3000'
-    ]
-    
-    # 정확히 일치하는 경우
-    if origin in allowed_patterns:
-        app.logger.info(f'✅ CORS 허용 (정확 일치): {origin}')
-        return True
-    
-    # Vercel 배포 도메인 검증 (.vercel.app으로 끝나는 경우)
-    if origin.startswith('https://') and origin.endswith('.vercel.app'):
-        app.logger.info(f'✅ CORS 허용 (Vercel 도메인): {origin}')
-        return True
-    
-    app.logger.warning(f'❌ CORS 차단: {origin}')
-    return False
+_cors_origins = [
+    o.strip()
+    for o in os.environ.get(
+        'CORS_ORIGINS',
+        'http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000',
+    ).split(',')
+    if o.strip()
+]
 
-app.logger.info('SocketIO CORS: 동적 검증 함수 사용 (모든 .vercel.app 허용)')
-
-socketio = SocketIO(app, 
+socketio = SocketIO(
+    app,
     logger=True,
     engineio_logger=True,
-    cors_allowed_origins='*',  # 모든 origin 허용 (credentials 없이)
-    cors_credentials=False,  # Safari CORS 문제 해결 (withCredentials: false와 일치)
-    # async_mode는 명시하지 않음 - Gunicorn eventlet worker가 자동 감지
-    ping_timeout=60,  # Safari를 위한 긴 타임아웃
-    ping_interval=25,  # Keep-alive 주기 (Safari 연결 유지)
-    # transports는 서버에서 지정하지 않고 클라이언트에서 제어
-    allow_upgrades=True,  # polling에서 websocket으로 업그레이드 허용
-    cookie=None,  # 쿠키 사용하지 않음 (토큰 인증)
+    cors_allowed_origins=_cors_origins,
+    cors_credentials=False,
+    ping_timeout=60,
+    ping_interval=25,
+    allow_upgrades=True,
+    cookie=None,
 )
 
 # 로깅 설정
@@ -183,12 +74,28 @@ app.logger.addHandler(fh)
 app.logger.setLevel(logging.INFO)
 
 # Config
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///crossfit.db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
-
-# Railway 환경 감지
 IS_RAILWAY = os.environ.get('RAILWAY_ENVIRONMENT') is not None
+IS_PRODUCTION = IS_RAILWAY or os.environ.get('FLASK_ENV') == 'production'
+
+_database_url = os.environ.get('DATABASE_URL', '')
+if _database_url.startswith('postgres://'):
+    _database_url = 'postgresql://' + _database_url[len('postgres://'):]
+    os.environ['DATABASE_URL'] = _database_url
+
+if IS_PRODUCTION:
+    if not os.environ.get('SECRET_KEY'):
+        raise RuntimeError('SECRET_KEY is required in production')
+    if not _database_url.startswith('postgresql'):
+        raise RuntimeError('DATABASE_URL must be postgresql in production')
+    if os.environ.get('CORS_ORIGINS', '').strip() in ('', 'http://localhost:3000'):
+        app.logger.warning('CORS_ORIGINS looks like a localhost default in production')
+
+app.config['SQLALCHEMY_DATABASE_URI'] = _database_url or 'sqlite:///crossfit.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or (
+    None if IS_PRODUCTION else secrets.token_hex(32)
+)
+
 if IS_RAILWAY:
     app.logger.info("Railway 환경에서 실행 중")
 
@@ -201,7 +108,7 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 app.config['SESSION_COOKIE_PATH'] = '/'
 
 # CORS 설정
-cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:3000').split(',')
+cors_origins = _cors_origins
 CORS(app,
      resources={r"/api/*": {
          "origins": cors_origins,
@@ -210,7 +117,7 @@ CORS(app,
              "Content-Type", "Authorization", "X-Requested-With",
              "Cache-Control", "Accept", "Accept-Language",
              "Sec-Fetch-Site", "Sec-Fetch-Mode", "Sec-Fetch-Dest",
-             "Origin", "X-Safari-Auth-Token", "User-Agent",
+             "Origin", "User-Agent",
              # BurnFat 코치(Sprint 2.5): 세션 소유권 검증용 커스텀 헤더.
              # 누락 시 CORS preflight 가 막혀 코치 요청이 "Load failed" 로 실패.
              "X-Device-Secret"
@@ -230,7 +137,7 @@ app.logger.info('Flask-Mail initialized')
 # Request/Response 로깅
 @app.before_request
 def _before():
-    app.logger.info('Request: %s %s', request.method, request.url)
+    app.logger.info('Request: %s %s', request.method, request.path)
 
 @app.after_request
 def _after(resp):
@@ -274,69 +181,7 @@ def health_check():
         }), 500
 
 
-@app.route('/api/test', methods=['GET'])
-def test():
-    return jsonify({'message': 'Test successful', 'timestamp': datetime.utcnow().isoformat()}), 200
-
-
-@app.route('/api/test-params', methods=['GET'])
-def test_params():
-    """쿼리 파라미터 테스트"""
-    user_id = request.args.get('user_id')
-    query_string = request.query_string.decode('utf-8')
-    return jsonify({
-        'user_id': user_id,
-        'query_string': query_string,
-        'all_args': dict(request.args)
-    }), 200
-
-
-@app.route('/api/test-headers', methods=['GET'])
-def test_headers():
-    """헤더 테스트"""
-    return jsonify({
-        'headers': dict(request.headers),
-        'safari_headers': {k: v for k, v in request.headers.items() if 'safari' in k.lower()}
-    }), 200
-
-
-@app.route('/api/safari-auth', methods=['GET'])
-def safari_auth():
-    """Safari 인증 테스트"""
-    user_id = get_user_id_from_session_or_cookies()
-    return jsonify({
-        'user_id': user_id,
-        'session': dict(session),
-        'cookies': dict(request.cookies),
-        'user_agent': request.headers.get('User-Agent')
-    }), 200
-
-
-@app.route('/api/debug/session', methods=['GET'])
-def debug_session():
-    """세션 디버깅"""
-    return jsonify({
-        'session': dict(session),
-        'cookies': dict(request.cookies),
-        'headers': {k: v for k, v in request.headers.items() if k.startswith('X-') or k in ['User-Agent', 'Authorization']},
-        'user_id': get_user_id_from_session_or_cookies()
-    }), 200
-
-
-@app.route('/api/debug/test-login', methods=['POST'])
-def debug_test_login():
-    """테스트 로그인"""
-    data = request.get_json() or {}
-    test_user_id = data.get('user_id', 1)
-    session['user_id'] = test_user_id
-    session.permanent = True
-    return jsonify({
-        'message': 'Test login successful',
-        'user_id': test_user_id,
-        'session': dict(session)
-    }), 200
-
-
+# Development-only debug routes live in routes/debug.py and are registered below.
 # ==================================================================
 # 운동 데이터 시드 함수 (여기 유지)
 # ==================================================================
@@ -461,44 +306,62 @@ app.register_blueprint(pt_recommendations.bp)
 from routes import push as pt_push
 app.register_blueprint(pt_push.bp)
 
-# WebSocket 이벤트 핸들러 등록 (app.py에 직접 정의)
+if os.environ.get('FLASK_ENV') == 'development':
+    from routes import debug as debug_routes
+    app.register_blueprint(debug_routes.bp)
+
+# sid -> verified user_id. Socket.IO cookies are off; do not trust client user_id.
+_socket_users = {}
+
+
+def _token_from_socket_connect(auth):
+    if isinstance(auth, dict):
+        token = auth.get('token')
+        if token:
+            return str(token).strip()
+    auth_header = request.headers.get('Authorization') or request.headers.get('authorization') or ''
+    if auth_header.lower().startswith('bearer '):
+        return auth_header.split(' ', 1)[1].strip()
+    return None
+
+
 @socketio.on('connect')
-def handle_connect():
-    """클라이언트 연결 시 호출"""
-    user_agent = request.headers.get('User-Agent', '').lower()
-    is_mobile_safari = 'safari' in user_agent and 'chrome' not in user_agent and ('iphone' in user_agent or 'ipad' in user_agent or 'mobile' in user_agent)
-    
-    app.logger.info(f'클라이언트 연결됨: {request.sid} | User-Agent: {user_agent[:100]} | Mobile Safari: {is_mobile_safari}')
-    print(f'🔌 WebSocket 클라이언트 연결됨: {request.sid} {"(모바일 Safari)" if is_mobile_safari else ""}')
-    
-    # 모바일 Safari 감지는 로그로만 처리 (emit 제거로 연결 안정성 향상)
-    # emit()는 연결 완료 전에 호출되면 문제를 일으킬 수 있음
+def handle_connect(auth=None):
+    from utils.token import verify_access_token
+
+    token = _token_from_socket_connect(auth)
+    user_id = verify_access_token(token) if token else None
+    if not user_id:
+        app.logger.info('SocketIO connect rejected: missing or invalid token sid=%s', request.sid)
+        return False
+    _socket_users[request.sid] = int(user_id)
+    join_room(f'user_{user_id}')
+    app.logger.info('SocketIO connected user_id=%s sid=%s', user_id, request.sid)
+    return True
+
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    """클라이언트 연결 해제 시 호출"""
-    app.logger.info(f'클라이언트 연결 해제됨: {request.sid}')
-    print(f'🔌 WebSocket 클라이언트 연결 해제됨: {request.sid}')
+    user_id = _socket_users.pop(request.sid, None)
+    app.logger.info('SocketIO disconnected user_id=%s sid=%s', user_id, request.sid)
+
 
 @socketio.on('join_user_room')
 def handle_join_user_room(data):
-    """사용자별 방에 참여"""
-    user_id = data.get('user_id')
-    if user_id:
-        join_room(f'user_{user_id}')
-        app.logger.info(f'사용자 {user_id}가 방에 참여했습니다.')
-        print(f'👤 사용자 {user_id}가 방에 참여했습니다.')
-    else:
-        print('❌ 사용자 ID가 없습니다.')
+    user_id = _socket_users.get(request.sid)
+    if not user_id:
+        return
+    join_room(f'user_{user_id}')
+    app.logger.info('SocketIO join_user_room user_id=%s', user_id)
+
 
 @socketio.on('leave_user_room')
 def handle_leave_user_room(data):
-    """사용자별 방에서 나가기"""
-    user_id = data.get('user_id')
-    if user_id:
-        leave_room(f'user_{user_id}')
-        app.logger.info(f'사용자 {user_id}가 방에서 나갔습니다.')
-        print(f'👤 사용자 {user_id}가 방에서 나갔습니다.')
+    user_id = _socket_users.get(request.sid)
+    if not user_id:
+        return
+    leave_room(f'user_{user_id}')
+    app.logger.info('SocketIO leave_user_room user_id=%s', user_id)
 
 print("✅ All blueprints and WebSocket handlers registered successfully!")
 
@@ -506,11 +369,12 @@ print("✅ All blueprints and WebSocket handlers registered successfully!")
 # ==================================================================
 # WODYBODY PT — 일일 푸시 워커 (APScheduler 인-프로세스)
 # ==================================================================
-try:
-    from utils.scheduler import start_scheduler
-    start_scheduler(app)
-except Exception as _scheduler_exc:  # pragma: no cover
-    app.logger.warning('PT push scheduler start skipped: %s', _scheduler_exc)
+if os.environ.get('FLASK_ENV') != 'testing':
+    try:
+        from utils.scheduler import start_scheduler
+        start_scheduler(app)
+    except Exception as _scheduler_exc:  # pragma: no cover
+        app.logger.warning('PT push scheduler start skipped: %s', _scheduler_exc)
 
 
 # ==================================================================

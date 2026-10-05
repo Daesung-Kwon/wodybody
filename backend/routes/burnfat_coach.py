@@ -213,6 +213,11 @@ def _device_secret() -> str:
     return (request.headers.get("X-Device-Secret") or "").strip()
 
 
+def _require_device_secret() -> str | None:
+    secret = _device_secret()
+    return secret or None
+
+
 def _service_key_role() -> str:
     """SUPABASE_SERVICE_ROLE_KEY(JWT) 의 role 클레임만 디코드해 반환.
     coach_* 테이블 쓰기는 service_role 이 필수 — 'anon' 이면 INSERT 가 RLS 로 막힌다.
@@ -626,6 +631,8 @@ def list_sessions():
     participant_id = request.args.get("participant_id")
     if not participant_id:
         return jsonify({"error": "participant_id required"}), 400
+    if not _require_device_secret():
+        return jsonify({"error": "device_secret required"}), 401
     week_no = request.args.get("week_no")
     device_hash = _hash_secret(_device_secret())
 
@@ -679,6 +686,8 @@ def list_sessions():
 @bp.route("/sessions/<session_id>/messages", methods=["GET"])
 def get_session_messages(session_id: str):
     """세션 전체 메시지 복원 — 모달 재진입 시 이전 대화 복원용."""
+    if not _require_device_secret():
+        return jsonify({"error": "device_secret required"}), 401
     device_hash = _hash_secret(_device_secret())
     try:
         session = _get_session(session_id)
@@ -694,7 +703,8 @@ def get_session_messages(session_id: str):
     except (requests.RequestException, RuntimeError) as e:
         logger.exception("coach fetch_messages failed: %s", e)
         return jsonify({"error": "Failed to fetch messages"}), 502
-    return jsonify({"session": session, "messages": messages}), 200
+    safe_session = {k: v for k, v in session.items() if k != "device_secret_hash"}
+    return jsonify({"session": safe_session, "messages": messages}), 200
 
 
 @bp.route("/messages", methods=["POST", "OPTIONS"])
@@ -714,6 +724,8 @@ def post_message():
         return jsonify({"error": f"메시지는 {USER_MESSAGE_MAX_CHARS}자 이하로 입력해주세요."}), 400
 
     device_secret = _device_secret()
+    if not device_secret:
+        return jsonify({"error": "device_secret required"}), 401
     device_hash = _hash_secret(device_secret)
     persona_raw = str(body.get("persona") or "")
     persona_explicit = persona_raw in VALID_PERSONAS
@@ -753,7 +765,7 @@ def post_message():
     try:
         usage = _weekly_usage(participant_id)
     except (requests.RequestException, RuntimeError):
-        usage = {"week_messages": 0, "day_tokens_in": 0, "day_tokens_out": 0}
+        return jsonify({"error": "사용량 확인에 실패했습니다. 잠시 후 다시 시도해주세요."}), 429
     if usage["week_messages"] >= WEEKLY_MESSAGE_LIMIT:
         return jsonify({
             "error": f"이번 주 코치 대화 한도({WEEKLY_MESSAGE_LIMIT}개)를 모두 사용했어요. 다음 주에 다시 만나요."
@@ -919,6 +931,8 @@ def end_session(session_id: str):
     if request.method == "OPTIONS":
         return ("", 204)
 
+    if not _require_device_secret():
+        return jsonify({"error": "device_secret required"}), 401
     device_hash = _hash_secret(_device_secret())
     try:
         session = _get_session(session_id)
@@ -970,6 +984,8 @@ def reset_memory():
     if not participant_id:
         return jsonify({"error": "participant_id required"}), 400
     participant_id = str(participant_id)
+    if not _require_device_secret():
+        return jsonify({"error": "device_secret required"}), 401
     device_hash = _hash_secret(_device_secret())
 
     # 소유권 검증 — 이 디바이스가 만든 세션이 하나라도 있어야 초기화 허용.

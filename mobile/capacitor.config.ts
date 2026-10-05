@@ -3,8 +3,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
     appId: 'com.wodybody.app',
     appName: 'WODYBODY',
-    // CRA 빌드 결과물을 그대로 사용한다. mobile/에서는 frontend의 빌드 산출물을 참조.
-    webDir: '../frontend/build',
+    webDir: '../frontend/dist',
     // 푸시/딥링크 통합을 위한 기본값
     server: {
         // 운영에서는 실 도메인을 hostname에 지정하거나 androidScheme/iosScheme 조합 사용.
@@ -30,8 +29,8 @@ const config: CapacitorConfig = {
         },
     },
     ios: {
-        // 사용자 토큰을 안전 저장소(Keychain)에 보관하기 위한 옵션은 별도 설정.
         contentInset: 'automatic',
+        scheme: 'wodybody',
     },
     android: {
         allowMixedContent: false,

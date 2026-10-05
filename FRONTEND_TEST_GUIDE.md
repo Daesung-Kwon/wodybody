@@ -27,7 +27,7 @@ URL: http://localhost:3000
 
 ```
 Email: simadeit@naver.com
-Password: Daon!161219
+Password: <rotated-password>
 ```
 
 ### 3. 로그인 후 예상 결과

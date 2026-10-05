@@ -18,9 +18,11 @@ Sprint 2 변경
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
+import time
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
@@ -163,6 +165,59 @@ def _supabase_upsert(path: str, body: dict[str, Any], on_conflict: str) -> None:
             (resp.text or "")[:500],
         )
     resp.raise_for_status()
+
+
+def _sha256_hex(plain: str) -> str:
+    return hashlib.sha256((plain or "").encode("utf-8")).hexdigest()
+
+
+_advice_hits: dict[str, list[float]] = {}
+ADVICE_RATE_PER_MIN = 10
+
+
+def _rate_limited(key: str, limit: int = ADVICE_RATE_PER_MIN, window: float = 60.0) -> bool:
+    now = time.time()
+    hits = _advice_hits.setdefault(key, [])
+    hits[:] = [t for t in hits if now - t < window]
+    if len(hits) >= limit:
+        return True
+    hits.append(now)
+    return False
+
+
+def _participant_bound_hashes(participant_id: str) -> list[str]:
+    hashes: list[str] = []
+    for path in (
+        "/rest/v1/submissions",
+        "/rest/v1/weekly_logs",
+        "/rest/v1/coach_sessions",
+    ):
+        try:
+            rows = _supabase_get(
+                path,
+                {
+                    "participant_id": f"eq.{participant_id}",
+                    "select": "device_secret_hash",
+                    "limit": "50",
+                },
+            )
+        except (requests.RequestException, RuntimeError):
+            continue
+        for row in rows:
+            digest = row.get("device_secret_hash")
+            if digest:
+                hashes.append(str(digest))
+    return hashes
+
+
+def _verify_device_secret(participant_id: str, secret: str) -> bool:
+    if not secret.strip():
+        return False
+    digest = _sha256_hex(secret.strip())
+    bound = _participant_bound_hashes(participant_id)
+    if not bound:
+        return True
+    return digest in bound
 
 
 def _fetch_participant(participant_id: str) -> dict[str, Any] | None:
@@ -518,6 +573,13 @@ def ai_advice():
         return jsonify({"error": "participant_id required"}), 400
     participant_id = str(participant_id)
 
+    device_secret = (request.headers.get("X-Device-Secret") or "").strip()
+    client_key = request.headers.get("X-Forwarded-For", request.remote_addr or "unknown").split(",")[0].strip()
+    if _rate_limited(f"advice:{client_key}"):
+        return jsonify({"error": "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."}), 429
+    if not _verify_device_secret(participant_id, device_secret):
+        return jsonify({"error": "device_secret required"}), 401
+
     force_refresh = bool(body.get("force_refresh"))
 
     # 입력 가드 — 길이 제한 + 화이트리스트
@@ -626,7 +688,9 @@ def ai_health():
 
 @bp.route("/ai/debug", methods=["GET"])
 def ai_debug():
-    """Supabase 연결 실제 테스트. 배포 후 원인 파악용으로만 사용."""
+    """Supabase 연결 실제 테스트. 개발 환경에서만 사용."""
+    if os.environ.get("FLASK_ENV") != "development":
+        return jsonify({"error": "Not found"}), 404
     supabase_url, supabase_key = _get_supabase_config()
     if not supabase_url or not supabase_key:
         return jsonify({"ok": False, "error": "Supabase env vars not set"}), 500

@@ -55,5 +55,5 @@ jobs:
         SECRET_KEY: test-secret-key
         FLASK_ENV: testing
       run: |
-        python -m pytest tests/ -v || echo "No tests found, skipping"
+        python -m pytest tests/ -v
     

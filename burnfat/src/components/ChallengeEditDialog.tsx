@@ -13,6 +13,7 @@ import type { Challenge } from '../types';
 interface ChallengeEditDialogProps {
   open: boolean;
   challenge: Challenge;
+  adminPin: string;
   onClose: () => void;
   /** 저장 성공 후 갱신된 챌린지를 전달. */
   onSaved: (updated: Challenge) => void;
@@ -25,6 +26,7 @@ interface ChallengeEditDialogProps {
 export default function ChallengeEditDialog({
   open,
   challenge,
+  adminPin,
   onClose,
   onSaved,
 }: ChallengeEditDialogProps) {
@@ -62,27 +64,27 @@ export default function ChallengeEditDialog({
     }
     setLoading(true);
     setError('');
-    const { error: err } = await supabase
-      .from('challenges')
-      .update({
-        title: title.trim(),
-        start_date: startDate,
-        end_date: endDate,
-        stake_amount: stakeAmount,
-      })
-      .eq('id', challenge.id);
+    const { data, error: err } = await supabase.rpc('update_challenge_admin', {
+      p_challenge_id: challenge.id,
+      p_pin: adminPin || '',
+      p_title: title.trim(),
+      p_start_date: startDate,
+      p_end_date: endDate,
+      p_stake_amount: stakeAmount,
+    });
     setLoading(false);
     if (err) {
-      setError(err.message);
+      setError(err.message === 'pin_mismatch' ? 'PIN이 올바르지 않습니다.' : err.message);
       return;
     }
-    onSaved({
+    const updated = (data as Challenge | null) ?? {
       ...challenge,
       title: title.trim(),
       start_date: startDate,
       end_date: endDate,
       stake_amount: stakeAmount,
-    });
+    };
+    onSaved({ ...challenge, ...updated });
     onClose();
   };
 

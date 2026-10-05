@@ -15,6 +15,7 @@ import {
 import { LoginPageProps, User } from '../types';
 import { userApi } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import { getAccessToken } from '../lib/tokenStore';
 import { useTheme } from '../theme/ThemeProvider';
 import WodyBodyLogo from './WodyBodyLogo';
 
@@ -45,13 +46,9 @@ const MuiLoginPage: React.FC<ExtendedLoginPageProps> = ({ setUser, goRegister, g
             const data = await userApi.login({ email, password });
 
             // 토큰 저장 확인 (타이밍 이슈 방지)
-            await new Promise(resolve => setTimeout(resolve, 100));
-            const token = localStorage.getItem('access_token');
-            console.log('[Login] Token saved:', token ? 'Yes' : 'No');
-
+            const token = await getAccessToken();
             if (!token) {
-                console.warn('[Login] Token not saved, waiting...');
-                await new Promise(resolve => setTimeout(resolve, 200));
+                throw new Error('로그인 토큰을 저장하지 못했습니다.');
             }
 
             const user: User = {

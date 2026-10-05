@@ -61,6 +61,7 @@ const MuiNavigation: React.FC<MuiNavigationProps> = ({
         { id: 'history', label: 'History', icon: <TrendingUpIcon /> },
         { id: 'library', label: 'Library', icon: <FitnessCenterIcon /> },
         { id: 'preferences', label: '설정', icon: <SettingsIcon /> },
+        { id: 'burnfat', label: 'BurnFat', icon: <TimerIcon /> },
     ];
 
     const drawerItems = [

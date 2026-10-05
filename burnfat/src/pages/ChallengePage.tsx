@@ -13,6 +13,7 @@ import { useParticipantIdentity } from '../hooks/useParticipantIdentity';
 import { useRecordStatus } from '../hooks/useRecordStatus';
 import { useNextRecordableWeek } from '../hooks/useNextRecordableWeek';
 import { getDDayDisplay } from '../lib/challengeSchedule';
+import { bfPath, bfPublicChallengeUrl } from '../lib/paths';
 import { hasSeenNotice, markNoticeSeen } from '../lib/oneTimeNotice';
 import ChallengeHeader from '../components/ChallengeHeader';
 import ChallengeTabs from '../components/ChallengeTabs';
@@ -91,6 +92,7 @@ export default function ChallengePage() {
   const [earlyEndSnackbar, setEarlyEndSnackbar] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [pinAction, setPinAction] = useState<AdminPinAction | null>(null);
+  const [adminPin, setAdminPin] = useState('');
   const [editOpen, setEditOpen] = useState(false);
   const [endingSoonOpen, setEndingSoonOpen] = useState(false);
   const [weeklyLogsNoticeOpen, setWeeklyLogsNoticeOpen] = useState(false);
@@ -149,7 +151,7 @@ export default function ChallengePage() {
   if (!challenge) {
     return (
       <Box sx={{ p: 3 }}>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/')}>
+        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(bfPath('/'))}>
           홈
         </Button>
         <Typography color="error" sx={{ mt: 2 }}>
@@ -166,7 +168,7 @@ export default function ChallengePage() {
   // end_date가 없으면 안전하게 차단(모달 열지 않음).
   const isBeforeEndDate = !endDateOnly ? true : endDateOnly > today;
   const dday = getDDayDisplay(challenge.start_date, challenge.end_date);
-  const shareUrl = `${window.location.origin}/c/${challenge.code}`;
+  const shareUrl = bfPublicChallengeUrl(challenge.code);
   const allEndComplete = (() => {
     const withStart = participants.filter((p) => p.submissions.some((s) => s.type === 'start'));
     return (
@@ -185,19 +187,21 @@ export default function ChallengePage() {
     else setSubmitTarget({ participantId: p.id, participantNickname: p.nickname, type: 'end' });
   };
 
-  const doToggleRanking = async (): Promise<boolean> => {
+  const doToggleRanking = async (pin = adminPin): Promise<boolean> => {
     const next = !(challenge.ranking_unlocked ?? false);
     try {
-      const { error: err } = await supabase
-        .from('challenges')
-        .update({ ranking_unlocked: next })
-        .eq('id', challenge.id);
+      const { data, error: err } = await supabase.rpc('update_challenge_admin', {
+        p_challenge_id: challenge.id,
+        p_pin: pin || '',
+        p_ranking_unlocked: next,
+      });
       if (err) {
         setToast(`설정 실패: ${err.message}`);
         return false;
       }
-      setChallenge({ ...challenge, ranking_unlocked: next });
-      setToast(next ? '중간 순위가 공개되었습니다' : '순위가 다시 잠겼습니다');
+      const unlocked = (data as { ranking_unlocked?: boolean } | null)?.ranking_unlocked ?? next;
+      setChallenge({ ...challenge, ranking_unlocked: unlocked });
+      setToast(unlocked ? '중간 순위가 공개되었습니다' : '순위가 다시 잠겼습니다');
       return true;
     } catch {
       setToast('순위 공개 설정 중 오류가 발생했습니다');
@@ -213,8 +217,9 @@ export default function ChallengePage() {
     if (challenge.has_admin_pin) setPinAction('editChallenge');
     else setEditOpen(true);
   };
-  const handlePinConfirmed = async (): Promise<boolean> => {
-    if (pinAction === 'ranking') return doToggleRanking();
+  const handlePinConfirmed = async (pin: string): Promise<boolean> => {
+    setAdminPin(pin);
+    if (pinAction === 'ranking') return doToggleRanking(pin);
     setEditOpen(true);
     return true;
   };
@@ -225,7 +230,7 @@ export default function ChallengePage() {
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: 4 }}>
       <Box sx={{ p: 2 }}>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/')}>
+        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(bfPath('/'))}>
           홈
         </Button>
       </Box>
@@ -322,6 +327,7 @@ export default function ChallengePage() {
         pinAction={pinAction}
         onClosePin={() => setPinAction(null)}
         onPinConfirmed={handlePinConfirmed}
+        adminPin={adminPin}
         editOpen={editOpen}
         onCloseEdit={() => setEditOpen(false)}
         onSavedEdit={(updated) => {

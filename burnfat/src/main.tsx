@@ -5,6 +5,9 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import App from './App';
 import { burnfatTheme } from './theme/theme';
+import { setBurnFatStandalone } from './lib/paths';
+
+setBurnFatStandalone(true);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

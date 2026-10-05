@@ -56,7 +56,7 @@ const MuiWebSocketDebugger: React.FC = () => {
 
         addLog(`모바일 Safari: ${isMobileSafari ? 'YES' : 'NO'}`);
         addLog(`인증 토큰: ${authToken ? '있음 (길이:' + authToken.length + ')' : '없음'}`);
-        addLog(`API URL: ${process.env.REACT_APP_API_URL || 'https://wodybody-production.up.railway.app'}`);
+        addLog(`API URL: ${import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_API_URL || 'http://localhost:5001'}`);
 
         if (isMobileSafari) {
             console.log('모바일 Safari 감지됨, polling 우선 연결 시도');
@@ -86,7 +86,7 @@ const MuiWebSocketDebugger: React.FC = () => {
         }
 
         addLog(`SocketIO 설정: ${JSON.stringify(socketConfig, null, 2)}`);
-        const newSocket = io(process.env.REACT_APP_API_URL || 'https://wodybody-production.up.railway.app', socketConfig);
+        const newSocket = io(import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_API_URL || 'http://localhost:5001', socketConfig);
 
         newSocket.on('connect', () => {
             setConnectionStatus('연결됨');

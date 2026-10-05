@@ -49,7 +49,7 @@ def send_email_resend(to_email, subject, html_body, text_body):
             timeout=10
         )
         
-        if response.status_code == 200:
+        if 200 <= response.status_code < 300:
             current_app.logger.info(f'Resend API 이메일 전송 성공: {to_email}')
             return True, "이메일이 성공적으로 전송되었습니다."
         else:

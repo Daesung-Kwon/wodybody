@@ -249,7 +249,7 @@ test_join_program
 
 describe('Navigation Menu Tests', () => {
   beforeEach(() => {
-    cy.login('simadeit@naver.com', 'Daon!161219')
+    cy.login('simadeit@naver.com', '<rotated-password>')
   })
 
   it('프로그램 목록 페이지 로드', () => {

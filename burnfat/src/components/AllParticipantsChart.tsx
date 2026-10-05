@@ -91,7 +91,7 @@ export default function AllParticipantsChart({ participants, logsByParticipant }
             width={52}
           />
           <Tooltip
-            formatter={(value: number | undefined) => (value != null ? [`${value}%`, '체지방률'] : null)}
+            formatter={(value) => [`${value ?? ''}%`, '체지방률']}
             labelFormatter={(label) => label}
           />
           <Legend />

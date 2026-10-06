@@ -1,3 +1,6 @@
+/** Production API host used when VITE_API_URL is unset (CRA-era default). */
+export const DEFAULT_PRODUCTION_API_URL = 'https://wodybody-production.up.railway.app';
+
 export function apiBaseUrl(): string {
     const fromEnv = String(
         import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_API_URL || ''
@@ -9,10 +12,9 @@ export function apiBaseUrl(): string {
             return 'http://localhost:5001';
         }
     }
-    if (import.meta.env.DEV) {
-        console.error('VITE_API_URL is not set; API calls will fail outside localhost.');
-    }
-    return '';
+    // vercel.json top-level `env` does not inject into Vite builds — project envs must
+    // set VITE_API_URL. Keep Railway as a safe production fallback matching CRA behavior.
+    return DEFAULT_PRODUCTION_API_URL;
 }
 
 export function isBurnFatHost(): boolean {

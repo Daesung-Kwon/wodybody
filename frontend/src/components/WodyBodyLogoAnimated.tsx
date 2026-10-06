@@ -1,6 +1,8 @@
 import React from 'react';
 import { Box, keyframes } from '@mui/material';
 import { useTheme } from '../theme/ThemeProvider';
+import logoDark from '../assets/logo-dark.png';
+import logoLight from '../assets/logo-light.png';
 
 interface WodyBodyLogoAnimatedProps {
     size?: 'small' | 'medium' | 'large';
@@ -46,7 +48,8 @@ const WodyBodyLogoAnimated: React.FC<WodyBodyLogoAnimatedProps> = ({
         }
     };
 
-    const logoSrc = isDarkMode ? '/logo-dark.png' : '/logo-light.png';
+    // Vite 번들 import (WodyBodyLogo 와 동일, 해시 파일명으로 캐싱)
+    const logoSrc = isDarkMode ? logoDark : logoLight;
     const sizeStyles = getSizeStyles();
 
     return (
@@ -70,7 +73,6 @@ const WodyBodyLogoAnimated: React.FC<WodyBodyLogoAnimatedProps> = ({
                     height: sizeStyles.height,
                     width: '100%',
                     objectFit: 'contain',
-                    imageRendering: 'crisp-edges',
                 }}
             />
         </Box>

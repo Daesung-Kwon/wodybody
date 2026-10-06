@@ -12,11 +12,13 @@ import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
-import { supabase } from '../lib/supabase';
+import { updateParticipantBasicInfo } from '../lib/roomApi';
 import type { Participant, Gender } from '../types';
 
 interface Props {
   open: boolean;
+  /** 대결방 코드 — RLS lockdown 이후 쓰기 RPC 가 요구한다. */
+  challengeCode: string;
   participant: Participant | null;
   onClose: () => void;
   onSuccess: () => void;
@@ -24,7 +26,7 @@ interface Props {
   isAfterJoin?: boolean;
 }
 
-export default function ParticipantBasicInfoDialog({ open, participant, onClose, onSuccess, isAfterJoin }: Props) {
+export default function ParticipantBasicInfoDialog({ open, challengeCode, participant, onClose, onSuccess, isAfterJoin }: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [age, setAge] = useState<string>('');
@@ -50,22 +52,20 @@ export default function ParticipantBasicInfoDialog({ open, participant, onClose,
     if (!participant) return;
     setLoading(true);
     setError('');
-    const updates: Record<string, unknown> = {};
-    if (age.trim()) updates.age = parseInt(age, 10);
-    else updates.age = null;
-    if (gender) updates.gender = gender;
-    else updates.gender = null;
-    if (heightCm.trim()) updates.height_cm = parseFloat(heightCm);
-    else updates.height_cm = null;
-    if (targetBodyFat.trim()) updates.target_body_fat = parseFloat(targetBodyFat);
-    else updates.target_body_fat = null;
-
-    const { error: err } = await supabase.from('participants').update(updates).eq('id', participant.id);
-    setLoading(false);
-    if (err) {
-      setError(err.message);
+    // RLS lockdown: participants 직접 UPDATE 대신 room-code RPC (빈 값 = NULL 로 해제, 기존과 동일).
+    try {
+      await updateParticipantBasicInfo(challengeCode, participant.id, {
+        age: age.trim() ? parseInt(age, 10) : null,
+        gender: gender || null,
+        height_cm: heightCm.trim() ? parseFloat(heightCm) : null,
+        target_body_fat: targetBodyFat.trim() ? parseFloat(targetBodyFat) : null,
+      });
+    } catch (err) {
+      setLoading(false);
+      setError(err instanceof Error ? err.message : String(err));
       return;
     }
+    setLoading(false);
     onSuccess();
     onClose();
   };

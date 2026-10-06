@@ -103,6 +103,7 @@ export default function ChallengeOverlays({
       {submitTarget && (
         <SubmitModal
           open
+          challengeCode={challenge.code}
           participantId={submitTarget.participantId}
           participantNickname={submitTarget.participantNickname}
           type={submitTarget.type}
@@ -160,6 +161,7 @@ export default function ChallengeOverlays({
       {basicInfo && (
         <ParticipantBasicInfoDialog
           open
+          challengeCode={challenge.code}
           participant={basicInfo.participant}
           onClose={onCloseBasicInfo}
           onSuccess={onBasicInfoSuccess}
@@ -170,6 +172,7 @@ export default function ChallengeOverlays({
       {weeklyLogTarget && (
         <WeeklyLogForm
           open
+          challengeCode={challenge.code}
           participant={weeklyLogTarget.participant}
           challengeStartDate={challenge.start_date}
           challengeEndDate={challenge.end_date}

@@ -266,6 +266,7 @@ export default function ChallengePage() {
 
       {tab === 0 && (
         <ParticipantsTab
+          challengeCode={challenge.code}
           participants={participants}
           allEndComplete={allEndComplete}
           onAuthStart={openStartAuth}

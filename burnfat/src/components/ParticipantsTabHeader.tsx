@@ -5,8 +5,8 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { supabase } from '../lib/supabase';
-import type { Challenge, ParticipantWithSubmissions, WeeklyLog } from '../types';
+import { joinChallenge } from '../lib/roomApi';
+import type { Challenge, Participant, ParticipantWithSubmissions, WeeklyLog } from '../types';
 import MyStatusCard from './MyStatusCard';
 import { track } from '../lib/analytics';
 
@@ -52,18 +52,17 @@ export default function ParticipantsTabHeader({
     e.preventDefault();
     if (!joinNickname.trim()) return;
     setJoinLoading(true);
-    const { data: newParticipant, error: err } = await supabase
-      .from('participants')
-      .insert({ challenge_id: challenge.id, nickname: joinNickname.trim() })
-      .select()
-      .single();
-    setJoinLoading(false);
-    if (err) {
-      setJoinError(
-        err.message.includes('unique') ? '이미 등록된 닉네임입니다.' : err.message
-      );
+    // RLS lockdown: participants 직접 INSERT 대신 room-code RPC.
+    let newParticipant: Participant;
+    try {
+      newParticipant = await joinChallenge(challenge.code, joinNickname.trim());
+    } catch (e) {
+      setJoinLoading(false);
+      const msg = e instanceof Error ? e.message : String(e);
+      setJoinError(msg.includes('unique') ? '이미 등록된 닉네임입니다.' : msg);
       return;
     }
+    setJoinLoading(false);
     setJoinError('');
     setJoinNickname('');
     const challengeAgeDays = Math.max(
@@ -72,7 +71,7 @@ export default function ParticipantsTabHeader({
     );
     track('participant_joined', { challenge_age_days: challengeAgeDays });
     onRefetch();
-    const joined = { ...(newParticipant as ParticipantWithSubmissions), submissions: [] };
+    const joined: ParticipantWithSubmissions = { ...newParticipant, submissions: [] };
     // Sprint 1: 방금 등록한 참가자를 이 디바이스의 "나" 로 기억.
     onRemember(joined.id);
     setShowJoinForm(false);

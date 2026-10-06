@@ -73,27 +73,26 @@ export default function CreateChallengePage() {
       return;
     }
 
-    // 코드 중복 회피 — 최대 5회 재시도
-    let code = generateCode();
-    let attempts = 0;
-    const maxAttempts = 5;
-    while (attempts < maxAttempts) {
-      // Sprint 3 Phase A: 코드 중복 확인도 challenges_public VIEW 로 일관 적용.
-      const { data: existing } = await supabase.from('challenges_public').select('id').eq('code', code).maybeSingle();
-      if (!existing) break;
-      code = generateCode();
-      attempts++;
-    }
-
+    // 코드 중복 회피 — 최대 5회 재시도.
+    // RLS lockdown: anon 은 더 이상 challenges_public 을 조회할 수 없으므로(코드 열거 차단)
+    // 사전 조회 대신 RPC 를 호출하고, challenges.code UNIQUE 위반(23505)이면 새 코드로 재시도.
     // Sprint 0.1: 평문 PIN INSERT 가 아닌 서버측 해시 RPC 사용
-    const { data, error: err } = await supabase.rpc('create_challenge_with_pin', {
-      p_code: code,
-      p_title: title.trim() || '다이어트 챌린지',
-      p_start_date: startDate,
-      p_end_date: endDate,
-      p_stake_amount: stakeAmount,
-      p_admin_pin: adminPin.trim() || null,
-    });
+    const maxAttempts = 5;
+    let data: unknown = null;
+    let err: { message?: string; code?: string } | null = null;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const res = await supabase.rpc('create_challenge_with_pin', {
+        p_code: generateCode(),
+        p_title: title.trim() || '다이어트 챌린지',
+        p_start_date: startDate,
+        p_end_date: endDate,
+        p_stake_amount: stakeAmount,
+        p_admin_pin: adminPin.trim() || null,
+      });
+      data = res.data;
+      err = res.error;
+      if (!err || err.code !== '23505') break;
+    }
 
     setLoading(false);
     if (err) {

@@ -9,6 +9,7 @@ import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { supabase } from '../lib/supabase';
+import { createSubmission } from '../lib/roomApi';
 import type { SubmissionType } from '../types';
 import ImageMaskEditor from './ImageMaskEditor';
 import { prepareDeviceSecret } from '../lib/deviceSecret';
@@ -22,6 +23,8 @@ function bodyFatBucket(rate: number): string {
 
 interface Props {
   open: boolean;
+  /** 대결방 코드 — RLS lockdown 이후 create_submission RPC 가 요구한다. */
+  challengeCode: string;
   participantId: string;
   participantNickname: string;
   type: SubmissionType;
@@ -29,7 +32,7 @@ interface Props {
   onSuccess: () => void;
 }
 
-export default function SubmitModal({ open, participantId, participantNickname, type, onClose, onSuccess }: Props) {
+export default function SubmitModal({ open, challengeCode, participantId, participantNickname, type, onClose, onSuccess }: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [bodyFatRate, setBodyFatRate] = useState('');
@@ -60,9 +63,13 @@ export default function SubmitModal({ open, participantId, participantNickname, 
     setLoading(true);
     setError('');
 
-    // Sprint 0.3: Storage path 만 저장 (표시 시 createSignedUrl). 버킷이 Private 화되어 있다고 가정.
+    // Sprint 0.3: Storage path 만 저장 (표시 시 백엔드가 signed URL 발급). 버킷은 Private.
+    // RLS lockdown: upsert:false — anon UPDATE(덮어쓰기) 정책은 제거된다 (20261006000003).
+    //   파일명에 타임스탬프가 들어가므로 덮어쓸 일이 없다.
     const path = `${participantId}/${type}-${Date.now()}.jpg`;
-    const { error: uploadErr } = await supabase.storage.from('inbody').upload(path, maskedBlob, { upsert: true });
+    const { error: uploadErr } = await supabase.storage
+      .from('inbody')
+      .upload(path, maskedBlob, { upsert: false });
     if (uploadErr) {
       setError('이미지 업로드에 실패했습니다. ' + uploadErr.message);
       setLoading(false);
@@ -72,17 +79,20 @@ export default function SubmitModal({ open, participantId, participantNickname, 
     // Sprint 0.2: device_secret 발급 → 해시는 서버에 저장, plain 은 INSERT 성공 후 localStorage 에 보관
     const secret = await prepareDeviceSecret('submissions');
 
-    const { data: inserted, error: insertErr } = await supabase
-      .from('submissions')
-      .insert({
-        participant_id: participantId,
+    // RLS lockdown: submissions 직접 INSERT 대신 room-code RPC.
+    let inserted: { id?: string } | null = null;
+    let insertErr: Error | null = null;
+    try {
+      inserted = await createSubmission(challengeCode, {
+        participantId,
         type,
-        body_fat_rate: rateRounded,
-        image_url: path,
-        device_secret_hash: secret.hash,
-      })
-      .select()
-      .single();
+        bodyFatRate: rateRounded,
+        imagePath: path,
+        deviceSecretHash: secret.hash,
+      });
+    } catch (e) {
+      insertErr = e instanceof Error ? e : new Error(String(e));
+    }
 
     setLoading(false);
     if (insertErr) {

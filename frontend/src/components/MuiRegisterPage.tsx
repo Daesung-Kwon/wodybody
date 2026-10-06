@@ -22,18 +22,18 @@ import WodyBodyLogo from './WodyBodyLogo';
 
 const MuiRegisterPage: React.FC<RegisterPageProps> = ({ goLogin }) => {
     const { isDarkMode } = useTheme();
-    
+
     // 단계별 상태
     const [activeStep, setActiveStep] = useState<number>(0);
     const steps = ['이메일 인증', '정보 입력', '완료'];
-    
+
     // 폼 상태
     const [email, setEmail] = useState<string>('');
     const [verificationCode, setVerificationCode] = useState<string>('');
     const [verificationId, setVerificationId] = useState<number | null>(null);
     const [password, setPassword] = useState<string>('');
     const [name, setName] = useState<string>('');
-    
+
     // UI 상태
     const [busy, setBusy] = useState<boolean>(false);
     const [error, setError] = useState<string>('');
@@ -86,7 +86,7 @@ const MuiRegisterPage: React.FC<RegisterPageProps> = ({ goLogin }) => {
             const response = await emailVerificationApi.verifyCode(email, verificationCode);
             setVerificationId(response.verification_id);
             setSuccess('이메일 인증이 완료되었습니다!');
-            
+
             setTimeout(() => {
                 setActiveStep(1);
                 clearMessages();
@@ -118,11 +118,11 @@ const MuiRegisterPage: React.FC<RegisterPageProps> = ({ goLogin }) => {
         clearMessages();
 
         try {
-            await userApi.register({ 
-                email, 
-                password, 
-                name, 
-                verification_id: verificationId 
+            await userApi.register({
+                email,
+                password,
+                name,
+                verification_id: verificationId
             });
             setSuccess(`${name}님, 회원가입이 완료되었습니다!`);
             setActiveStep(2);
@@ -168,10 +168,10 @@ const MuiRegisterPage: React.FC<RegisterPageProps> = ({ goLogin }) => {
                             <WodyBodyLogo variant="detailed" size="large" />
                         </Box>
 
-                        <Typography 
-                            variant="h5" 
-                            sx={{ 
-                                textAlign: 'center', 
+                        <Typography
+                            variant="h5"
+                            sx={{
+                                textAlign: 'center',
                                 mb: 3,
                                 fontWeight: 600
                             }}
@@ -393,36 +393,36 @@ const MuiRegisterPage: React.FC<RegisterPageProps> = ({ goLogin }) => {
                                 <Typography variant="body1" color="text.secondary">
                                     로그인 페이지로 이동합니다...
                                 </Typography>
-                        </Box>
+                            </Box>
                         )}
 
                         {/* 구분선 및 로그인 링크 (완료 단계가 아닐 때만 표시) */}
                         {activeStep !== 2 && (
                             <>
-                        <Divider sx={{ my: 3 }}>
-                            <Typography variant="body2" color="text.secondary">
-                                또는
-                            </Typography>
-                        </Divider>
+                                <Divider sx={{ my: 3 }}>
+                                    <Typography variant="body2" color="text.secondary">
+                                        또는
+                                    </Typography>
+                                </Divider>
 
-                        <Box sx={{ textAlign: 'center' }}>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                                이미 계정이 있으신가요?
-                            </Typography>
-                            <Button
-                                variant="outlined"
-                                onClick={goLogin}
-                                disabled={busy}
-                                sx={{
-                                    borderRadius: 2,
-                                    px: 3,
-                                    py: 1,
-                                    fontWeight: 500,
-                                }}
-                            >
-                                로그인
-                            </Button>
-                        </Box>
+                                <Box sx={{ textAlign: 'center' }}>
+                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                                        이미 계정이 있으신가요?
+                                    </Typography>
+                                    <Button
+                                        variant="outlined"
+                                        onClick={goLogin}
+                                        disabled={busy}
+                                        sx={{
+                                            borderRadius: 2,
+                                            px: 3,
+                                            py: 1,
+                                            fontWeight: 500,
+                                        }}
+                                    >
+                                        로그인
+                                    </Button>
+                                </Box>
                             </>
                         )}
                     </CardContent>

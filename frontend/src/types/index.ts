@@ -151,6 +151,7 @@ export type Page =
     | 'library'      // 내 WOD (직접 만든 것)
     | 'preferences'  // 선호도/푸시 설정
     | 'create'
+    | 'about'        // 서비스 소개 (About)
     | 'demo';        // 개발용 DemoPage
 
 // 모달 타입

@@ -1,5 +1,8 @@
 import React from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
+import { useTheme } from '../theme/ThemeProvider';
+import logoDark from '../assets/logo-dark.png';
+import logoLight from '../assets/logo-light.png';
 
 interface WodyBodyLogoProps {
     variant?: 'simple' | 'detailed' | 'icon-only';
@@ -10,138 +13,44 @@ interface WodyBodyLogoProps {
 const WodyBodyLogo: React.FC<WodyBodyLogoProps> = ({
     variant = 'simple',
     size = 'medium',
-    color = 'primary'
 }) => {
+    const { isDarkMode } = useTheme();
+
     const getSizeStyles = () => {
         switch (size) {
             case 'small':
-                return { width: 'auto', height: 'auto', minWidth: 0 };
+                return { height: 60 }; // 40 -> 60
             case 'large':
-                return { width: 240, height: 72 };
+                return { height: 200 }; // 80 -> 200 (로그인 페이지용)
             default:
-                return { width: 180, height: 54 };
+                return { height: 100 };
         }
     };
 
-    const getColorStyles = () => {
-        switch (color) {
-            case 'secondary':
-                return { color: '#64748b' };
-            case 'inherit':
-                return { color: 'inherit' };
-            default:
-                return { color: '#0284c7' };
-        }
-    };
+    // 로고 이미지 경로 (번들 import 사용: 안정적 캐싱/경로 처리)
+    const logoSrc = isDarkMode ? logoDark : logoLight;
 
-    const renderLogo = () => {
-        switch (variant) {
-            case 'icon-only':
-                return (
-                    <Box
-                        sx={{
-                            width: size === 'small' ? 32 : size === 'large' ? 48 : 40,
-                            height: size === 'small' ? 32 : size === 'large' ? 48 : 40,
-                            borderRadius: '50%',
-                            background: 'linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'white',
-                            fontWeight: 'bold',
-                            fontSize: size === 'small' ? '12px' : size === 'large' ? '20px' : '16px',
-                        }}
-                    >
-                        WB
-                    </Box>
-                );
-
-            case 'detailed':
-                return (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
-                        {/* WODY BODY */}
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Typography
-                                sx={{
-                                    fontSize: size === 'small' ? '20px' : size === 'large' ? '32px' : '24px',
-                                    fontWeight: 500,
-                                    color: '#0284c7',
-                                    lineHeight: 1,
-                                    fontFamily: 'Arial, sans-serif',
-                                    letterSpacing: '0.5px',
-                                }}
-                            >
-                                WODY
-                            </Typography>
-
-                            <Typography
-                                sx={{
-                                    fontSize: size === 'small' ? '20px' : size === 'large' ? '32px' : '24px',
-                                    fontWeight: 500,
-                                    color: '#0284c7',
-                                    lineHeight: 1,
-                                    fontFamily: 'Arial, sans-serif',
-                                    letterSpacing: '0.5px',
-                                }}
-                            >
-                                BODY
-                            </Typography>
-                        </Box>
-
-                        {/* CrossFit - 크기 두 배로 증가 */}
-                        <Typography
-                            variant={size === 'small' ? 'caption' : 'body2'}
-                            sx={{
-                                color: '#64748b',
-                                fontSize: size === 'small' ? '16px' : size === 'large' ? '24px' : '20px',
-                                letterSpacing: '2px',
-                                fontFamily: 'Arial, sans-serif',
-                                fontWeight: 400,
-                            }}
-                        >
-                            CrossFit
-                        </Typography>
-                    </Box>
-                );
-
-            default: // simple
-                return (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        {/* WODY */}
-                        <Typography
-                            sx={{
-                                fontSize: size === 'small' ? '18px' : size === 'large' ? '28px' : '22px',
-                                fontWeight: 500,
-                                color: '#0284c7',
-                                lineHeight: 1,
-                                fontFamily: 'Arial, sans-serif',
-                                letterSpacing: '0.5px',
-                            }}
-                        >
-                            WODY
-                        </Typography>
-
-                        {/* BODY */}
-                        <Typography
-                            sx={{
-                                fontSize: size === 'small' ? '18px' : size === 'large' ? '28px' : '22px',
-                                fontWeight: 500,
-                                color: '#0284c7',
-                                lineHeight: 1,
-                                fontFamily: 'Arial, sans-serif',
-                                letterSpacing: '0.5px',
-                            }}
-                        >
-                            BODY
-                        </Typography>
-                    </Box>
-                );
-        }
-    };
+    const sizeStyles = getSizeStyles();
 
     return (
-        <Box sx={{ ...getSizeStyles(), ...getColorStyles() }}>
-            {renderLogo()}
+        <Box
+            sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '100%',
+                maxWidth: size === 'large' ? 420 : size === 'small' ? 220 : 320,
+            }}
+        >
+            <img
+                src={logoSrc}
+                alt="WODYBODY"
+                style={{
+                    height: sizeStyles.height,
+                    width: '100%',
+                    objectFit: 'contain',
+                }}
+            />
         </Box>
     );
 };

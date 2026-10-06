@@ -95,9 +95,11 @@ git push origin v1.0.0
 
 ## Vercel 설정
 
-현재 `frontend/vercel.json`에서 다음 설정으로 변경됨:
-- `frontend` 브랜치만 배포 활성화
-- `main`, `backend` 브랜치는 배포 비활성화
+현재 `frontend/vercel.json` (wodybody-web, Root Directory `frontend`):
+- `main` push → Production 자동 배포 (Vercel Git integration). GHA 에서는 배포하지 않음 (test/build 만)
+- `frontend`, `backend`, `develop`, `gh-pages` 브랜치는 배포 비활성화
+- `ignoreCommand`: `frontend/` 또는 `burnfat/src/` 변경이 없으면 빌드 스킵
+- 환경 변수(`VITE_API_URL`, `VITE_SUPABASE_*` 등)는 Vercel 프로젝트 env 에서 관리 (vercel.json `env` 는 Vite 빌드에 주입되지 않음)
 
 ## 주의사항
 

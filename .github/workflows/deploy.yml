@@ -91,24 +91,5 @@ jobs:
         echo "Backend deployment triggered for branch: ${{ github.ref_name }}"
         echo "Railway should auto-deploy via webhook configuration"
 
-  deploy-full:
-    needs: [backend, frontend]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Notify Railway Deployment
-      run: |
-        echo "Backend deployment triggered for branch: ${{ github.ref_name }}"
-        echo "Railway should auto-deploy via webhook configuration"
-    
-    - name: Deploy Frontend to Vercel
-      uses: amondnet/vercel-action@v25
-      with:
-        vercel-token: ${{ secrets.VERCEL_TOKEN }}
-        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-        working-directory: ./frontend
-        vercel-args: '--prod'
+  # deploy-full 제거: Railway 는 webhook 자동 배포, Vercel 은 Git integration 자동 배포
+  # (frontend/vercel.json). 남은 echo 만 하던 job 이라 삭제.

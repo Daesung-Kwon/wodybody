@@ -12,8 +12,9 @@ export function apiBaseUrl(): string {
             return 'http://localhost:5001';
         }
     }
-    // vercel.json top-level `env` does not inject into Vite builds — project envs must
-    // set VITE_API_URL. Keep Railway as a safe production fallback matching CRA behavior.
+    // VITE_API_URL comes from Vercel project envs (vercel.json no longer carries a
+    // top-level `env`; it never injected into Vite builds anyway). Keep Railway as a
+    // safe production fallback matching CRA behavior.
     return DEFAULT_PRODUCTION_API_URL;
 }
 

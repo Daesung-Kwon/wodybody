@@ -1,23 +1,11 @@
 {
-    "framework": "vite",
-    "buildCommand": "npm run build",
-    "outputDirectory": "dist",
-    "installCommand": "npm ci",
-    "rewrites": [
-        { "source": "/(.*)", "destination": "/index.html" }
-    ],
-    "env": {
-        "VITE_API_URL": "https://wodybody-production.up.railway.app",
-        "REACT_APP_API_URL": "https://wodybody-production.up.railway.app"
-    },
-    "git": {
-        "deploymentEnabled": {
-            "frontend": true,
-            "main": false,
-            "backend": false,
-            "develop": false,
-            "gh-pages": false
-        },
-        "ignoreCommand": "bash -c '[[ \"$VERCEL_GIT_COMMIT_REF\" == \"gh-pages\" ]] && exit 1 || exit 0'"
-    }
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm ci",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "ignoreCommand": "git diff --quiet ${VERCEL_GIT_PREVIOUS_SHA:-HEAD^} HEAD -- . ../burnfat/src",
+  "git": {
+    "deploymentEnabled": { "frontend": false, "backend": false, "develop": false, "gh-pages": false }
+  }
 }

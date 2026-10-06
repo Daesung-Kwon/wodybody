@@ -44,9 +44,28 @@ npm run dev
 ## Supabase 설정
 
 1. [Supabase](https://supabase.com) 프로젝트 생성
-2. SQL Editor에서 `docs/supabase-setup.sql` 실행
-3. Storage에서 `inbody` 버킷 생성 (Public)
+2. SQL Editor에서 `docs/supabase-setup.sql` 실행 후 `supabase/migrations/` 를 순서대로 적용
+3. Storage에서 `inbody` 버킷 생성 — **Private** ("Public bucket" OFF).
+   이미지는 public URL 이 아니라 signed URL 로만 표시된다 (아래 보안 모델 참고).
 4. `.env`에 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` 설정
+
+## 보안 모델 (2026-10 RLS lockdown)
+
+BurnFat 에는 로그인이 없다. 대결방 코드(`/c/:code`)가 방의 공유 비밀이다.
+
+- anon(공개) 키로 `challenges` / `participants` / `submissions` / `weekly_logs` 테이블을
+  **직접 읽거나 쓰지 않는다**. 모든 접근은 방 코드를 요구하는 SECURITY DEFINER RPC 를
+  거친다 (`src/lib/roomApi.ts`, 마이그레이션 `20261006000001_room_scoped_rpcs.sql`).
+  RPC 는 `device_secret_hash` / `admin_pin_hash` 를 반환하지 않는다.
+- 직접 테이블 권한은 `20261006000002_lockdown_room_reads.sql` 에서 회수된다.
+  service_role 을 쓰는 Railway 백엔드(`backend/routes/burnfat_*.py`)와 Edge Function 은 영향 없음.
+- 기존 기록 수정은 디바이스 시크릿 RPC(`update_submission` / `update_weekly_log`),
+  대결 설정은 PIN RPC(`update_challenge_admin` 등) 그대로.
+- `inbody` 버킷은 Private. 표시용 URL 은 Railway 백엔드 `POST /api/burnfat/images/sign` 이
+  방 코드를 확인한 뒤 service key 로 1시간짜리 signed URL 을 발급한다
+  (`backend/routes/burnfat_images.py`). anon 은 `<participant_id>/<파일>` 경로로 신규 업로드만
+  가능하고 목록 조회·서명·덮어쓰기는 불가 (`20261006000003_inbody_storage_narrowing.sql`).
+- 롤아웃 순서·롤백: `supabase/rollback/README.md`. 로컬 검증: `supabase/tests/run_local.sh`.
 
 ## 배포 (Vercel)
 

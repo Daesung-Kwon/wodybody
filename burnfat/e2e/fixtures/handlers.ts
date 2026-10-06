@@ -23,31 +23,6 @@ interface Store {
   weeklyLogs: Row[];
 }
 
-/** PostgREST 쿼리 필터(`eq.`, `in.(...)`)를 URL searchParams 기준으로 적용. */
-function applyFilters(rows: Row[], url: URL): Row[] {
-  let result = rows;
-  for (const [key, raw] of url.searchParams) {
-    if (['select', 'order', 'limit', 'offset'].includes(key)) continue;
-    if (raw.startsWith('eq.')) {
-      const v = raw.slice(3);
-      result = result.filter((r) => String(r[key]) === v);
-    } else if (raw.startsWith('in.(')) {
-      const list = raw
-        .slice(4, -1)
-        .split(',')
-        .map((s) => s.replace(/^"|"$/g, ''));
-      result = result.filter((r) => list.includes(String(r[key])));
-    }
-  }
-  return result;
-}
-
-/** supabase-js insert 는 단일 객체 또는 배열을 보낸다 — 단일 객체로 정규화. */
-function firstRow(body: unknown): Record<string, unknown> {
-  if (Array.isArray(body)) return (body[0] ?? {}) as Record<string, unknown>;
-  return (body ?? {}) as Record<string, unknown>;
-}
-
 function json(route: Route, data: unknown, status = 200): Promise<void> {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) });
 }
@@ -82,7 +57,7 @@ export async function installMockApi(page: Page): Promise<void> {
       const body = (req.postDataJSON() ?? {}) as Record<string, unknown>;
       const row: Row = {
         id: uid('challenge'),
-        code: body.p_code ?? 'E2ECODE',
+        code: String(body.p_code ?? 'E2ECODE').toUpperCase(),
         title: body.p_title ?? '대결',
         start_date: body.p_start_date ?? null,
         end_date: body.p_end_date ?? null,
@@ -102,74 +77,138 @@ export async function installMockApi(page: Page): Promise<void> {
       return route.fulfill({ status: 204 });
     }
 
-    /* ── PostgREST 테이블 ── */
-    if (path === '/mock/rest/v1/challenges_public') {
-      const matched = applyFilters(store.challenges, url);
-      const wantsObject = (req.headers()['accept'] ?? '').includes('pgrst.object');
-      if (wantsObject) {
-        if (matched.length === 1) return json(route, matched[0]);
-        return json(route, { code: 'PGRST116', details: '0 rows', message: 'no rows' }, 406);
-      }
-      return json(route, matched);
-    }
+    /* ── Room-scoped RPC (RLS lockdown 2026-10) ── */
+    const rpcBody = () => (req.postDataJSON() ?? {}) as Record<string, unknown>;
+    const roomByCode = (code: unknown) =>
+      store.challenges.find((c) => String(c.code) === String(code ?? '').trim().toUpperCase());
+    const publicParticipant = (p: Row) => ({
+      id: p.id,
+      challenge_id: p.challenge_id,
+      nickname: p.nickname,
+      age: p.age ?? null,
+      gender: p.gender ?? null,
+      height_cm: p.height_cm ?? null,
+      target_body_fat: p.target_body_fat ?? null,
+      created_at: p.created_at,
+    });
+    const stripSecret = (r: Row) => {
+      const { device_secret_hash: _d, ...rest } = r;
+      void _d;
+      return rest;
+    };
+    const roomError = (message: string, code: string, status = 400) =>
+      json(route, { code, message, details: null, hint: null }, status);
 
-    if (path === '/mock/rest/v1/participants') {
-      if (method === 'GET') {
-        const list = applyFilters(store.participants, url).map((p) => ({
-          ...p,
-          submissions: store.submissions.filter((s) => s.participant_id === p.id),
+    if (path === '/mock/rest/v1/rpc/get_challenge_by_code') {
+      const room = roomByCode(rpcBody().p_code);
+      return json(route, room ? [room] : []);
+    }
+    if (path === '/mock/rest/v1/rpc/get_room_participants') {
+      const room = roomByCode(rpcBody().p_code);
+      if (!room) return json(route, []);
+      const list = store.participants
+        .filter((p) => p.challenge_id === room.id)
+        .map((p) => ({
+          ...publicParticipant(p),
+          submissions: store.submissions.filter((s) => s.participant_id === p.id).map(stripSecret),
         }));
-        return json(route, list);
+      return json(route, list);
+    }
+    if (path === '/mock/rest/v1/rpc/get_room_weekly_logs') {
+      const body = rpcBody();
+      const room = roomByCode(body.p_code);
+      if (!room) return json(route, []);
+      const memberIds = new Set(store.participants.filter((p) => p.challenge_id === room.id).map((p) => p.id));
+      const list = store.weeklyLogs
+        .filter((w) => memberIds.has(String(w.participant_id)))
+        .filter((w) => !body.p_participant_id || w.participant_id === body.p_participant_id)
+        .sort((a, b) => Number(a.week_no) - Number(b.week_no))
+        .map(stripSecret);
+      return json(route, list);
+    }
+    if (path === '/mock/rest/v1/rpc/join_challenge') {
+      const body = rpcBody();
+      const room = roomByCode(body.p_code);
+      if (!room) return roomError('challenge_not_found', 'P0002');
+      const nickname = String(body.p_nickname ?? '').trim();
+      if (store.participants.some((p) => p.challenge_id === room.id && p.nickname === nickname)) {
+        return roomError('duplicate key value violates unique constraint "participants_challenge_id_nickname_key"', '23505', 409);
       }
-      if (method === 'POST') {
-        const body = firstRow(req.postDataJSON());
-        const row: Row = {
-          id: uid('participant'),
-          challenge_id: body.challenge_id ?? null,
-          nickname: body.nickname ?? '',
-          age: null,
-          gender: null,
-          height_cm: null,
-          target_body_fat: null,
-          created_at: now(),
-        };
-        store.participants.push(row);
-        return json(route, row, 201);
-      }
-      if (method === 'PATCH') {
-        const patch = firstRow(req.postDataJSON());
-        for (const p of applyFilters(store.participants, url)) Object.assign(p, patch);
-        return route.fulfill({ status: 204 });
-      }
+      const row: Row = {
+        id: uid('participant'),
+        challenge_id: room.id,
+        nickname,
+        age: null,
+        gender: null,
+        height_cm: null,
+        target_body_fat: null,
+        created_at: now(),
+      };
+      store.participants.push(row);
+      return json(route, publicParticipant(row));
+    }
+    const memberOf = (body: Record<string, unknown>) => {
+      const room = roomByCode(body.p_code);
+      return room
+        ? store.participants.find((p) => p.id === body.p_participant_id && p.challenge_id === room.id)
+        : undefined;
+    };
+    if (path === '/mock/rest/v1/rpc/update_participant_basic_info') {
+      const body = rpcBody();
+      const p = memberOf(body);
+      if (!p) return roomError('participant_not_in_room', '42501', 403);
+      Object.assign(p, {
+        age: body.p_age ?? null,
+        gender: body.p_gender ?? null,
+        height_cm: body.p_height_cm ?? null,
+        target_body_fat: body.p_target_body_fat ?? null,
+      });
+      return json(route, publicParticipant(p));
+    }
+    if (path === '/mock/rest/v1/rpc/create_submission') {
+      const body = rpcBody();
+      const p = memberOf(body);
+      if (!p) return roomError('participant_not_in_room', '42501', 403);
+      const row: Row = {
+        id: uid('submission'),
+        participant_id: p.id,
+        type: body.p_type,
+        body_fat_rate: body.p_body_fat_rate,
+        image_url: body.p_image_path ?? null,
+        device_secret_hash: body.p_device_secret_hash ?? null,
+        created_at: now(),
+      };
+      store.submissions.push(row);
+      return json(route, stripSecret(row));
+    }
+    if (path === '/mock/rest/v1/rpc/create_weekly_log') {
+      const body = rpcBody();
+      const p = memberOf(body);
+      if (!p) return roomError('participant_not_in_room', '42501', 403);
+      const ts = now();
+      const row: Row = {
+        ...((body.p_log ?? {}) as Record<string, unknown>),
+        id: uid('weeklylog'),
+        participant_id: p.id,
+        device_secret_hash: body.p_device_secret_hash ?? null,
+        created_at: ts,
+        updated_at: ts,
+      };
+      store.weeklyLogs.push(row);
+      return json(route, stripSecret(row));
     }
 
-    if (path === '/mock/rest/v1/submissions') {
-      if (method === 'GET') return json(route, applyFilters(store.submissions, url));
-      if (method === 'POST') {
-        const row: Row = { id: uid('submission'), created_at: now(), ...firstRow(req.postDataJSON()) };
-        store.submissions.push(row);
-        return json(route, row, 201);
-      }
+    /* ── 직접 테이블 접근 — 운영(마이그레이션 B 이후)과 동일하게 거부 ── */
+    if (/^\/mock\/rest\/v1\/(participants|submissions|weekly_logs|challenges|challenges_public)$/.test(path)) {
+      return roomError(`permission denied for table ${path.split('/').pop()}`, '42501', 401);
     }
 
-    if (path === '/mock/rest/v1/weekly_logs') {
-      if (method === 'GET') {
-        const list = applyFilters(store.weeklyLogs, url).sort(
-          (a, b) => Number(a.week_no) - Number(b.week_no)
-        );
-        return json(route, list);
-      }
-      if (method === 'POST') {
-        const ts = now();
-        const row: Row = {
-          id: uid('weeklylog'),
-          created_at: ts,
-          updated_at: ts,
-          ...firstRow(req.postDataJSON()),
-        };
-        store.weeklyLogs.push(row);
-        return json(route, row, 201);
-      }
+    /* ── 인증 이미지 서버측 서명 (backend /api/burnfat/images/sign) ── */
+    if (path === '/mock/images/sign' && method === 'POST') {
+      const body = rpcBody();
+      const paths = Array.isArray(body.paths) ? (body.paths as string[]) : [];
+      const urls = Object.fromEntries(paths.map((p) => [p, `http://localhost:5173/mock/signed/${p}`]));
+      return json(route, { urls, expires_in: 3600 });
     }
 
     /* ── Storage — 인바디 이미지 업로드 ── */

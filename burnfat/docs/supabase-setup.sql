@@ -46,7 +46,11 @@ CREATE POLICY "Allow anonymous insert challenges" ON challenges FOR INSERT WITH 
 CREATE POLICY "Allow anonymous insert participants" ON participants FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow anonymous insert submissions" ON submissions FOR INSERT WITH CHECK (true);
 
--- 7. Storage 버킷: Supabase 대시보드 > Storage > New bucket > "inbody" (Public)
+-- 7. Storage 버킷: Supabase 대시보드 > Storage > New bucket > "inbody" (Private — "Public bucket" OFF)
+--
+-- ⚠️ HISTORICAL: 아래 5/6/8 의 익명 정책은 초기 MVP 용이다. 이 파일 실행 후 반드시
+--    supabase/migrations/ 를 순서대로 적용할 것. 20261006000001~3 이 이 정책들을 모두
+--    제거하고 room-code RPC + 서버측 signed URL 모델로 전환한다 (README "보안 모델").
 
 -- 8. Storage RLS: inbody 버킷 업로드/읽기 허용 (익명)
 CREATE POLICY "Allow anonymous upload inbody" ON storage.objects

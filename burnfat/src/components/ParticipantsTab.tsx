@@ -13,6 +13,8 @@ import { resolveImageUrl } from '../lib/signedImage';
 import { EndAuthButton } from '../theme/rankAnimations';
 
 interface ParticipantsTabProps {
+  /** 대결방 코드 — 인증 이미지 서버측 서명(room code 검증)에 사용. */
+  challengeCode: string;
   participants: ParticipantWithSubmissions[];
   /** 전 참가자의 종료 인증이 끝났는지 — 종료 인증 값 노출 여부를 결정. */
   allEndComplete: boolean;
@@ -45,6 +47,7 @@ const getEndBtnColor = (participantId: string) => {
  * 시작 체지방률 내림차순으로 정렬해 인증 진행 상태를 보여 준다.
  */
 export default function ParticipantsTab({
+  challengeCode,
   participants,
   allEndComplete,
   onAuthStart,
@@ -204,8 +207,8 @@ export default function ParticipantsTab({
                               }}
                               aria-label="인증 이미지 보기"
                               onClick={async () => {
-                                // Sprint 0.3: storage path → signed URL (7일)
-                                const url = await resolveImageUrl(s.image_url);
+                                // storage path → 백엔드 서명 URL (room code 검증, 1시간)
+                                const url = await resolveImageUrl(s.image_url, challengeCode);
                                 if (!url) {
                                   onToast('이미지를 불러오지 못했습니다.');
                                   return;

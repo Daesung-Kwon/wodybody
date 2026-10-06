@@ -1,15 +1,16 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { supabase } from '../lib/supabase';
+import { fetchChallengeByCode, fetchRoomParticipants } from '../lib/roomApi';
 import type { Challenge, ParticipantWithSubmissions, RankingRow } from '../types';
 import { useAllWeeklyLogsForChallenge } from './useWeeklyLogs';
 
 /**
  * Sprint 3 Phase B — ChallengePage 의 데이터 페치를 한 곳으로 통합한 hook.
  *
- * 진입 시 REST 호출은 정확히 3건:
- *   1. `challenges_public`  — code 로 챌린지 1건
- *   2. `participants` + `submissions(*)` 임베드 — 참가자별 인증을 *한 번에* (N+1 제거)
- *   3. `weekly_logs` `.in(participant_id, …)` — 전 참가자 주간 기록 (useAllWeeklyLogsForChallenge)
+ * 진입 시 REST 호출은 정확히 3건 (RLS lockdown 2026-10: 모두 room-code RPC):
+ *   1. rpc `get_challenge_by_code`  — code 로 챌린지 1건
+ *   2. rpc `get_room_participants`  — 참가자 + submissions 임베드를 *한 번에* (N+1 제거)
+ *   3. rpc `get_room_weekly_logs`   — 방 전체 주간 기록 (useAllWeeklyLogsForChallenge)
+ * anon 키로 테이블을 직접 SELECT 하지 않는다 (마이그레이션 20261006000002).
  *
  * 기존 fetchParticipants 는 참가자마다 submissions 를 개별 SELECT 해 1+N 호출이었다.
  * Supabase 임베드 쿼리로 1회 호출로 줄였다 (동작·정렬·랭킹 계산은 동일).
@@ -69,17 +70,18 @@ export function useChallengeData(code: string | undefined): ChallengeData {
       setLoading(false);
       return;
     }
-    // Sprint 3 Phase A: 공개 컬럼만 노출하는 challenges_public VIEW 사용.
-    const { data, error: err } = await supabase
-      .from('challenges_public')
-      .select('*')
-      .eq('code', code.toUpperCase())
-      .single();
-    if (err || !data) {
+    // RLS lockdown: challenges_public 직접 SELECT 대신 room-code RPC.
+    let data: Challenge | null = null;
+    try {
+      data = await fetchChallengeByCode(code);
+    } catch {
+      data = null;
+    }
+    if (!data) {
       setError('대결을 찾을 수 없습니다.');
       setChallenge(null);
     } else {
-      setChallenge(data as Challenge);
+      setChallenge(data);
       setError('');
     }
     setLoading(false);
@@ -87,13 +89,12 @@ export function useChallengeData(code: string | undefined): ChallengeData {
 
   const fetchParticipants = useCallback(async () => {
     if (!challenge) return;
-    // Sprint 3 Phase B: submissions 를 임베드해 1회 호출로 페치 (기존 N+1 제거).
-    const { data } = await supabase
-      .from('participants')
-      .select('*, submissions(*)')
-      .eq('challenge_id', challenge.id)
-      .order('created_at');
-    setParticipants((data as ParticipantWithSubmissions[]) ?? []);
+    // Sprint 3 Phase B: submissions 임베드 1회 호출 — 이제 get_room_participants RPC.
+    try {
+      setParticipants(await fetchRoomParticipants(challenge.code));
+    } catch {
+      setParticipants([]);
+    }
   }, [challenge]);
 
   useEffect(() => {
@@ -122,7 +123,7 @@ export function useChallengeData(code: string | undefined): ChallengeData {
     logsByParticipant,
     loading: logsLoading,
     refetch: refetchLogs,
-  } = useAllWeeklyLogsForChallenge(participantIds);
+  } = useAllWeeklyLogsForChallenge(challenge?.code, participantIds);
 
   const ranking = useMemo(() => computeRanking(participants), [participants]);
 

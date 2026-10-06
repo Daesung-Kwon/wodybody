@@ -1,40 +1,47 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { WeeklyLog } from '../types';
-import { loadDeviceSecret } from '../lib/deviceSecret';
+import { loadDeviceSecret, prepareDeviceSecret } from '../lib/deviceSecret';
+import { createWeeklyLog, fetchRoomWeeklyLogs, type NewWeeklyLog } from '../lib/roomApi';
 
-export function useWeeklyLogs(participantId: string | null) {
+/**
+ * 한 참가자의 주간 기록.
+ * RLS lockdown(2026-10): 읽기/생성은 room code 가 필요한 RPC(get_room_weekly_logs /
+ * create_weekly_log) 경유. 수정은 기존 device-secret RPC(update_weekly_log) 그대로.
+ */
+export function useWeeklyLogs(challengeCode: string | null | undefined, participantId: string | null) {
   const [logs, setLogs] = useState<WeeklyLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetch = useCallback(async () => {
-    if (!participantId) {
+    if (!participantId || !challengeCode) {
       setLogs([]);
       setLoading(false);
       return;
     }
     setLoading(true);
-    const { data } = await supabase
-      .from('weekly_logs')
-      .select('*')
-      .eq('participant_id', participantId)
-      .order('week_no', { ascending: true });
-    setLogs((data as WeeklyLog[]) || []);
+    try {
+      setLogs(await fetchRoomWeeklyLogs(challengeCode, participantId));
+    } catch {
+      setLogs([]);
+    }
     setLoading(false);
-  }, [participantId]);
+  }, [challengeCode, participantId]);
 
   useEffect(() => {
     fetch();
   }, [fetch]);
 
   const insert = useCallback(
-    async (row: Omit<WeeklyLog, 'id' | 'created_at' | 'updated_at'>) => {
-      const { data, error } = await supabase.from('weekly_logs').insert(row).select().single();
-      if (error) throw error;
+    async (row: NewWeeklyLog) => {
+      if (!challengeCode || !participantId) throw new Error('대결 코드 또는 참가자가 없습니다.');
+      const secret = await prepareDeviceSecret('weekly_logs');
+      const created = await createWeeklyLog(challengeCode, participantId, row, secret.hash);
+      if (created?.id) secret.persist(created.id);
       await fetch();
-      return data as WeeklyLog;
+      return created;
     },
-    [fetch]
+    [challengeCode, participantId, fetch]
   );
 
   // Sprint 0.2: RLS UPDATE 정책이 제거되었으므로 update_weekly_log RPC 사용.
@@ -64,32 +71,41 @@ export function useWeeklyLogs(participantId: string | null) {
   return { logs, loading, refetch: fetch, insert, update };
 }
 
-export function useAllWeeklyLogsForChallenge(participantIds: string[]) {
+/**
+ * 방 전체 주간 기록 — get_room_weekly_logs 1회 호출.
+ * participantIds 는 (1) 빈 배열 시 호출 생략 (2) 참가자별 빈 배열 시드 (3) 참가자 변경 시
+ * refetch 트리거 용도로 유지한다.
+ */
+export function useAllWeeklyLogsForChallenge(
+  challengeCode: string | null | undefined,
+  participantIds: string[]
+) {
   const [logsByParticipant, setLogsByParticipant] = useState<Record<string, WeeklyLog[]>>({});
   const [loading, setLoading] = useState(true);
+  const idsKey = participantIds.join(',');
 
   const fetch = useCallback(async () => {
-    if (participantIds.length === 0) {
+    if (!challengeCode || participantIds.length === 0) {
       setLogsByParticipant({});
       setLoading(false);
       return;
     }
     setLoading(true);
-    const { data } = await supabase
-      .from('weekly_logs')
-      .select('*')
-      .in('participant_id', participantIds)
-      .order('week_no', { ascending: true });
+    let data: WeeklyLog[] = [];
+    try {
+      data = await fetchRoomWeeklyLogs(challengeCode);
+    } catch {
+      data = [];
+    }
     const byParticipant: Record<string, WeeklyLog[]> = {};
     for (const pId of participantIds) byParticipant[pId] = [];
-    for (const row of data || []) {
-      const pId = (row as WeeklyLog).participant_id;
-      if (!byParticipant[pId]) byParticipant[pId] = [];
-      byParticipant[pId].push(row as WeeklyLog);
+    for (const row of [...data].sort((a, b) => a.week_no - b.week_no)) {
+      if (!byParticipant[row.participant_id]) byParticipant[row.participant_id] = [];
+      byParticipant[row.participant_id].push(row);
     }
     setLogsByParticipant(byParticipant);
     setLoading(false);
-  }, [participantIds.join(',')]);
+  }, [challengeCode, idsKey]);
 
   useEffect(() => {
     fetch();

@@ -14,7 +14,7 @@ import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import Box from '@mui/material/Box';
-import { supabase } from '../lib/supabase';
+import { createWeeklyLog } from '../lib/roomApi';
 import type { Participant, Gender, DietQuality } from '../types';
 import { getWeekNoForDate } from '../lib/weekUtils';
 import { prepareDeviceSecret } from '../lib/deviceSecret';
@@ -22,6 +22,8 @@ import { track } from '../lib/analytics';
 
 interface Props {
   open: boolean;
+  /** 대결방 코드 — RLS lockdown 이후 create_weekly_log RPC 가 요구한다. */
+  challengeCode: string;
   participant: Participant | null;
   challengeStartDate: string;
   challengeEndDate: string;
@@ -37,6 +39,7 @@ interface Props {
 
 export default function WeeklyLogForm({
   open,
+  challengeCode,
   participant,
   challengeStartDate,
   challengeEndDate,
@@ -122,25 +125,31 @@ export default function WeeklyLogForm({
     // Sprint 0.2: 본인 디바이스만 24h 내 수정할 수 있도록 device_secret 발급
     const secret = await prepareDeviceSecret('weekly_logs');
 
-    const { data: inserted, error: err } = await supabase
-      .from('weekly_logs')
-      .insert({
-        participant_id: participant.id,
-        week_no: weekNo,
-        recorded_at: recordedAt,
-        age: age.trim() ? parseInt(age, 10) : null,
-        gender: gender || null,
-        weight_kg: weightKg.trim() ? parseFloat(weightKg) : null,
-        height_cm: heightCm.trim() ? parseFloat(heightCm) : null,
-        body_fat_rate: Math.round(rate * 100) / 100,
-        exercise_count: exerciseCount !== '' ? parseInt(exerciseCount, 10) : null,
-        sleep_hours: parsedSleepHours,
-        diet_quality: dietQuality || null,
-        note: note.trim() || null,
-        device_secret_hash: secret.hash,
-      })
-      .select()
-      .single();
+    // RLS lockdown: weekly_logs 직접 INSERT 대신 room-code RPC.
+    let inserted: { id?: string } | null = null;
+    let err: Error | null = null;
+    try {
+      inserted = await createWeeklyLog(
+        challengeCode,
+        participant.id,
+        {
+          week_no: weekNo,
+          recorded_at: recordedAt,
+          age: age.trim() ? parseInt(age, 10) : null,
+          gender: gender || null,
+          weight_kg: weightKg.trim() ? parseFloat(weightKg) : null,
+          height_cm: heightCm.trim() ? parseFloat(heightCm) : null,
+          body_fat_rate: Math.round(rate * 100) / 100,
+          exercise_count: exerciseCount !== '' ? parseInt(exerciseCount, 10) : null,
+          sleep_hours: parsedSleepHours,
+          diet_quality: dietQuality || null,
+          note: note.trim() || null,
+        },
+        secret.hash
+      );
+    } catch (e) {
+      err = e instanceof Error ? e : new Error(String(e));
+    }
 
     setLoading(false);
     if (err) {

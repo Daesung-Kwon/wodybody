@@ -290,6 +290,10 @@ app.register_blueprint(burnfat_ai.bp)
 from routes import burnfat_coach
 app.register_blueprint(burnfat_coach.bp)
 
+# BurnFat 인증 이미지 서버측 signed URL (/api/burnfat/images/*) — inbody 버킷 anon SELECT 제거 대응
+from routes import burnfat_images
+app.register_blueprint(burnfat_images.bp)
+
 # WODYBODY PT — 사용자 선호 설정
 from routes import preferences as pt_preferences
 app.register_blueprint(pt_preferences.bp)

@@ -1,12 +1,15 @@
 [build]
-builder = "NIXPACKS"
+# Railway deprecated Nixpacks; only RAILPACK and DOCKERFILE are valid.
+# builder=NIXPACKS caused every main deploy since 2026-10-05 to fail.
+builder = "RAILPACK"
+# Watch patterns are always relative to repo root (even when Root Directory=/backend).
+watchPatterns = ["backend/**"]
 
 [deploy]
-# gunicorn + eventlet 워커. Root Directory=/backend 이므로 cd 불필요.
-# eventlet 0.36.1 로 Python 3.12 distutils 충돌 해소(2026-05-19). WSGI 타깃은
-# app:app — Flask-SocketIO 의 socketio 객체는 WSGI 콜러블이 아니라서
-# app:socketio 는 "Application object must be callable" 로 기동 실패한다.
-startCommand = "gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT --timeout 120 --keep-alive 5 --log-level info app:app"
+# Portable across Root Directory=/backend and Root Directory=/ (repo root).
+# Do NOT use bare `cd backend && gunicorn…` — when Root=/backend that cd fails
+# with "No such file or directory". See backend/start.sh.
+startCommand = "bash -c 'if [ -f start.sh ]; then exec bash start.sh; else exec bash backend/start.sh; fi'"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"

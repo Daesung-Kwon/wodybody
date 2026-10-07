@@ -1,0 +1,3 @@
+# Fallback for Railway when service Root Directory is the repo root instead of /backend.
+# Prefer Root Directory=/backend (then this file is outside the build context).
+-r backend/requirements.txt

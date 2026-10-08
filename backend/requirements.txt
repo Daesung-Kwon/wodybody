@@ -8,7 +8,9 @@ Flask-Mail==0.9.1
 Werkzeug==2.3.7
 python-socketio==5.8.0
 python-engineio==4.7.1
-psycopg2-binary==2.9.7
+# 2.9.7 has no cp312 wheel → built from sdist against the build image libpq, which the
+# Railpack runtime image lacks (ImportError: libpq.so.5). 2.9.10 ships manylinux wheels with libpq bundled.
+psycopg2-binary==2.9.10
 python-dotenv==1.0.0
 gunicorn==21.2.0
 pytest==8.3.5

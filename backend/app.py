@@ -81,6 +81,12 @@ _database_url = os.environ.get('DATABASE_URL', '')
 if _database_url.startswith('postgres://'):
     _database_url = 'postgresql://' + _database_url[len('postgres://'):]
     os.environ['DATABASE_URL'] = _database_url
+# Pin the DBAPI explicitly: SQLAlchemy 2.1+ maps bare postgresql:// to psycopg (v3),
+# but requirements ship psycopg2-binary. Only the SQLAlchemy URI is rewritten;
+# os.environ['DATABASE_URL'] stays a plain libpq URL for other consumers.
+_sqlalchemy_url = _database_url
+if _sqlalchemy_url.startswith('postgresql://'):
+    _sqlalchemy_url = 'postgresql+psycopg2://' + _sqlalchemy_url[len('postgresql://'):]
 
 if IS_PRODUCTION:
     if not os.environ.get('SECRET_KEY'):
@@ -90,7 +96,7 @@ if IS_PRODUCTION:
     if os.environ.get('CORS_ORIGINS', '').strip() in ('', 'http://localhost:3000'):
         app.logger.warning('CORS_ORIGINS looks like a localhost default in production')
 
-app.config['SQLALCHEMY_DATABASE_URI'] = _database_url or 'sqlite:///crossfit.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = _sqlalchemy_url or 'sqlite:///crossfit.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or (
     None if IS_PRODUCTION else secrets.token_hex(32)

@@ -7,6 +7,7 @@ from .workout_record import WorkoutRecords
 from .preference import UserPreferences
 from .daily_assignment import DailyAssignments
 from .push_token import PushTokens
+from .live_session import LiveSession, LiveParticipant, LiveTapEvent
 
 __all__ = [
     'Users',
@@ -17,4 +18,5 @@ __all__ = [
     'UserPreferences',
     'DailyAssignments',
     'PushTokens',
+    'LiveSession', 'LiveParticipant', 'LiveTapEvent',
 ]

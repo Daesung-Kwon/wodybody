@@ -162,6 +162,7 @@ from models.notification import Notifications
 from models.workout_record import WorkoutRecords
 from models.password_reset import PasswordReset
 from models.email_verification import EmailVerification
+from models.live_session import LiveSession, LiveParticipant, LiveTapEvent  # noqa: F401
 
 
 # ==================================================================
@@ -316,6 +317,10 @@ app.register_blueprint(pt_recommendations.bp)
 from routes import push as pt_push
 app.register_blueprint(pt_push.bp)
 
+# Live WOD PoC — sessions, taps, per-division leaderboard. Not a video integration.
+from routes import live as live_routes
+app.register_blueprint(live_routes.bp)
+
 if os.environ.get('FLASK_ENV') == 'development':
     from routes import debug as debug_routes
     app.register_blueprint(debug_routes.bp)
@@ -372,6 +377,27 @@ def handle_leave_user_room(data):
         return
     leave_room(f'user_{user_id}')
     app.logger.info('SocketIO leave_user_room user_id=%s', user_id)
+
+
+@socketio.on('live_join')
+def handle_live_join(data):
+    """Join live_{session_id} only for the token-verified user. Payload user id is ignored."""
+    live_routes.on_live_join(_socket_users.get(request.sid), data)
+
+
+@socketio.on('live_leave')
+def handle_live_leave(data):
+    live_routes.on_live_leave(_socket_users.get(request.sid), data)
+
+
+@socketio.on('live_time_sync')
+def handle_live_time_sync(_data=None):
+    return live_routes.on_live_time_sync(_socket_users.get(request.sid))
+
+
+# In-process 1s leaderboard flush. Correct only for gunicorn -w 1.
+if os.environ.get('FLASK_ENV') != 'testing':
+    live_routes.start_leaderboard_broadcaster()
 
 print("✅ All blueprints and WebSocket handlers registered successfully!")
 

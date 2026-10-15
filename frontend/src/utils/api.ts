@@ -23,6 +23,11 @@ import {
     PushTokenRegistration,
     PushTokenInfo
 } from '../types';
+import {
+    CreateLiveSessionRequest,
+    LiveDivision,
+    LiveSessionView,
+} from '../types/live';
 import { getAccessToken, setAccessToken } from '../lib/tokenStore';
 import { apiBaseUrl } from '../lib/env';
 
@@ -357,4 +362,39 @@ export const pushApi = {
     /** 토큰 비활성화. */
     deactivate: (tokenId: number): Promise<{ message: string }> =>
         apiRequest<{ message: string }>(`/api/me/push-tokens/${tokenId}`, { method: 'DELETE' }),
+};
+
+export const liveApi = {
+    time: (): Promise<{ server_time_ms: number }> =>
+        apiRequest<{ server_time_ms: number }>('/api/live/time'),
+
+    create: (data: CreateLiveSessionRequest): Promise<LiveSessionView> =>
+        apiRequest<LiveSessionView>('/api/live/sessions', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+
+    get: (sessionId: number): Promise<LiveSessionView> =>
+        apiRequest<LiveSessionView>(`/api/live/sessions/${sessionId}`),
+
+    join: (sessionId: number, division: LiveDivision): Promise<LiveSessionView> =>
+        apiRequest<LiveSessionView>(`/api/live/sessions/${sessionId}/join`, {
+            method: 'POST',
+            body: JSON.stringify({ division }),
+        }),
+
+    start: (sessionId: number): Promise<LiveSessionView> =>
+        apiRequest<LiveSessionView>(`/api/live/sessions/${sessionId}/start`, { method: 'POST' }),
+
+    end: (sessionId: number): Promise<LiveSessionView> =>
+        apiRequest<LiveSessionView>(`/api/live/sessions/${sessionId}/end`, { method: 'POST' }),
+
+    tap: (sessionId: number, data: { kind: 'round' | 'rep'; client_ts_ms: number }): Promise<LiveSessionView> =>
+        apiRequest<LiveSessionView>(`/api/live/sessions/${sessionId}/tap`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+
+    finish: (sessionId: number): Promise<LiveSessionView> =>
+        apiRequest<LiveSessionView>(`/api/live/sessions/${sessionId}/finish`, { method: 'POST' }),
 };

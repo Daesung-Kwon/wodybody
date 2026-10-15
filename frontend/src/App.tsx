@@ -21,6 +21,7 @@ import MuiStepBasedCreateProgramPage from './components/MuiStepBasedCreateProgra
 import MuiNotificationsPage from './components/MuiNotificationsPage';
 import { isBurnFatHost } from './lib/env';
 import MuiAboutPage from './components/MuiAboutPage';
+import LiveSessionPage from './components/LiveSessionPage';
 
 const BurnFatApp = React.lazy(() => import('./pages/BurnFatApp'));
 import {
@@ -73,6 +74,7 @@ const AppShellLayout: React.FC = () => {
                 else if (target.includes('history')) navigate('/history');
                 else if (target.includes('library')) navigate('/library');
                 else if (target.includes('preferences')) navigate('/preferences');
+                else if (target.includes('live')) navigate('/live');
                 else navigate('/today');
             } else {
                 navigate('/today');
@@ -173,6 +175,8 @@ const AppRoutes: React.FC = () => {
                     <Route path="/preferences" element={<MuiPreferencesPage goBack={() => navigate('/today')} />} />
                     <Route path="/notifications" element={<MuiNotificationsPage onBack={() => navigate(-1)} />} />
                     <Route path="/about" element={<MuiAboutPage onBack={() => navigate('/today')} />} />
+                    <Route path="/live" element={<LiveSessionPage />} />
+                    <Route path="/live/:sessionId" element={<LiveSessionPage />} />
                 </Route>
             </Route>
 

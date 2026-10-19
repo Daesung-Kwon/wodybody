@@ -26,6 +26,7 @@ import {
     ExitToApp as LogoutIcon,
     Home as HomeIcon,
     Timer as TimerIcon,
+    Sensors as SensorsIcon,
     TrendingUp as TrendingUpIcon,
     Info as InfoIcon,
 } from '@mui/icons-material';
@@ -65,6 +66,7 @@ const MuiNavigation: React.FC<MuiNavigationProps> = ({
         { id: 'history', label: 'History', icon: <TrendingUpIcon /> },
         { id: 'library', label: 'Library', icon: <FitnessCenterIcon /> },
         { id: 'preferences', label: '설정', icon: <SettingsIcon /> },
+        { id: 'live', label: 'Live', icon: <SensorsIcon /> },
         { id: 'burnfat', label: 'BurnFat', icon: <TimerIcon /> },
     ];
 

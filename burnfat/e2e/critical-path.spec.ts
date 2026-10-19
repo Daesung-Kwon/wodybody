@@ -77,7 +77,6 @@ test('챌린지 핵심 경로 — 생성부터 코치 대화·새로고침 유�
     await page.getByLabel('대결 이름').fill('E2E 테스트');
     await page.getByLabel('시작일').fill(dateStr(0));
     await page.getByLabel('종료일').fill(dateStr(28));
-    await page.getByLabel('참가비 (원)').fill('50000');
     await page.getByLabel('관리자 PIN (선택)').fill('1234');
     await page.getByRole('button', { name: '대결 생성' }).click();
     await page.waitForURL('**/c/**');

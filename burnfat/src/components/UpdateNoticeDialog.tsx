@@ -140,7 +140,7 @@ export default function UpdateNoticeDialog() {
 
       <DialogContent sx={{ px: 2.5, py: 2 }}>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          더 공정하고 스마트한 체지방 감량 내기를 위해 다양한 기능이 추가·개선되었습니다. 🔥
+          더 공정하고 스마트한 체지방 감량 챌린지를 위해 다양한 기능이 추가·개선되었습니다. 🔥
         </Typography>
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>

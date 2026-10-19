@@ -39,18 +39,16 @@ export default function CreateChallengePage() {
     d.setMonth(d.getMonth() + 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
-  const [stakeAmount, setStakeAmount] = useState(50000);
   const [adminPin, setAdminPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   // Sprint 2: 선택된 챌린지 템플릿 id. 사용자가 값을 직접 수정하면 null(직접 설정).
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
 
-  // 템플릿 선택 → 종료일·참가비 자동 채움.
+  // 템플릿 선택 → 종료일 자동 채움. 금액 필드는 G5에서 제거했고 RPC에는 0을 보낸다.
   const handleSelectTemplate = (t: ChallengeTemplate) => {
     setSelectedTemplateId(t.id);
     setEndDate(templateEndDate(startDate, t.weeks));
-    setStakeAmount(t.stakeAmount);
   };
 
   // 시작일 변경 — 템플릿이 선택돼 있으면 종료일을 다시 계산해 일관성 유지.
@@ -86,7 +84,8 @@ export default function CreateChallengePage() {
         p_title: title.trim() || '다이어트 챌린지',
         p_start_date: startDate,
         p_end_date: endDate,
-        p_stake_amount: stakeAmount,
+        // G5: 금액 입력 UI 제거. 컬럼/RPC 인자는 유지하고 항상 0.
+        p_stake_amount: 0,
         p_admin_pin: adminPin.trim() || null,
       });
       data = res.data;
@@ -114,7 +113,6 @@ export default function CreateChallengePage() {
       (new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000
     );
     track('challenge_created', {
-      stake_amount: stakeAmount,
       has_admin_pin: Boolean(adminPin.trim()),
       duration_days: durationDays,
     });
@@ -158,14 +156,6 @@ export default function CreateChallengePage() {
               value={endDate}
               onChange={(e) => { setEndDate(e.target.value); setSelectedTemplateId(null); }}
               InputLabelProps={{ shrink: true }}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              fullWidth
-              label="참가비 (원)"
-              type="number"
-              value={stakeAmount}
-              onChange={(e) => { setStakeAmount(Number(e.target.value) || 0); setSelectedTemplateId(null); }}
               sx={{ mb: 2 }}
             />
             <TextField

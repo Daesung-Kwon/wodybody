@@ -39,7 +39,7 @@ export default function HomePage() {
           BurnFat
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          체지방 감량 다이어트 내기
+          체지방 감량 다이어트 챌린지
         </Typography>
       </Box>
 

@@ -19,7 +19,7 @@ interface ChallengeHeaderProps {
 
 /**
  * Sprint 3 Phase B — ChallengePage 상단 헤더.
- * 제목·기간·참가비·대결 코드 + D-Day 칩 + 수정/복사 버튼.
+ * 제목·기간·대결 코드 + D-Day 칩 + 수정/복사 버튼.
  */
 export default function ChallengeHeader({
   challenge,
@@ -42,8 +42,7 @@ export default function ChallengeHeader({
             {challenge.title}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {challenge.start_date} ~ {challenge.end_date} · 참가비{' '}
-            {challenge.stake_amount.toLocaleString()}원
+            {challenge.start_date} ~ {challenge.end_date}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             대결 코드: <strong>{challenge.code}</strong>

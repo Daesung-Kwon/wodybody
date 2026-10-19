@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { CHALLENGE_TEMPLATES, templateEndDate } from './challengeTemplates';
 
 describe('CHALLENGE_TEMPLATES', () => {
-  it('4/8/12주 프리셋 3종 — 참가비 5만/10만/20만', () => {
+  it('4/8/12주 기간 프리셋 3종', () => {
     expect(CHALLENGE_TEMPLATES).toHaveLength(3);
     expect(CHALLENGE_TEMPLATES.map((t) => t.weeks)).toEqual([4, 8, 12]);
-    expect(CHALLENGE_TEMPLATES.map((t) => t.stakeAmount)).toEqual([50000, 100000, 200000]);
+    expect(CHALLENGE_TEMPLATES.map((t) => t.id)).toEqual(['4w', '8w', '12w']);
   });
 
   it('id 는 고유', () => {

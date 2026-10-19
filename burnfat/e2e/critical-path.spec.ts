@@ -1,7 +1,7 @@
 /**
  * Sprint 3 Phase C — 챌린지 핵심 경로 E2E.
  *
- * 대결 생성 → 진입 → 참가 → 기본정보 → 시작 인증(이미지 마스킹) → 주간 기록 →
+ * 대결 생성 → 진입 → 참가 → 기본정보 → 시작 인증(체지방률 숫자만) → 주간 기록 →
  * AI 조언 → 코치 대화 → 새로고침 후 데이터 유지까지 한 흐름으로 검증한다.
  *
  * 모든 네트워크는 MSW(e2e/fixtures/handlers.ts)로 모킹되며, 운영 도메인
@@ -10,8 +10,6 @@
  */
 import { test, expect } from './fixtures/test';
 import type { Locator } from '@playwright/test';
-
-const FIXTURE_IMAGE = 'e2e/fixtures/inbody.jpg';
 
 /** YYYY-MM-DD 로 오늘 + offset 일. */
 function dateStr(offsetDays = 0): string {
@@ -103,20 +101,17 @@ test('챌린지 핵심 경로 — 생성부터 코치 대화·새로고침 유�
     await expect(dialog).toBeHidden();
   });
 
-  await test.step('7. 시작일 인증 (이미지 마스킹)', async () => {
+  await test.step('7. 시작일 인증 (체지방률 숫자만, 사진 없음)', async () => {
     await page.getByRole('button', { name: '시작일 인증' }).first().click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    await dialog.locator('input[type="file"]').setInputFiles(FIXTURE_IMAGE);
-    // 이미지 로드 후 마스킹 캔버스를 1회 클릭 → "마스킹 적용".
-    const maskCanvas: Locator = dialog.locator('canvas').nth(1);
-    await expect(maskCanvas).toBeVisible();
-    await maskCanvas.click({ position: { x: 100, y: 130 } });
-    await dialog.getByRole('button', { name: '마스킹 적용' }).click();
-    await expect(dialog.getByText('마스킹 적용 완료')).toBeVisible();
+    // 2026-10-19: 인바디 사진은 받지 않는다 — 파일 입력이 없어야 한다.
+    await expect(dialog.locator('input[type="file"]')).toHaveCount(0);
     await dialog.getByLabel('체지방률 (%)').fill('28.0');
     await dialog.getByRole('button', { name: '제출' }).click();
     await expect(dialog).toBeHidden();
+    // 사진 '보기' 버튼도 없어야 한다.
+    await expect(page.getByRole('button', { name: '인증 이미지 보기' })).toHaveCount(0);
   });
 
   await test.step('8. 주간 기록 입력', async () => {

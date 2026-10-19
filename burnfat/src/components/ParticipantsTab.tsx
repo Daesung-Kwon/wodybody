@@ -7,13 +7,14 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
-import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import type { ParticipantWithSubmissions } from '../types';
-import { resolveImageUrl } from '../lib/signedImage';
 import { EndAuthButton } from '../theme/rankAnimations';
 
 interface ParticipantsTabProps {
-  /** 대결방 코드 — 인증 이미지 서버측 서명(room code 검증)에 사용. */
+  /**
+   * 대결방 코드. 인증 이미지 표시를 내린 뒤(2026-10-19, 사진 미수집) 이 컴포넌트에서는 쓰지 않는다.
+   * 호출부 호환을 위해 prop 은 유지.
+   */
   challengeCode: string;
   participants: ParticipantWithSubmissions[];
   /** 전 참가자의 종료 인증이 끝났는지 — 종료 인증 값 노출 여부를 결정. */
@@ -21,6 +22,7 @@ interface ParticipantsTabProps {
   onAuthStart: (p: ParticipantWithSubmissions) => void;
   onAuthEnd: (p: ParticipantWithSubmissions) => void;
   onOpenBasicInfo: (p: ParticipantWithSubmissions) => void;
+  /** 사진 표시 제거 후 이 컴포넌트에서는 쓰지 않는다. 호출부 호환을 위해 유지. */
   onToast: (msg: string) => void;
 }
 
@@ -47,13 +49,11 @@ const getEndBtnColor = (participantId: string) => {
  * 시작 체지방률 내림차순으로 정렬해 인증 진행 상태를 보여 준다.
  */
 export default function ParticipantsTab({
-  challengeCode,
   participants,
   allEndComplete,
   onAuthStart,
   onAuthEnd,
   onOpenBasicInfo,
-  onToast,
 }: ParticipantsTabProps) {
   const participantsWithRank = [...participants]
     .map((p) => {
@@ -190,36 +190,7 @@ export default function ParticipantsTab({
                           {s.type === 'start' ? '시작' : '종료'}: 체지방률{' '}
                           <strong>{Number(s.body_fat_rate).toFixed(1)}%</strong>
                         </Typography>
-                        {s.image_url ? (
-                          <Tooltip title="탭하여 이미지 보기">
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              color="primary"
-                              startIcon={<PhotoCameraIcon sx={{ fontSize: 14 }} />}
-                              sx={{
-                                minHeight: 28,
-                                minWidth: 40,
-                                py: 0.25,
-                                px: 0.75,
-                                fontSize: '0.75rem',
-                                flexShrink: 0,
-                              }}
-                              aria-label="인증 이미지 보기"
-                              onClick={async () => {
-                                // storage path → 백엔드 서명 URL (room code 검증, 1시간)
-                                const url = await resolveImageUrl(s.image_url, challengeCode);
-                                if (!url) {
-                                  onToast('이미지를 불러오지 못했습니다.');
-                                  return;
-                                }
-                                window.open(url, '_blank', 'noopener,noreferrer');
-                              }}
-                            >
-                              보기
-                            </Button>
-                          </Tooltip>
-                        ) : null}
+                        {/* 인증 사진 표시는 내렸다 (2026-10-19 결정: 숫자만, 사진 미수집). 기존 파일은 삭제 절차 대상. */}
                       </Box>
                     );
                   })}

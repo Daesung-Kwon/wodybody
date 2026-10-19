@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import Dialog from '@mui/material/Dialog';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
@@ -8,10 +8,8 @@ import DialogActions from '@mui/material/DialogActions';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { supabase } from '../lib/supabase';
 import { createSubmission } from '../lib/roomApi';
 import type { SubmissionType } from '../types';
-import ImageMaskEditor from './ImageMaskEditor';
 import { prepareDeviceSecret } from '../lib/deviceSecret';
 import { track } from '../lib/analytics';
 
@@ -32,21 +30,19 @@ interface Props {
   onSuccess: () => void;
 }
 
+/**
+ * 시작/종료 인증 — 체지방률 숫자만 입력한다.
+ *
+ * 2026-10-19 결정: 인바디 사진은 더 이상 수집·저장하지 않는다 (docs/validation/week0/G3.md).
+ * Storage 업로드를 하지 않으며 create_submission 에는 p_image_path = null 을 보낸다.
+ * 기존 이미지의 삭제 절차는 docs/validation/week0/inbody-deletion.md.
+ */
 export default function SubmitModal({ open, challengeCode, participantId, participantNickname, type, onClose, onSuccess }: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [bodyFatRate, setBodyFatRate] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [maskedBlob, setMaskedBlob] = useState<Blob | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const resetImage = () => {
-    setSelectedFile(null);
-    setMaskedBlob(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,30 +52,13 @@ export default function SubmitModal({ open, challengeCode, participantId, partic
       return;
     }
     const rateRounded = Math.round(rate * 10) / 10;
-    if (!maskedBlob) {
-      setError('인바디 인쇄물 이미지를 첨부하고 마스킹 적용을 완료해주세요.');
-      return;
-    }
     setLoading(true);
     setError('');
-
-    // Sprint 0.3: Storage path 만 저장 (표시 시 백엔드가 signed URL 발급). 버킷은 Private.
-    // RLS lockdown: upsert:false — anon UPDATE(덮어쓰기) 정책은 제거된다 (20261006000003).
-    //   파일명에 타임스탬프가 들어가므로 덮어쓸 일이 없다.
-    const path = `${participantId}/${type}-${Date.now()}.jpg`;
-    const { error: uploadErr } = await supabase.storage
-      .from('inbody')
-      .upload(path, maskedBlob, { upsert: false });
-    if (uploadErr) {
-      setError('이미지 업로드에 실패했습니다. ' + uploadErr.message);
-      setLoading(false);
-      return;
-    }
 
     // Sprint 0.2: device_secret 발급 → 해시는 서버에 저장, plain 은 INSERT 성공 후 localStorage 에 보관
     const secret = await prepareDeviceSecret('submissions');
 
-    // RLS lockdown: submissions 직접 INSERT 대신 room-code RPC.
+    // RLS lockdown: submissions 직접 INSERT 대신 room-code RPC. 사진 없음 → imagePath null.
     let inserted: { id?: string } | null = null;
     let insertErr: Error | null = null;
     try {
@@ -87,7 +66,7 @@ export default function SubmitModal({ open, challengeCode, participantId, partic
         participantId,
         type,
         bodyFatRate: rateRounded,
-        imagePath: path,
+        imagePath: null,
         deviceSecretHash: secret.hash,
       });
     } catch (e) {
@@ -106,14 +85,6 @@ export default function SubmitModal({ open, challengeCode, participantId, partic
     onSuccess();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) {
-      setSelectedFile(f);
-      setMaskedBlob(null);
-    }
-  };
-
   const label = type === 'start' ? '시작일' : '종료일';
 
   return (
@@ -124,34 +95,8 @@ export default function SubmitModal({ open, challengeCode, participantId, partic
       <form onSubmit={handleSubmit}>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            인바디 인쇄물 사진을 찍어 업로드한 뒤, 개인정보를 마스킹하고 체지방률(%)을 입력하세요.
+            측정한 체지방률(%)을 숫자로 입력하세요. 사진은 받지 않습니다.
           </Typography>
-
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            인바디 이미지 (필수)
-          </Typography>
-          {!selectedFile ? (
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleFileChange}
-              style={{ display: 'block', marginBottom: 16 }}
-              required
-            />
-          ) : (
-            <ImageMaskEditor
-              file={selectedFile}
-              onMaskedBlob={(blob) => setMaskedBlob(blob)}
-              onReset={resetImage}
-            />
-          )}
-          {maskedBlob && (
-            <Typography variant="caption" color="success.main" sx={{ display: 'block', mt: 1 }}>
-              ✓ 마스킹 적용 완료
-            </Typography>
-          )}
 
           <TextField
             fullWidth
@@ -160,7 +105,7 @@ export default function SubmitModal({ open, challengeCode, participantId, partic
             inputProps={{ min: 0, max: 100, step: 0.1, inputMode: 'decimal' }}
             value={bodyFatRate}
             onChange={(e) => setBodyFatRate(e.target.value)}
-            sx={{ mt: 2, mb: 2 }}
+            sx={{ mt: 1, mb: 2 }}
             required
           />
           {error && (
@@ -171,11 +116,7 @@ export default function SubmitModal({ open, challengeCode, participantId, partic
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={onClose}>취소</Button>
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={loading || !maskedBlob}
-          >
+          <Button type="submit" variant="contained" disabled={loading || bodyFatRate.trim() === ''}>
             {loading ? '제출 중...' : '제출'}
           </Button>
         </DialogActions>

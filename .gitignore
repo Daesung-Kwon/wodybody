@@ -49,3 +49,6 @@ burnfat/.env.local
 !burnfat/src/lib/**
 !frontend/src/lib/
 !frontend/src/lib/**
+
+# Inbody deletion evidence (manifest has participant paths) — never commit
+inbody-evidence/

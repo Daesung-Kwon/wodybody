@@ -1,0 +1,3 @@
+participant_id,group,crew_id,d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15,d16,d17,d18,d19,d20,d21,difficulty_d1,difficulty_d2,difficulty_d3,difficulty_d4,difficulty_d5,difficulty_d6,difficulty_d7,difficulty_d8,difficulty_d9,difficulty_d10,difficulty_d11,difficulty_d12,difficulty_d13,difficulty_d14,difficulty_d15,difficulty_d16,difficulty_d17,difficulty_d18,difficulty_d19,difficulty_d20,difficulty_d21,shares,invites,signups_via_invite
+P-001,solo,,1,1,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,ok,ok,,hard,,ok,,,,,,,,,,,,,,,,1,0,0
+P-002,crew,C-01,1,0,1,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,ok,,ok,,,,,ok,,,,,,,,,,,,,,0,2,1

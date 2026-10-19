@@ -9,9 +9,9 @@ describe('sanitizeProps — PII 가드', () => {
   });
 
   it('이메일 형태의 값을 가진 키도 제거한다', () => {
-    const out = sanitizeProps({ contact: 'user@example.com', stake_amount: 50000 });
+    const out = sanitizeProps({ contact: 'user@example.com', duration_days: 28 });
     expect(out).not.toHaveProperty('contact');
-    expect(out).toEqual({ stake_amount: 50000 });
+    expect(out).toEqual({ duration_days: 28 });
   });
 
   it('전화번호·닉네임 키를 제거한다', () => {
@@ -38,7 +38,7 @@ describe('track', () => {
   it('VITE_ANALYTICS_DOMAIN 미설정 시 no-op (plausible 미호출)', () => {
     const spy = vi.fn();
     window.plausible = spy;
-    track('challenge_created', { stake_amount: 50000 });
+    track('challenge_created', { duration_days: 28 });
     expect(spy).not.toHaveBeenCalled();
   });
 

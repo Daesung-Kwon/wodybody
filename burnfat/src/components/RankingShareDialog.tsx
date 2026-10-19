@@ -10,13 +10,11 @@ import DownloadIcon from '@mui/icons-material/Download';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { toPng } from 'html-to-image';
 import type { Challenge, RankingRow } from '../types';
-import { computePrizeDistribution, formatKrw, PRIZE_RULE_LABEL } from '../lib/prizeDistribution';
 
 interface Props {
   open: boolean;
   challenge: Challenge;
   ranking: RankingRow[];
-  participantCount: number;
   shareUrl: string;
   onClose: () => void;
   onToast: (message: string) => void;
@@ -31,13 +29,12 @@ function medalText(rank: number): string {
 
 /**
  * Sprint 1 — 랭킹 공유.
- * 공유용 카드(PNG) + 텍스트 복사. 카드에는 Top 3 + 예상 상금 분배를 포함한다.
+ * 공유용 카드(PNG) + 텍스트 복사. 카드에는 Top 3 감소율을 포함한다.
  */
 export default function RankingShareDialog({
   open,
   challenge,
   ranking,
-  participantCount,
   shareUrl,
   onClose,
   onToast,
@@ -45,7 +42,6 @@ export default function RankingShareDialog({
   const cardRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
 
-  const prize = computePrizeDistribution(challenge.stake_amount, participantCount);
   const top3 = ranking.slice(0, 3);
 
   const buildShareText = (): string => {
@@ -56,13 +52,6 @@ export default function RankingShareDialog({
       '',
       ...ranking.map((r) => `${medalText(r.rank)} ${r.nickname}  -${r.reductionRate.toFixed(2)}%`),
     ];
-    if (prize.hasPrize) {
-      lines.push(
-        '',
-        `💰 예상 정산 (${PRIZE_RULE_LABEL})`,
-        `· 1등 +${formatKrw(prize.winnerNet)} / 그 외 ${formatKrw(prize.loserNet)}`
-      );
-    }
     lines.push('', `🔗 ${shareUrl}`);
     return lines.join('\n');
   };
@@ -184,25 +173,10 @@ export default function RankingShareDialog({
             )}
           </Box>
 
-          {prize.hasPrize && (
-            <Box sx={{ bgcolor: '#f0fdf4', borderRadius: 2, p: 1.25, border: '1px solid', borderColor: '#bbf7d0' }}>
-              <Typography variant="caption" sx={{ fontWeight: 700, color: '#15803d', display: 'block' }}>
-                💰 예상 정산 · {PRIZE_RULE_LABEL}
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                상금 풀 {formatKrw(prize.pot)} · 1등 +{formatKrw(prize.winnerNet)} · 그 외 {formatKrw(prize.loserNet)}
-              </Typography>
-            </Box>
-          )}
-
           <Typography variant="caption" sx={{ color: 'text.disabled', textAlign: 'center' }}>
             대결 코드 {challenge.code} · burnfat.wodybody.com
           </Typography>
         </Box>
-
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, textAlign: 'center' }}>
-          정산 금액은 승자독식 가정의 예상치입니다. 실제 분배는 대결방에서 합의하세요.
-        </Typography>
       </DialogContent>
       <DialogActions sx={{ px: 2, pb: 2, gap: 1, flexWrap: 'wrap' }}>
         <Button onClick={onClose} color="inherit">

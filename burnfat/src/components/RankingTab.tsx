@@ -250,7 +250,6 @@ export default function RankingTab({
           open={shareOpen}
           challenge={challenge}
           ranking={ranking}
-          participantCount={participants.length}
           shareUrl={shareUrl}
           onClose={() => setShareOpen(false)}
           onToast={onToast}

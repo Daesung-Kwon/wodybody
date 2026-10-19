@@ -1,8 +1,9 @@
 /**
  * Sprint 2 — 챌린지 생성 템플릿(프리셋).
  *
- * 재참여 사용자의 생성 마찰을 줄이기 위해 기간·참가비 조합을 프리셋으로 제공한다.
+ * 재참여 사용자의 생성 마찰을 줄이기 위해 기간 프리셋을 제공한다.
  * 순수 데이터 + 순수 함수.
+ * G5 (2026-10): 금액 프리셋은 제거. 기간(주)만 남긴다.
  */
 
 export interface ChallengeTemplate {
@@ -10,8 +11,6 @@ export interface ChallengeTemplate {
   label: string;
   /** 챌린지 기간(주). 종료일 계산에 사용. */
   weeks: number;
-  /** 1인 참가비(원). */
-  stakeAmount: number;
   /** 카드에 표시할 한 줄 설명. */
   description: string;
 }
@@ -21,21 +20,18 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
     id: '4w',
     label: '4주 챌린지',
     weeks: 4,
-    stakeAmount: 50000,
     description: '짧고 굵게 — 한 달 집중 감량',
   },
   {
     id: '8w',
     label: '8주 챌린지',
     weeks: 8,
-    stakeAmount: 100000,
     description: '두 달 — 눈에 띄는 변화',
   },
   {
     id: '12w',
     label: '12주 챌린지',
     weeks: 12,
-    stakeAmount: 200000,
     description: '시즌 단위 — 습관까지 정착',
   },
 ];

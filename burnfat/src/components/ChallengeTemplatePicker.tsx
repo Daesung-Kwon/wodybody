@@ -13,7 +13,7 @@ interface Props {
 
 /**
  * Sprint 2 — 챌린지 생성 템플릿 선택.
- * 4/8/12주 프리셋 카드. 선택 시 종료일·참가비를 자동 채운다.
+ * 4/8/12주 프리셋 카드. 선택 시 종료일을 자동 채운다.
  */
 export default function ChallengeTemplatePicker({ selectedId, onSelect }: Props) {
   return (
@@ -37,7 +37,7 @@ export default function ChallengeTemplatePicker({ selectedId, onSelect }: Props)
               <CardActionArea
                 onClick={() => onSelect(t)}
                 aria-pressed={selected}
-                aria-label={`${t.label} — 참가비 ${t.stakeAmount.toLocaleString('ko-KR')}원`}
+                aria-label={`${t.label} — ${t.weeks}주`}
                 sx={{ p: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}
               >
                 <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -48,7 +48,7 @@ export default function ChallengeTemplatePicker({ selectedId, onSelect }: Props)
                     {t.description}
                   </Typography>
                   <Typography variant="caption" color="primary.dark" fontWeight={600}>
-                    {t.weeks}주 · 참가비 {t.stakeAmount.toLocaleString('ko-KR')}원
+                    {t.weeks}주
                   </Typography>
                 </Box>
                 {selected && <CheckCircleIcon color="primary" sx={{ fontSize: 22 }} aria-hidden />}

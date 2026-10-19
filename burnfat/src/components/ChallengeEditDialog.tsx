@@ -20,7 +20,7 @@ interface ChallengeEditDialogProps {
 }
 
 /**
- * Sprint 3 Phase B — 챌린지 기본정보(이름·기간·참가비) 수정 다이얼로그.
+ * Sprint 3 Phase B — 챌린지 기본정보(이름·기간) 수정 다이얼로그.
  * VIEW 는 read-only 이므로 UPDATE 는 base 테이블 `challenges` 를 직접 사용한다.
  */
 export default function ChallengeEditDialog({
@@ -33,7 +33,6 @@ export default function ChallengeEditDialog({
   const [title, setTitle] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [stakeAmount, setStakeAmount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -43,7 +42,6 @@ export default function ChallengeEditDialog({
       setTitle(challenge.title);
       setStartDate(challenge.start_date);
       setEndDate(challenge.end_date);
-      setStakeAmount(challenge.stake_amount);
       setError('');
     }
   }, [open, challenge]);
@@ -70,7 +68,8 @@ export default function ChallengeEditDialog({
       p_title: title.trim(),
       p_start_date: startDate,
       p_end_date: endDate,
-      p_stake_amount: stakeAmount,
+      // G5: 금액은 UI에서 바꾸지 않는다. NULL → RPC COALESCE 가 기존 값을 유지.
+      p_stake_amount: null,
     });
     setLoading(false);
     if (err) {
@@ -82,7 +81,6 @@ export default function ChallengeEditDialog({
       title: title.trim(),
       start_date: startDate,
       end_date: endDate,
-      stake_amount: stakeAmount,
     };
     onSaved({ ...challenge, ...updated });
     onClose();
@@ -118,14 +116,6 @@ export default function ChallengeEditDialog({
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
             InputLabelProps={{ shrink: true }}
-          />
-          <TextField
-            fullWidth
-            label="참가비 (원)"
-            type="number"
-            value={stakeAmount}
-            onChange={(e) => setStakeAmount(Number(e.target.value) || 0)}
-            inputProps={{ min: 0 }}
           />
           {error && (
             <Typography color="error" variant="body2">

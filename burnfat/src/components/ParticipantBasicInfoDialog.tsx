@@ -14,6 +14,8 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 import { updateParticipantBasicInfo } from '../lib/roomApi';
 import type { Participant, Gender } from '../types';
+import BodyFatConsentFields from './BodyFatConsentFields';
+import { gateBodyFatWrite, hasBodyFatConsent, saveBodyFatConsent } from '../lib/bodyFatConsent';
 
 interface Props {
   open: boolean;
@@ -33,16 +35,24 @@ export default function ParticipantBasicInfoDialog({ open, challengeCode, partic
   const [gender, setGender] = useState<Gender | ''>('');
   const [heightCm, setHeightCm] = useState<string>('');
   const [targetBodyFat, setTargetBodyFat] = useState<string>('');
+  const [consentChecked, setConsentChecked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const canSeeTarget = participant ? hasBodyFatConsent(participant.id) : false;
 
-  // open이 바뀔 때(다이얼로그가 열릴 때)마다 participant 최신값으로 폼 초기화
+  // open이 바뀔 때(다이얼로그가 열릴 때)마다 participant 최신값으로 폼 초기화.
+  // 이 기기에 동의가 없으면 목표 체지방은 비워 보여 준다. 그 상태로 저장하면
+  // 기존 값을 지우지 않고 그대로 둔다.
   useEffect(() => {
     if (open && participant) {
+      const consented = hasBodyFatConsent(participant.id);
       setAge(participant.age != null ? String(participant.age) : '');
       setGender(participant.gender || '');
       setHeightCm(participant.height_cm != null ? String(participant.height_cm) : '');
-      setTargetBodyFat(participant.target_body_fat != null ? String(participant.target_body_fat) : '');
+      setTargetBodyFat(
+        consented && participant.target_body_fat != null ? String(participant.target_body_fat) : ''
+      );
+      setConsentChecked(consented);
       setError('');
     }
   }, [open, participant]);
@@ -50,16 +60,36 @@ export default function ParticipantBasicInfoDialog({ open, challengeCode, partic
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!participant) return;
+    const typedTarget = targetBodyFat.trim();
+    const gate = gateBodyFatWrite(typedTarget !== '', consentChecked);
+    if (!gate.ok) {
+      setError(gate.message);
+      return;
+    }
+    let nextTarget: number | null;
+    if (typedTarget) {
+      const parsed = parseFloat(typedTarget);
+      if (isNaN(parsed) || parsed < 0 || parsed > 100) {
+        setError('목표 체지방률은 0~100 사이로 입력하세요.');
+        return;
+      }
+      nextTarget = parsed;
+    } else if (canSeeTarget) {
+      nextTarget = null;
+    } else {
+      nextTarget = participant.target_body_fat;
+    }
     setLoading(true);
     setError('');
-    // RLS lockdown: participants 직접 UPDATE 대신 room-code RPC (빈 값 = NULL 로 해제, 기존과 동일).
+    // RLS lockdown: participants 직접 UPDATE 대신 room-code RPC.
     try {
       await updateParticipantBasicInfo(challengeCode, participant.id, {
         age: age.trim() ? parseInt(age, 10) : null,
         gender: gender || null,
         height_cm: heightCm.trim() ? parseFloat(heightCm) : null,
-        target_body_fat: targetBodyFat.trim() ? parseFloat(targetBodyFat) : null,
+        target_body_fat: nextTarget,
       });
+      if (typedTarget) saveBodyFatConsent(participant.id);
     } catch (err) {
       setLoading(false);
       setError(err instanceof Error ? err.message : String(err));
@@ -83,7 +113,7 @@ export default function ParticipantBasicInfoDialog({ open, challengeCode, partic
       <form onSubmit={handleSubmit}>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <Typography variant="body2" color="text.secondary">
-            AI 조언 및 진행률에 활용됩니다. 대결방 참가자 누구나 입력·수정할 수 있습니다.
+            나이·성별·키는 이 방에서 함께 수정할 수 있습니다. 목표 체지방률은 선택이며, 동의한 뒤에만 저장됩니다.
           </Typography>
           <TextField
             fullWidth
@@ -116,6 +146,16 @@ export default function ParticipantBasicInfoDialog({ open, challengeCode, partic
             inputProps={{ min: 5, max: 60, step: 0.1, inputMode: 'decimal' }}
             value={targetBodyFat}
             onChange={(e) => setTargetBodyFat(e.target.value)}
+            helperText={
+              canSeeTarget
+                ? '선택. 비우면 목표를 지웁니다.'
+                : '선택. 동의 전에는 기존 값을 보여 주지 않으며, 비운 채 저장해도 기존 값을 지우지 않습니다.'
+            }
+          />
+          <BodyFatConsentFields
+            participantId={participant.id}
+            checked={consentChecked}
+            onChange={setConsentChecked}
           />
           {error && (
             <Typography color="error" variant="body2">

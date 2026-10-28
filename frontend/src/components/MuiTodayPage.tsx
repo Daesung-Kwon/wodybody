@@ -16,6 +16,12 @@ import { DailyAssignment } from '../types';
 import { todayApi } from '../utils/api';
 import { useTheme } from '../theme/ThemeProvider';
 import MuiWorkoutTimer from './MuiWorkoutTimer';
+import XaiTransferConsentDialog from '@burnfat/components/XaiTransferConsentDialog';
+import {
+    clearXaiTransferConsent,
+    hasXaiTransferConsent,
+    saveXaiTransferConsent,
+} from '@burnfat/lib/xaiTransferConsent';
 
 interface MuiTodayPageProps {
     goPreferences: () => void;
@@ -46,6 +52,8 @@ const MuiTodayPage: React.FC<MuiTodayPageProps> = ({ goPreferences }) => {
     const [error, setError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState<boolean>(false);
     const [timerOpen, setTimerOpen] = useState<boolean>(false);
+    const [consentOpen, setConsentOpen] = useState(false);
+    const [xaiOn, setXaiOn] = useState(hasXaiTransferConsent);
 
     const load = useCallback(async () => {
         setBusy(true);
@@ -151,6 +159,31 @@ const MuiTodayPage: React.FC<MuiTodayPageProps> = ({ goPreferences }) => {
             <Typography variant="h5" sx={{ fontWeight: 700, mb: 2 }}>
                 오늘의 운동
             </Typography>
+
+            <Alert
+                severity="info"
+                sx={{ mb: 2 }}
+                action={
+                    <Button
+                        color="inherit"
+                        size="small"
+                        onClick={() => {
+                            if (xaiOn) {
+                                clearXaiTransferConsent();
+                                setXaiOn(false);
+                                return;
+                            }
+                            setConsentOpen(true);
+                        }}
+                    >
+                        {xaiOn ? '동의 철회' : 'AI 추천 동의'}
+                    </Button>
+                }
+            >
+                {xaiOn
+                    ? 'AI가 고르는 크로스핏식 WOD에 동의했습니다. 닉네임·사진·체지방은 보내지 않습니다. 오늘 이미 고른 운동은 다른 추천을 눌러야 바뀝니다.'
+                    : '지금은 AI 없이 후보 중에서 고릅니다. AI 추천은 국외 이전 동의 후입니다.'}
+            </Alert>
 
             {assignment && !program && (
                 <Alert
@@ -263,6 +296,16 @@ const MuiTodayPage: React.FC<MuiTodayPageProps> = ({ goPreferences }) => {
                 푸시 시간/난이도/사용 기구를 바꾸려면{' '}
                 <Button size="small" onClick={goPreferences}>선호도 설정</Button>
             </Typography>
+            <XaiTransferConsentDialog
+                open={consentOpen}
+                onClose={() => setConsentOpen(false)}
+                onAgree={() => {
+                    saveXaiTransferConsent();
+                    setXaiOn(true);
+                    setConsentOpen(false);
+                    void load();
+                }}
+            />
         </Box>
     );
 };

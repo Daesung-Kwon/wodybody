@@ -7,6 +7,12 @@
  * - 세션 소유권용 device_secret 을 X-Device-Secret 헤더로 자동 첨부.
  */
 import { generateDeviceSecret } from './deviceSecret';
+import {
+  hasXaiTransferConsent,
+  XAI_CONSENT_REQUIRED_MESSAGE,
+  xaiTransferConsentFields,
+  xaiTransferConsentHeaders,
+} from './xaiTransferConsent';
 import type {
   CoachMessage,
   CoachMessageReference,
@@ -49,7 +55,10 @@ export function stripRefMarkers(text: string): string {
 }
 
 function deviceHeaders(json = false): Record<string, string> {
-  const h: Record<string, string> = { 'X-Device-Secret': getCoachDeviceSecret() };
+  const h: Record<string, string> = {
+    'X-Device-Secret': getCoachDeviceSecret(),
+    ...xaiTransferConsentHeaders(),
+  };
   if (json) h['Content-Type'] = 'application/json';
   return h;
 }
@@ -57,6 +66,7 @@ function deviceHeaders(json = false): Record<string, string> {
 async function parseError(res: Response, fallback: string): Promise<string> {
   try {
     const j = JSON.parse(await res.text()) as { error?: string };
+    if (j.error === 'xai_consent_required') return XAI_CONSENT_REQUIRED_MESSAGE;
     if (j.error) return j.error;
   } catch {
     /* not json */
@@ -151,6 +161,10 @@ export async function streamCoachMessage(
   req: SendCoachMessageRequest,
   handlers: CoachStreamHandlers
 ): Promise<void> {
+  if (!hasXaiTransferConsent()) {
+    handlers.onError(XAI_CONSENT_REQUIRED_MESSAGE);
+    return;
+  }
   let res: Response;
   try {
     res = await fetch(`${resolveCoachBase()}/messages`, {
@@ -164,6 +178,7 @@ export async function streamCoachMessage(
         persona: req.persona,
         visibility: req.visibility,
         seed_content: req.seedContent,
+        ...xaiTransferConsentFields(),
       }),
     });
   } catch {

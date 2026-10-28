@@ -10,7 +10,6 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
-import TextField from '@mui/material/TextField';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
@@ -28,6 +27,8 @@ import type { StructuredAdvice } from '../lib/edgeFunctions';
 import type { ParticipantWithSubmissions, WeeklyLog } from '../types';
 import { getCurrentWeekNo } from '../lib/weekUtils';
 import CoachChatDialog from './CoachChatDialog';
+import XaiTransferConsentDialog from './XaiTransferConsentDialog';
+import { hasXaiTransferConsent, saveXaiTransferConsent, clearXaiTransferConsent } from '../lib/xaiTransferConsent';
 
 interface Props {
   participant: ParticipantWithSubmissions;
@@ -106,10 +107,12 @@ export default function AIAdviceCard({
   const { result, loading, error, load, reset } = useAIAdvice();
   const [requested, setRequested] = useState(false);
   const [contextDialogOpen, setContextDialogOpen] = useState(false);
-  const [userContext, setUserContext] = useState('');
   const [adviceGoal, setAdviceGoal] = useState('이번 주 전략');
   const [adviceStyle, setAdviceStyle] = useState('현실적으로');
   const [coachOpen, setCoachOpen] = useState(false);
+  const [consentOpen, setConsentOpen] = useState(false);
+  const [pendingAi, setPendingAi] = useState<'advice' | 'refresh' | 'coach' | null>(null);
+  const [xaiOn, setXaiOn] = useState(hasXaiTransferConsent);
 
   const readinessItems = [
     { label: '나이', ready: participant.age != null },
@@ -124,29 +127,60 @@ export default function AIAdviceCard({
 
   const hasLifestyleData = logs.some((l) => l.exercise_count != null || l.sleep_hours != null || l.diet_quality != null);
 
-  const handleLoad = () => {
-    if (!canRequestAdvice) return;
-    setRequested(true);
-    load(participant.id);
+  const runAi = (action: 'advice' | 'refresh' | 'coach') => {
+    if (action === 'advice') {
+      if (!canRequestAdvice) return;
+      setRequested(true);
+      load(participant.id);
+      return;
+    }
+    if (action === 'refresh') {
+      setContextDialogOpen(true);
+      return;
+    }
+    setCoachOpen(true);
   };
+
+  const ensureXaiConsent = (action: 'advice' | 'refresh' | 'coach') => {
+    if (hasXaiTransferConsent()) {
+      setXaiOn(true);
+      runAi(action);
+      return;
+    }
+    setPendingAi(action);
+    setConsentOpen(true);
+  };
+
+  const handleLoad = () => ensureXaiConsent('advice');
 
   const handleReset = () => {
     reset();
     setRequested(false);
   };
 
-  const handleRefresh = () => {
-    setContextDialogOpen(true);
-  };
+  const handleRefresh = () => ensureXaiConsent('refresh');
 
   const handleContextSubmit = () => {
     setRequested(true);
     setContextDialogOpen(false);
     load(participant.id, true, {
-      userContext,
       adviceGoal,
       adviceStyle,
     });
+  };
+
+  const handleAgreeXai = () => {
+    saveXaiTransferConsent();
+    setXaiOn(true);
+    setConsentOpen(false);
+    const action = pendingAi;
+    setPendingAi(null);
+    if (action) runAi(action);
+  };
+
+  const handleWithdrawXai = () => {
+    clearXaiTransferConsent();
+    setXaiOn(false);
   };
 
   return (
@@ -165,7 +199,8 @@ export default function AIAdviceCard({
         </Box>
         {!requested && (
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            {participant.nickname}님의 기록과 현재 상황을 바탕으로 맞춤 전략을 받아보세요.
+            {participant.nickname}님의 운동·수면·식단 기록으로 조언을 받습니다. 닉네임·체지방·자유
+            메모는 AI로 보내지 않습니다. 국외 이전 동의가 필요합니다.
           </Typography>
         )}
         {!canRequestAdvice && (
@@ -281,17 +316,22 @@ export default function AIAdviceCard({
             color="primary"
             fullWidth
             startIcon={<ChatBubbleOutlineIcon sx={{ fontSize: 16 }} />}
-            onClick={() => setCoachOpen(true)}
+            onClick={() => ensureXaiConsent('coach')}
           >
             코치와 대화하기
           </Button>
         </Box>
+        {xaiOn && (
+          <Button size="small" color="inherit" onClick={handleWithdrawXai}>
+            국외 이전 동의 철회
+          </Button>
+        )}
       </CardActions>
       <Dialog open={contextDialogOpen} onClose={() => setContextDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>새 조언을 위한 추가 입력</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
           <Typography variant="body2" color="text.secondary">
-            지금 상황을 알려주면 기록 수치와 함께 더 개인화된 전략을 제안할 수 있어요.
+            조언 목적과 톤은 정해진 항목만 AI로 갑니다. 현재 상황 원문은 국외로 보내지 않습니다.
           </Typography>
           <FormControl fullWidth>
             <InputLabel>조언 목적</InputLabel>
@@ -309,16 +349,6 @@ export default function AIAdviceCard({
               ))}
             </Select>
           </FormControl>
-          <TextField
-            fullWidth
-            multiline
-            minRows={4}
-            label="현재 상황/고민"
-            placeholder="예: 이번 주 회식이 2번 있었고 수면이 부족했어요. 운동은 2번밖에 못 했고 체중은 그대로입니다."
-            value={userContext}
-            onChange={(e) => setUserContext(e.target.value.slice(0, 500))}
-            helperText={`${userContext.length}/500자`}
-          />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setContextDialogOpen(false)} color="inherit">취소</Button>
@@ -335,6 +365,14 @@ export default function AIAdviceCard({
         participant={participant}
         weekNo={getCurrentWeekNo(challengeStartDate)}
         seedContent={result?.advice ?? ''}
+      />
+      <XaiTransferConsentDialog
+        open={consentOpen}
+        onClose={() => {
+          setConsentOpen(false);
+          setPendingAi(null);
+        }}
+        onAgree={handleAgreeXai}
       />
     </Card>
   );

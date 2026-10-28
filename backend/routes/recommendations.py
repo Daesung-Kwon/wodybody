@@ -20,11 +20,12 @@ from flask import Blueprint, jsonify, request, current_app
 
 from config.database import db
 from utils.auth import get_current_user_id as get_user_id_from_session_or_cookies
+from routes.xai_consent import request_has_xai_consent
 from models.daily_assignment import DailyAssignments
 from models.preference import UserPreferences
 from models.program import Programs
 from models.workout_record import WorkoutRecords
-from models.exercise import ProgramExercises, WorkoutPatterns, ExerciseSets
+from models.exercise import WorkoutPatterns
 
 
 bp = Blueprint('recommendations', __name__, url_prefix='/api')
@@ -40,19 +41,22 @@ DAILY_REFRESH_LIMIT = int(os.environ.get('PT_DAILY_REFRESH_LIMIT', '3'))
 CANDIDATE_POOL_LIMIT = int(os.environ.get('PT_CANDIDATE_POOL_LIMIT', '30'))
 
 
-SYSTEM_PROMPT = """당신은 사용자에게 매일 1개의 운동(WOD)을 추천하는 개인 PT 코치입니다.
-사용자 데이터(선호·과거 기록·직전 7일 추천 이력)와 후보 WOD 목록을 보고,
-오늘 가장 적합한 WOD 하나를 골라 program_id로 지정하세요.
+SYSTEM_PROMPT = """당신은 사용자에게 매일 1개의 크로스핏식 WOD를 추천하는 코치입니다.
+난이도, 기구, 운동 기록(완료 여부·시간·날짜·프로그램 id)과 후보 id만 보고
+오늘 가장 적합한 WOD 하나를 program_id로 지정하세요.
+
+닉네임, 사진, 체지방, 나이, 성별, 몸무게, 이메일, 자유 텍스트 목표, 프로그램 제목,
+운동 이름은 주어지지 않습니다. 없는 이름을 만들지 마세요.
 
 ## 선택 원칙
-1. 사용자의 goals와 equipment에 부합하는 WOD를 우선합니다.
-   - equipment에 없는 기구가 메인이면 후보에서 제외하세요.
+1. preferences.equipment에 없는 기구가 메인이면 후보에서 제외하세요. 기구 태그가 없으면 id와 난이도만 보세요.
 2. preferences.available_minutes의 ±25% 범위에 들어오는 WOD를 우선합니다.
 3. preferences.difficulty와 일치 또는 한 단계 차이만 허용.
 4. 직전 7일에 이미 추천된 program_id는 절대 다시 고르지 마세요.
 5. recent_records로 보아 평균 완료 시간이 목표 시간보다 짧다면 난이도를 한 단계 올리고,
    길거나 스킵이 많다면 한 단계 내리세요.
-6. 직전 user_feedback이 "easy"면 강도를 올리고, "hard" 또는 "skip"이면 회복 강도로 추천.
+6. user_feedback이 "easy"면 강도를 올리고, "hard" 또는 "skip"이면 회복 강도로 추천.
+   그 외 문장은 오지 않습니다.
 7. 후보가 부족하거나 모두 부적합하면 program_id를 null로 반환하고
    rationale에 그 이유를 한국어 1문장으로 적으세요.
 
@@ -66,7 +70,7 @@ SYSTEM_PROMPT = """당신은 사용자에게 매일 1개의 운동(WOD)을 추�
 
 규칙:
 - 반드시 JSON 객체 하나만 출력. 마크다운/설명/코드 블록 금지.
-- rationale은 사용자가 운동 직전에 읽을 톤(친근하고 실용적). 가능하면 수치 인용.
+- rationale은 사용자가 운동 직전에 읽을 톤(친근하고 실용적).
 """
 
 
@@ -86,7 +90,7 @@ def _today_for_user(pref: UserPreferences | None) -> date_cls:
 
 
 def _serialize_program(p: Programs) -> dict[str, Any]:
-    """Grok에 전달할 후보 WOD 한 줄 요약."""
+    """Grok에 전달할 후보. 제목·운동 이름은 이용자가 지은 값일 수 있어 보내지 않는다."""
     pattern = WorkoutPatterns.query.filter_by(program_id=p.id).first()
     expected_minutes = None
     pattern_type = None
@@ -99,41 +103,87 @@ def _serialize_program(p: Programs) -> dict[str, Any]:
         elif pattern.time_cap_per_round:
             expected_minutes = pattern.time_cap_per_round
 
-    exercises: list[dict[str, Any]] = []
-    if pattern is not None:
-        sets = (
-            ExerciseSets.query.filter_by(pattern_id=pattern.id)
-            .order_by(ExerciseSets.order_index)
-            .limit(8)
-            .all()
-        )
-        for s in sets:
-            exercises.append({
-                'name': s.exercise.name if s.exercise else '',
-                'reps': s.base_reps,
-                'progression': s.progression_type,
-            })
-    if not exercises:
-        prog_ex = (
-            ProgramExercises.query.filter_by(program_id=p.id)
-            .order_by(ProgramExercises.order_index)
-            .limit(8)
-            .all()
-        )
-        for pe in prog_ex:
-            exercises.append({
-                'name': pe.exercise.name if pe.exercise else '',
-                'target_value': pe.target_value,
-            })
-
     return {
         'id': p.id,
-        'title': p.title,
         'difficulty': p.difficulty,
         'pattern_type': pattern_type,
         'total_rounds': total_rounds,
         'expected_minutes': expected_minutes,
-        'exercises': exercises,
+    }
+
+
+_FEEDBACK_OK = {'easy', 'ok', 'moderate', 'hard', 'skip'}
+_INTENSITY_OK = {'easy', 'moderate', 'hard'}
+
+
+def minimize_wod_context(context: dict[str, Any]) -> dict[str, Any]:
+    """xAI 로 나가기 직전 허용 필드만 남긴다. 제목·운동명·goals·자유 피드백은 제거."""
+    prefs = context.get('preferences') if isinstance(context.get('preferences'), dict) else {}
+    equipment = prefs.get('equipment') or []
+    if not isinstance(equipment, list):
+        equipment = []
+    equipment_out = [str(item) for item in equipment if isinstance(item, (str, int, float))][:20]
+
+    assignments = []
+    for row in context.get('recent_assignments') or []:
+        if not isinstance(row, dict):
+            continue
+        raw_fb = row.get('user_feedback')
+        feedback = raw_fb.strip().lower() if isinstance(raw_fb, str) else None
+        if feedback not in _FEEDBACK_OK:
+            feedback = None
+        hint = row.get('intensity_hint')
+        if hint not in _INTENSITY_OK:
+            hint = None
+        assignments.append({
+            'date': row.get('date'),
+            'program_id': row.get('program_id'),
+            'completed': bool(row.get('completed')),
+            'skipped': bool(row.get('skipped')),
+            'user_feedback': feedback,
+            'intensity_hint': hint,
+        })
+
+    programs = []
+    for row in context.get('available_programs') or []:
+        if not isinstance(row, dict):
+            continue
+        programs.append({
+            'id': row.get('id'),
+            'difficulty': row.get('difficulty'),
+            'expected_minutes': row.get('expected_minutes'),
+        })
+
+    summary = context.get('recent_records_summary') if isinstance(context.get('recent_records_summary'), dict) else {}
+    last5 = []
+    for row in summary.get('last_5_records') or []:
+        if not isinstance(row, dict):
+            continue
+        last5.append({
+            'date': row.get('date'),
+            'program_id': row.get('program_id'),
+            'completion_minutes': row.get('completion_minutes'),
+        })
+    assign_summary = context.get('recent_assignments_summary') if isinstance(context.get('recent_assignments_summary'), dict) else {}
+
+    return {
+        'today': context.get('today'),
+        'preferences': {
+            'difficulty': prefs.get('difficulty'),
+            'equipment': equipment_out,
+            'available_minutes': prefs.get('available_minutes'),
+        },
+        'recent_assignments': assignments,
+        'recent_assignments_summary': {
+            'completed_count_7d': assign_summary.get('completed_count_7d'),
+            'skipped_count_7d': assign_summary.get('skipped_count_7d'),
+        },
+        'recent_records_summary': {
+            'count_30d': summary.get('count_30d'),
+            'avg_completion_minutes': summary.get('avg_completion_minutes'),
+            'last_5_records': last5,
+        },
+        'available_programs': programs,
     }
 
 
@@ -169,7 +219,6 @@ def _build_context(
     return {
         'today': today.isoformat(),
         'preferences': {
-            'goals': pref_dict.get('goals', []),
             'equipment': pref_dict.get('equipment', []),
             'available_minutes': pref_dict.get('available_minutes', 20),
             'difficulty': pref_dict.get('difficulty', 'intermediate'),
@@ -273,9 +322,10 @@ def _call_grok(context: dict[str, Any]) -> dict[str, Any]:
     if not api_key:
         raise RuntimeError("XAI_API_KEY not configured")
 
+    safe_context = minimize_wod_context(context)
     user_content = (
         "다음 컨텍스트를 보고 오늘의 추천을 JSON 한 줄로 반환하세요.\n\n"
-        + json.dumps(context, ensure_ascii=False, indent=2)
+        + json.dumps(safe_context, ensure_ascii=False, indent=2)
     )
     payload = {
         "model": XAI_MODEL,
@@ -341,6 +391,7 @@ def generate_recommendation(
     today: date_cls | None = None,
     *,
     force_refresh: bool = False,
+    allow_xai: bool = False,
 ) -> DailyAssignments:
     """
     (user_id, today) 행을 반환. 없으면 새로 생성. force_refresh=True면 신규 추천 추가.
@@ -399,36 +450,40 @@ def generate_recommendation(
     rationale = ''
     intensity_hint = 'moderate'
     duration_estimate = (pref.available_minutes if pref and pref.available_minutes else 20)
-    source = 'ai_grok'
+    source = 'fallback'
 
-    try:
-        parsed = _call_grok(context)
-        program_id = parsed.get('program_id')
-        if isinstance(program_id, str):
-            try:
-                program_id = int(program_id)
-            except (TypeError, ValueError):
-                program_id = None
-        if program_id is not None and program_id not in candidate_id_set:
-            current_app.logger.warning(
-                'Grok suggested program_id=%s not in candidate set; falling back', program_id
-            )
-            program_id = None
-        rationale = (parsed.get('rationale') or '').strip()[:300]
-        intensity_hint = (parsed.get('intensity_hint') or 'moderate').strip()[:20]
+    if allow_xai:
+        source = 'ai_grok'
         try:
-            duration_estimate = int(parsed.get('duration_estimate_minutes') or duration_estimate)
-        except (TypeError, ValueError):
-            pass
-    except RuntimeError as e:
-        current_app.logger.warning('Grok unavailable, using fallback: %s', e)
-        source = 'fallback'
-    except requests.RequestException as e:
-        current_app.logger.warning('Grok request failed, using fallback: %s', e)
-        source = 'fallback'
-    except Exception as e:
-        current_app.logger.exception('Unexpected Grok error: %s', e)
-        source = 'fallback'
+            parsed = _call_grok(context)
+            program_id = parsed.get('program_id')
+            if isinstance(program_id, str):
+                try:
+                    program_id = int(program_id)
+                except (TypeError, ValueError):
+                    program_id = None
+            if program_id is not None and program_id not in candidate_id_set:
+                current_app.logger.warning(
+                    'Grok suggested program_id=%s not in candidate set; falling back', program_id
+                )
+                program_id = None
+            rationale = (parsed.get('rationale') or '').strip()[:300]
+            intensity_hint = (parsed.get('intensity_hint') or 'moderate').strip()[:20]
+            try:
+                duration_estimate = int(parsed.get('duration_estimate_minutes') or duration_estimate)
+            except (TypeError, ValueError):
+                pass
+        except RuntimeError as e:
+            current_app.logger.warning('Grok unavailable, using fallback: %s', e)
+            source = 'fallback'
+        except requests.RequestException as e:
+            current_app.logger.warning('Grok request failed, using fallback: %s', e)
+            source = 'fallback'
+        except Exception as e:
+            current_app.logger.exception('Unexpected Grok error: %s', e)
+            source = 'fallback'
+    else:
+        current_app.logger.info('xAI transfer skipped: consent not granted')
 
     if program_id is None:
         fallback_id, fallback_reason = _fallback_pick(candidates)
@@ -485,7 +540,9 @@ def recommendations_generate():
     body = request.get_json(silent=True) or {}
     force = bool(body.get('force_refresh'))
     try:
-        assignment = generate_recommendation(user_id, force_refresh=force)
+        assignment = generate_recommendation(
+            user_id, force_refresh=force, allow_xai=request_has_xai_consent()
+        )
     except Exception as e:
         current_app.logger.exception('recommendations_generate error: %s', e)
         return jsonify({'message': '추천 생성 중 오류가 발생했습니다'}), 500

@@ -93,8 +93,10 @@ export interface RankingRow {
   nickname: string;
   startBodyFat: number;
   endBodyFat: number;
-  /** 체지방 감소율 (%) = (시작 - 종료) / 시작 × 100 */
+  /** 시작·종료 체지방 감소율 (%) = (시작 - 종료) / 시작 × 100 */
   reductionRate: number;
+  /** 이 기기에서 시작·종료를 쓰지 않았으면 숫자를 가린다. */
+  bodyFatPrivate?: boolean;
 }
 
 /* ── Sprint 2.5: 대화형 코치 ───────────────────────────────────────────── */

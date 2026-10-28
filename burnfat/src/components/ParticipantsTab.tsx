@@ -9,6 +9,7 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import type { ParticipantWithSubmissions } from '../types';
 import { EndAuthButton } from '../theme/rankAnimations';
+import { canViewSubmissionBodyFat, formatBodyFatPercent } from '../lib/bodyFatVisibility';
 
 interface ParticipantsTabProps {
   /**
@@ -46,7 +47,7 @@ const getEndBtnColor = (participantId: string) => {
 
 /**
  * Sprint 3 Phase B — ChallengePage Tab 0 (참가자 / 인증) 의 카드 목록.
- * 시작 체지방률 내림차순으로 정렬해 인증 진행 상태를 보여 준다.
+ * 닉네임 순으로 보여 준다. 체지방 숫자로 줄을 세우면 가린 값이 순서로 드러난다.
  */
 export default function ParticipantsTab({
   participants,
@@ -55,28 +56,13 @@ export default function ParticipantsTab({
   onAuthEnd,
   onOpenBasicInfo,
 }: ParticipantsTabProps) {
-  const participantsWithRank = [...participants]
-    .map((p) => {
-      const start = p.submissions.find((s) => s.type === 'start');
-      const startBodyFat = start ? Number(start.body_fat_rate) : null;
-      return { ...p, startBodyFat };
-    })
-    .sort((a, b) => {
-      if (a.startBodyFat == null && b.startBodyFat == null) return 0;
-      if (a.startBodyFat == null) return 1;
-      if (b.startBodyFat == null) return -1;
-      return b.startBodyFat - a.startBodyFat;
-    });
-  const topStartBodyFat =
-    participantsWithRank.find((p) => p.startBodyFat != null)?.startBodyFat ?? null;
+  const participantsWithRank = [...participants].sort((a, b) =>
+    a.nickname.localeCompare(b.nickname, 'ko')
+  );
 
   return (
     <Box sx={{ px: 2, pt: 2 }}>
-      {participantsWithRank.map((p, idx) => {
-        const gap =
-          topStartBodyFat != null && p.startBodyFat != null
-            ? topStartBodyFat - p.startBodyFat
-            : null;
+      {participantsWithRank.map((p) => {
         return (
           <Card key={p.id} sx={{ mb: 2 }}>
             <CardContent sx={{ p: 2 }}>
@@ -91,24 +77,9 @@ export default function ParticipantsTab({
               >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Typography variant="body2" color="text.secondary" sx={{ minWidth: 24 }}>
-                    {p.startBodyFat != null ? `#${idx + 1}` : '-'}
+                    ·
                   </Typography>
                   <Typography fontWeight={600}>{p.nickname}</Typography>
-                  {gap != null && gap > 0 && (
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: 'warning.main',
-                        fontWeight: 600,
-                        bgcolor: 'warning.50',
-                        px: 1,
-                        py: 0.25,
-                        borderRadius: 1,
-                      }}
-                    >
-                      1등과 격차 +{gap.toFixed(1)}%p
-                    </Typography>
-                  )}
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                   <Tooltip title="기본정보 수정">
@@ -188,7 +159,12 @@ export default function ParticipantsTab({
                           sx={{ flex: '1 1 auto', minWidth: 0 }}
                         >
                           {s.type === 'start' ? '시작' : '종료'}: 체지방률{' '}
-                          <strong>{Number(s.body_fat_rate).toFixed(1)}%</strong>
+                          <strong>
+                            {formatBodyFatPercent(
+                              s.body_fat_rate,
+                              canViewSubmissionBodyFat(s.id)
+                            )}
+                          </strong>
                         </Typography>
                         {/* 인증 사진 표시는 내렸다 (2026-10-19 결정: 숫자만, 사진 미수집). 기존 파일은 삭제 절차 대상. */}
                       </Box>

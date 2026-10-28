@@ -4,6 +4,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import HomePage from '@burnfat/pages/HomePage';
 import CreateChallengePage from '@burnfat/pages/CreateChallengePage';
 import ChallengePage from '@burnfat/pages/ChallengePage';
+import PrivacyIncidentNoticePage from '@burnfat/pages/PrivacyIncidentNoticePage';
 import { burnfatTheme } from '@burnfat/theme/theme';
 
 /**
@@ -17,6 +18,7 @@ export default function BurnFatApp() {
             <Routes>
                 <Route index element={<HomePage />} />
                 <Route path="create" element={<CreateChallengePage />} />
+                <Route path="notice/privacy" element={<PrivacyIncidentNoticePage />} />
                 <Route path="c/:code" element={<ChallengePage />} />
                 <Route path="*" element={<HomePage />} />
             </Routes>

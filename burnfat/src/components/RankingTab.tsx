@@ -17,6 +17,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import type { Challenge, ParticipantWithSubmissions, RankingRow } from '../types';
 import { RankOneRow, RankMedal } from '../theme/rankAnimations';
 import RankingShareDialog from './RankingShareDialog';
+import { canViewRankingNumbers } from '../lib/bodyFatVisibility';
 
 // Sprint 0.4: 디버그 플래그 — 운영 빌드에서는 미설정/"false".
 const DEBUG_SHOW_RANKING =
@@ -46,6 +47,11 @@ export default function RankingTab({
   onToast,
 }: RankingTabProps) {
   const [shareOpen, setShareOpen] = useState(false);
+  const shareRanking: RankingRow[] = ranking.map((row) => {
+    const participant = participants.find((p) => p.nickname === row.nickname);
+    if (canViewRankingNumbers(participant)) return row;
+    return { ...row, bodyFatPrivate: true };
+  });
   const participantsWithStart = participants.filter((p) =>
     p.submissions.some((s) => s.type === 'start')
   );
@@ -181,7 +187,7 @@ export default function RankingTab({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {ranking.map((r) => {
+                {shareRanking.map((r) => {
                   const medal =
                     r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : null;
                   const isFirst = r.rank === 1;
@@ -219,10 +225,10 @@ export default function RankingTab({
                         </Box>
                       </TableCell>
                       <TableCell align="right" sx={{ verticalAlign: 'middle' }}>
-                        {r.startBodyFat.toFixed(1)}%
+                        {r.bodyFatPrivate ? '비공개' : `${r.startBodyFat.toFixed(1)}%`}
                       </TableCell>
                       <TableCell align="right" sx={{ verticalAlign: 'middle' }}>
-                        {r.endBodyFat.toFixed(1)}%
+                        {r.bodyFatPrivate ? '비공개' : `${r.endBodyFat.toFixed(1)}%`}
                       </TableCell>
                       <TableCell align="right" sx={{ verticalAlign: 'middle' }}>
                         <Typography
@@ -233,7 +239,7 @@ export default function RankingTab({
                             textShadow: isFirst ? '0 0 8px rgba(245, 158, 11, 0.5)' : 'none',
                           }}
                         >
-                          -{r.reductionRate.toFixed(2)}%
+                          {r.bodyFatPrivate ? '비공개' : `-${r.reductionRate.toFixed(2)}%`}
                         </Typography>
                       </TableCell>
                     </RowComp>
@@ -249,7 +255,7 @@ export default function RankingTab({
         <RankingShareDialog
           open={shareOpen}
           challenge={challenge}
-          ranking={ranking}
+          ranking={shareRanking}
           shareUrl={shareUrl}
           onClose={() => setShareOpen(false)}
           onToast={onToast}

@@ -24,6 +24,7 @@ import WeeklyLogsTab from '../components/WeeklyLogsTab';
 import ChallengeOverlays, { type SubmitTarget } from '../components/ChallengeOverlays';
 import type { AdminPinAction } from '../components/AdminPinDialog';
 import ChallengePageSkeleton from '../components/ChallengePageSkeleton';
+import PrivacyIncidentBanner from '../components/PrivacyIncidentBanner';
 import {
   shouldShowEndingSoonNotice,
   dismissEndingSoonNotice,
@@ -235,6 +236,9 @@ export default function ChallengePage() {
         </Button>
       </Box>
 
+      <Box sx={{ px: 2 }}>
+        <PrivacyIncidentBanner />
+      </Box>
       <ChallengeHeader
         challenge={challenge}
         dday={dday}

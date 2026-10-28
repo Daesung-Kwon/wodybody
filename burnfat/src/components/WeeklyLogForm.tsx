@@ -19,6 +19,8 @@ import type { Participant, Gender, DietQuality } from '../types';
 import { getWeekNoForDate } from '../lib/weekUtils';
 import { prepareDeviceSecret } from '../lib/deviceSecret';
 import { track } from '../lib/analytics';
+import BodyFatConsentFields from './BodyFatConsentFields';
+import { gateBodyFatWrite, hasBodyFatConsent, saveBodyFatConsent } from '../lib/bodyFatConsent';
 
 interface Props {
   open: boolean;
@@ -70,6 +72,7 @@ export default function WeeklyLogForm({
   const [weightKg, setWeightKg] = useState<string>('');
   const [heightCm, setHeightCm] = useState<string>('');
   const [bodyFatRate, setBodyFatRate] = useState<string>('');
+  const [consentChecked, setConsentChecked] = useState(false);
   // 라이프스타일 필드
   const [exerciseCount, setExerciseCount] = useState<string>('');
   const [sleepHours, setSleepHours] = useState<string>('');
@@ -83,6 +86,7 @@ export default function WeeklyLogForm({
       setAge(participant.age != null ? String(participant.age) : '');
       setGender(participant.gender || '');
       setHeightCm(participant.height_cm != null ? String(participant.height_cm) : '');
+      setConsentChecked(hasBodyFatConsent(participant.id));
     }
   }, [participant]);
 
@@ -105,10 +109,20 @@ export default function WeeklyLogForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!participant) return;
-    const rate = parseFloat(bodyFatRate);
-    if (isNaN(rate) || rate < 0 || rate > 100) {
-      setError('체지방률은 0~100 사이로 입력하세요.');
+    const bodyFatProvided = bodyFatRate.trim() !== '';
+    const gate = gateBodyFatWrite(bodyFatProvided, consentChecked);
+    if (!gate.ok) {
+      setError(gate.message);
       return;
+    }
+    let bodyFatValue: number | null = null;
+    if (bodyFatProvided) {
+      const rate = parseFloat(bodyFatRate);
+      if (isNaN(rate) || rate < 0 || rate > 100) {
+        setError('체지방률은 0~100 사이로 입력하세요.');
+        return;
+      }
+      bodyFatValue = Math.round(rate * 100) / 100;
     }
     if (existingWeekNos.includes(weekNo)) {
       setError(`이미 ${weekNo}주차 기록이 있습니다. 수정하려면 기존 기록을 찾아 수정하세요.`);
@@ -139,7 +153,7 @@ export default function WeeklyLogForm({
           gender: gender || null,
           weight_kg: weightKg.trim() ? parseFloat(weightKg) : null,
           height_cm: heightCm.trim() ? parseFloat(heightCm) : null,
-          body_fat_rate: Math.round(rate * 100) / 100,
+          body_fat_rate: bodyFatValue,
           exercise_count: exerciseCount !== '' ? parseInt(exerciseCount, 10) : null,
           sleep_hours: parsedSleepHours,
           diet_quality: dietQuality || null,
@@ -159,6 +173,7 @@ export default function WeeklyLogForm({
     if (inserted?.id) {
       secret.persist(inserted.id);
     }
+    if (bodyFatProvided) saveBodyFatConsent(participant.id);
     track('weekly_log_created', {
       week_no: weekNo,
       has_lifestyle: exerciseCount !== '' || parsedSleepHours !== null || dietQuality !== '',
@@ -205,7 +220,12 @@ export default function WeeklyLogForm({
             inputProps={{ min: 0, max: 100, step: 0.1, inputMode: 'decimal' }}
             value={bodyFatRate}
             onChange={(e) => setBodyFatRate(e.target.value)}
-            required
+            helperText="선택. 동의하지 않으면 이 칸은 저장하지 않습니다."
+          />
+          <BodyFatConsentFields
+            participantId={participant.id}
+            checked={consentChecked}
+            onChange={setConsentChecked}
           />
           <TextField
             fullWidth
@@ -290,7 +310,7 @@ export default function WeeklyLogForm({
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={onClose}>취소</Button>
-          <Button type="submit" variant="contained" disabled={loading || !bodyFatRate.trim()}>
+          <Button type="submit" variant="contained" disabled={loading}>
             {loading ? '저장 중...' : '저장'}
           </Button>
         </DialogActions>

@@ -25,6 +25,7 @@ import {
 } from '../types';
 import { getAccessToken, setAccessToken } from '../lib/tokenStore';
 import { apiBaseUrl } from '../lib/env';
+import { xaiTransferConsentHeaders } from '@burnfat/lib/xaiTransferConsent';
 
 const API_BASE = apiBaseUrl();
 
@@ -304,11 +305,14 @@ export const emailVerificationApi = {
 export const todayApi = {
     /** 오늘의 추천 조회 (없으면 서버에서 생성). */
     getToday: (): Promise<DailyAssignment> =>
-        apiRequest<DailyAssignment>('/api/today'),
+        apiRequest<DailyAssignment>('/api/today', { headers: xaiTransferConsentHeaders() }),
 
-    /** 추천 새로받기 — 일 한도(기본 3회) 초과 시 429. */
+    /** 추천 새로받기 — 일 한도(기본 3회) 초과 시 429. 동의 헤더가 있을 때만 서버가 xAI를 호출한다. */
     refresh: (): Promise<DailyAssignment> =>
-        apiRequest<DailyAssignment>('/api/today/refresh', { method: 'POST' }),
+        apiRequest<DailyAssignment>('/api/today/refresh', {
+            method: 'POST',
+            headers: xaiTransferConsentHeaders(),
+        }),
 
     /** 오늘의 WOD 완료 기록. completion_time은 초 단위. */
     complete: (data: { completion_time: number; notes?: string }): Promise<{ message: string; record_id: number; assignment: DailyAssignment }> =>

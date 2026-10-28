@@ -50,7 +50,9 @@ export default function RankingShareDialog({
       `📌 ${challenge.title}`,
       `📅 ${challenge.start_date} ~ ${challenge.end_date}`,
       '',
-      ...ranking.map((r) => `${medalText(r.rank)} ${r.nickname}  -${r.reductionRate.toFixed(2)}%`),
+      ...ranking.map((r) =>
+        `${medalText(r.rank)} ${r.nickname}  ${r.bodyFatPrivate ? '비공개' : `-${r.reductionRate.toFixed(2)}%`}`
+      ),
     ];
     lines.push('', `🔗 ${shareUrl}`);
     return lines.join('\n');
@@ -161,7 +163,7 @@ export default function RankingShareDialog({
                     {r.nickname}
                   </Typography>
                   <Typography sx={{ fontWeight: 700, color: isFirst ? '#b45309' : '#16a34a' }}>
-                    -{r.reductionRate.toFixed(2)}%
+                    {r.bodyFatPrivate ? '비공개' : `-${r.reductionRate.toFixed(2)}%`}
                   </Typography>
                 </Box>
               );

@@ -3,6 +3,13 @@
  * - 기본(프로덕션·로컬): WODYBODY_GROK_AI_URL
  * - 덮어쓰기: VITE_AI_ADVICE_URL (스테이징·포크 시)
  */
+import {
+  hasXaiTransferConsent,
+  XAI_CONSENT_REQUIRED_MESSAGE,
+  xaiTransferConsentFields,
+  xaiTransferConsentHeaders,
+} from './xaiTransferConsent';
+
 const WODYBODY_GROK_AI_URL = 'https://wodybody-production.up.railway.app/api/burnfat/ai/advice';
 
 function resolveAiAdviceUrl(): string {
@@ -45,6 +52,9 @@ function parseErrorMessage(res: Response, bodyText: string): string {
   try {
     const j = JSON.parse(bodyText) as AdviceErrorBody;
     if (j.error) {
+      if (j.error === 'xai_consent_required') {
+        return XAI_CONSENT_REQUIRED_MESSAGE;
+      }
       if (j.error === 'Failed to fetch participant' || j.error === 'Failed to fetch supporting data') {
         return '데이터를 불러오는 중 오류가 났어요. 잠시 후 다시 시도해 주세요.';
       }
@@ -97,20 +107,24 @@ function getAdviceDeviceSecret(): string {
 }
 
 export async function fetchAIAdvice(req: AIAdviceRequest): Promise<AIAdviceResponse> {
+  if (!hasXaiTransferConsent()) {
+    throw new Error(XAI_CONSENT_REQUIRED_MESSAGE);
+  }
   const url = resolveAiAdviceUrl();
   const deviceSecret = getAdviceDeviceSecret();
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...xaiTransferConsentHeaders(),
       ...(deviceSecret ? { 'X-Device-Secret': deviceSecret } : {}),
     },
     body: JSON.stringify({
       participant_id: req.participantId,
       force_refresh: req.forceRefresh || undefined,
-      user_context: req.userContext?.trim() || undefined,
       advice_style: req.adviceStyle || undefined,
       advice_goal: req.adviceGoal || undefined,
+      ...xaiTransferConsentFields(),
     }),
   });
 

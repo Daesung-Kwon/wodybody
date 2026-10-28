@@ -21,6 +21,7 @@ import MuiStepBasedCreateProgramPage from './components/MuiStepBasedCreateProgra
 import MuiNotificationsPage from './components/MuiNotificationsPage';
 import { isBurnFatHost } from './lib/env';
 import MuiAboutPage from './components/MuiAboutPage';
+import PremiumFakeDoorPage from './components/PremiumFakeDoorPage';
 
 const BurnFatApp = React.lazy(() => import('./pages/BurnFatApp'));
 import {
@@ -122,6 +123,8 @@ const AppRoutes: React.FC = () => {
 
     return (
         <Routes>
+            <Route path="/premium" element={<PremiumFakeDoorPage />} />
+            <Route path="/pricing-test" element={<PremiumFakeDoorPage />} />
             <Route element={<GuestOnly />}>
                 <Route
                     path="/login"

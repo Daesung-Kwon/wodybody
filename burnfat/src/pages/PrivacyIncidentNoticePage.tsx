@@ -1,5 +1,6 @@
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Link from '@mui/material/Link';
 import Typography from '@mui/material/Typography';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useNavigate } from 'react-router-dom';
@@ -83,8 +84,9 @@ export default function PrivacyIncidentNoticePage() {
           연락 창구는 이 안내 페이지입니다. WodyBody 운영자(대표)가 요청을 받습니다.
           참가자 테이블에는 이메일·전화번호가 없어 개별 메시지를 보내지 않습니다.
           대결을 만든 분이 따로 연락할 수 있으면, 그 경로로 이 안내를 전해 주셔도 됩니다.
-          공개 대표 메일 주소는 이 저장소에 없어 여기에 적지 않았습니다. 소유자가 주소를
-          정하면 이 문단만 고칩니다.
+          문의는{' '}
+          <Link href="mailto:support@wodybody.com">support@wodybody.com</Link>
+          으로 보내 주세요.
         </Typography>
       </Box>
     </Box>

@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import type { ParticipantWithSubmissions } from '../types';
 import type { WeeklyLog } from '../types';
+import { canViewWeeklyLogBodyFat } from '../lib/bodyFatVisibility';
 
 export const CHART_COLORS = [
   '#16a34a',
@@ -46,7 +47,7 @@ export default function AllParticipantsChart({ participants, logsByParticipant }
   const allWeeks = new Set<number>();
   for (const logs of Object.values(logsByParticipant)) {
     for (const l of logs) {
-      if (l.body_fat_rate != null) allWeeks.add(l.week_no);
+      if (l.body_fat_rate != null && canViewWeeklyLogBodyFat(l.id)) allWeeks.add(l.week_no);
     }
   }
   const weekList = Array.from(allWeeks).sort((a, b) => a - b);
@@ -56,7 +57,7 @@ export default function AllParticipantsChart({ participants, logsByParticipant }
     participants.forEach((p) => {
       const logs = logsByParticipant[p.id] || [];
       const log = logs.find((l) => l.week_no === weekNo);
-      if (log?.body_fat_rate != null) {
+      if (log?.body_fat_rate != null && canViewWeeklyLogBodyFat(log.id)) {
         point[p.nickname] = Number(log.body_fat_rate);
       }
     });

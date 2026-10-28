@@ -97,6 +97,7 @@ test('챌린지 핵심 경로 — 생성부터 코치 대화·새로고침 유�
     await selectMuiOption(dialog, '성별', '남성');
     await dialog.getByLabel('키 (cm)').fill('175');
     await dialog.getByLabel('목표 체지방률 (%)').fill('22');
+    await dialog.getByRole('checkbox', { name: /체지방 정보를 수집·저장하는 데 동의합니다/ }).check();
     await dialog.getByRole('button', { name: '저장' }).click();
     await expect(dialog).toBeHidden();
   });
@@ -108,6 +109,7 @@ test('챌린지 핵심 경로 — 생성부터 코치 대화·새로고침 유�
     // 2026-10-19: 인바디 사진은 받지 않는다 — 파일 입력이 없어야 한다.
     await expect(dialog.locator('input[type="file"]')).toHaveCount(0);
     await dialog.getByLabel('체지방률 (%)').fill('28.0');
+    await dialog.getByRole('checkbox', { name: /체지방 정보를 수집·저장하는 데 동의합니다/ }).check();
     await dialog.getByRole('button', { name: '제출' }).click();
     await expect(dialog).toBeHidden();
     // 사진 '보기' 버튼도 없어야 한다.
@@ -120,6 +122,7 @@ test('챌린지 핵심 경로 — 생성부터 코치 대화·새로고침 유�
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     await dialog.getByLabel('체지방률 (%)').fill('27.5');
+    await dialog.getByRole('checkbox', { name: /체지방 정보를 수집·저장하는 데 동의합니다/ }).check();
     await selectMuiOption(dialog, '운동 횟수', '3회');
     await dialog.getByLabel('평균 수면 시간 (시간)').fill('7');
     await selectMuiOption(dialog, '식단 패턴', '정상');
@@ -130,6 +133,9 @@ test('챌린지 핵심 경로 — 생성부터 코치 대화·새로고침 유�
 
   await test.step('9. AI 조언 받기', async () => {
     await page.getByRole('button', { name: 'AI 조언 보기' }).click();
+    const consent = page.getByRole('dialog', { name: 'AI 기능의 국외 이전 동의 (선택)' });
+    await consent.getByRole('checkbox', { name: '위 국외 이전에 동의합니다.' }).check();
+    await consent.getByRole('button', { name: '동의하고 AI 사용' }).click();
     await expect(page.getByText('E2E 모킹 요약 — 이번 주는 기본기에 집중하세요.')).toBeVisible();
     await expect(page.getByText('하루 물 2L 마시기')).toBeVisible();
   });

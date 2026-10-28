@@ -16,6 +16,7 @@ import {
   getCtaLabel,
   isCtaActionable,
 } from '../hooks/useNextRecordableWeek';
+import { canViewSubmissionBodyFat, canViewWeeklyLogBodyFat } from '../lib/bodyFatVisibility';
 
 interface Props {
   participant: ParticipantWithSubmissions;
@@ -81,6 +82,15 @@ export default function ParticipantWeeklyLogCard({
     </Button>
   );
 
+  const visibleLogs = logs.map((l) =>
+    canViewWeeklyLogBodyFat(l.id) ? l : { ...l, body_fat_rate: null }
+  );
+  const startSubmission = participant.submissions.find((s) => s.type === 'start');
+  const startBodyFat =
+    startSubmission && canViewSubmissionBodyFat(startSubmission.id)
+      ? startSubmission.body_fat_rate ?? undefined
+      : undefined;
+
   return (
     <Card sx={{ mb: 2 }}>
       <CardContent sx={{ p: 2 }}>
@@ -113,9 +123,9 @@ export default function ParticipantWeeklyLogCard({
           </Box>
         ) : (
           <WeeklyLogChart
-            logs={logs}
+            logs={visibleLogs}
             participant={participant}
-            startBodyFat={participant.submissions.find((s) => s.type === 'start')?.body_fat_rate}
+            startBodyFat={startBodyFat}
           />
         )}
         {logs.length > 0 && (
@@ -131,7 +141,14 @@ export default function ParticipantWeeklyLogCard({
                 <Box key={l.id} sx={{ py: 0.5 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="body2" color="text.secondary">
-                      {l.week_no}주차: 체지방 <strong>{l.body_fat_rate != null ? `${l.body_fat_rate}%` : '-'}</strong>
+                      {l.week_no}주차: 체지방{' '}
+                      <strong>
+                        {l.body_fat_rate == null
+                          ? '-'
+                          : canViewWeeklyLogBodyFat(l.id)
+                            ? `${l.body_fat_rate}%`
+                            : '비공개'}
+                      </strong>
                       {l.weight_kg != null && ` · ${l.weight_kg}kg`}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">

@@ -20,6 +20,7 @@ from routes.recommendations import (
     DAILY_REFRESH_LIMIT,
     _today_for_user,
 )
+from routes.xai_consent import request_has_xai_consent
 from utils.auth import get_current_user_id as get_user_id_from_session_or_cookies
 
 
@@ -40,7 +41,9 @@ def get_today():
     if not user_id:
         return jsonify({'message': '로그인이 필요합니다'}), 401
     try:
-        assignment = generate_recommendation(user_id)
+        assignment = generate_recommendation(
+            user_id, allow_xai=request_has_xai_consent()
+        )
         return jsonify(_serialize_assignment(assignment)), 200
     except Exception as e:
         current_app.logger.exception('get_today error: %s', e)
@@ -66,7 +69,9 @@ def refresh_today():
         }), 429
 
     try:
-        assignment = generate_recommendation(user_id, today=today, force_refresh=True)
+        assignment = generate_recommendation(
+            user_id, today=today, force_refresh=True, allow_xai=request_has_xai_consent()
+        )
         return jsonify(_serialize_assignment(assignment)), 200
     except Exception as e:
         current_app.logger.exception('refresh_today error: %s', e)

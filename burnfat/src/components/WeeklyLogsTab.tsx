@@ -46,10 +46,11 @@ export default function WeeklyLogsTab({
         }}
       >
         <Typography variant="body2" color="primary.dark" fontWeight={500}>
-          대결방 참가자 누구나 서로의 기록을 입력·확인할 수 있습니다.
+          몸무게·운동·수면·식단은 대결방에서 함께 볼 수 있습니다. 체지방률 숫자는 이 기기에서
+          직접 입력한 경우에만 보입니다.
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-          개인 락 없음 · 공동 입력 · 공동 확인
+          개인 락 없음 · 체지방 숫자는 입력한 기기에만 표시
         </Typography>
       </Box>
       {/* Sprint 2: 목표 진행률 위젯 — 식별된 "나" 에 대해 상단 고정 */}

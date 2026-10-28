@@ -29,6 +29,8 @@ from typing import Any
 import requests
 from flask import Blueprint, jsonify, request
 
+from routes.xai_consent import request_has_xai_consent
+
 bp = Blueprint("burnfat_ai", __name__, url_prefix="/api/burnfat")
 
 logger = logging.getLogger(__name__)
@@ -51,7 +53,8 @@ _active_model: str = XAI_MODEL
 _last_advice_success_at: datetime | None = None
 
 # 프롬프트/응답 스키마 버전. 프롬프트가 바뀌면 올려서 과거 캐시를 자연 무효화.
-PROMPT_VERSION = "sprint2-json-v1"
+# g4-min: 닉네임·체지방·몸무게·메모를 국외 페이로드에서 뺀 버전. 이전 캐시는 그 숫자를 인용할 수 있어 읽지 않는다.
+PROMPT_VERSION = "g4-min-2026-10-28"
 CACHE_TTL_HOURS = 24
 
 # 입력 가드 (프롬프트 비용 폭주·오용 방지)
@@ -70,39 +73,26 @@ ADVICE_GOAL_WHITELIST = {
     "동기부여",
 }
 
-SYSTEM_PROMPT = """당신은 체지방 감량 다이어트 전문 코치입니다.
-참가자의 주간 데이터(체지방률, 몸무게, 운동 횟수, 수면 시간, 식단 패턴 등)를 분석하여
-데이터에 근거한 개인화된 감량 전략을 제시하세요.
+SYSTEM_PROMPT = """당신은 운동·수면·식단 기록만 보고 이번 주 실천을 제안하는 코치입니다.
+닉네임, 나이, 성별, 체지방률, 몸무게, 사진, 자유 메모는 주어지지 않습니다. 없는 수치를 만들지 마세요.
 
 ## 분석 지침
-1. 주차별 추이를 반드시 분석하세요.
-   - 어떤 주가 가장 효과적이었고, 그때의 운동·수면·식단 패턴이 무엇이었는지 구체적으로 언급하세요.
-   - 체지방이 정체되거나 증가한 주가 있다면, 같은 주의 수면·식단·운동 데이터에서 원인을 찾으세요.
-2. 기록된 데이터만 분석에 사용하세요.
-   - 운동 횟수가 기록된 경우 → 빈도와 체지방 변화의 상관관계를 언급하세요.
-   - 수면 시간이 기록된 경우 → 6시간 미만이면 코르티솔 상승으로 지방 분해 저해 가능성을 언급하세요.
-   - 식단 패턴이 기록된 경우 → 과식/절식 주와 체중·체지방 변화를 연결하여 분석하세요.
-3. 사용자가 추가로 입력한 현재 상황/고민/선호 조언 스타일이 있으면 최신 맥락으로 우선 반영하세요.
-   단, 사용자의 설명과 기록 데이터가 충돌하면 기록 수치를 근거로 조심스럽게 해석하세요.
-
-## 체지방 변화 판단 기준
-- 주 0.3~0.5%p 감소: 이상적인 속도 (유지 권장)
-- 0.5%p 초과 감소: 근손실 주의 — 단백질·칼로리 섭취 점검 권유
-- 변화 없거나 증가: 수분·호르몬·주기 요인 OR 식단·운동 패턴 재점검
-- 수면 6시간 미만: 코르티솔 상승 → 지방 분해 저해 — 수면 회복 최우선 권유
-- 운동 2회 이하: 횟수 증가 또는 강도 조정 제안
+1. 주차별 운동 횟수, 수면 시간, 식단 라벨(정상/과식/절식)만 비교하세요.
+2. 수면 6시간 미만이면 수면 회복을 우선 제안하세요.
+3. 운동 2회 이하면 횟수를 늘리는 제안을 하세요.
+4. 조언 목적·톤이 범주로 주어지면 그 범위 안에서만 말하세요.
 
 ## 출력 형식 (매우 중요)
 반드시 아래 JSON 스키마를 따르는 JSON 객체 **하나만** 반환하세요. JSON 외 다른 텍스트를 절대 포함하지 마세요.
 
 {
-  "summary": "전체 추이를 한 문장으로 요약. 반드시 실제 기록 수치를 인용.",
-  "action_items": ["이번 주에 실천할 구체적 행동. 숫자를 포함. 1~3개. 예: '운동 4회 + 수면 7시간 확보'"],
+  "summary": "운동·수면·식단 추이를 한 문장으로 요약. 주어진 숫자만 인용.",
+  "action_items": ["이번 주에 실천할 구체적 행동. 1~3개."],
   "cautions": ["주의하거나 점검할 점. 0~2개. 없으면 빈 배열."]
 }
 
 - 모든 문자열은 한국어로 작성하세요.
-- 일반론("단백질을 먹어라")만 반복하지 말고 반드시 실제 기록 수치를 인용하세요.
+- 체지방률, 몸무게, 이름, 사진을 언급하지 마세요.
 - action_items 는 측정 가능한 행동으로 작성하세요."""
 
 
@@ -339,28 +329,18 @@ _DIET_LABEL: dict[str, str] = {
 
 
 def _format_log_line(log: dict[str, Any]) -> str:
+    """xAI 로 보내는 한 주. 체지방·몸무게·메모·원문 식단은 넣지 않는다."""
     week_no = log.get("week_no")
-    body_fat = log.get("body_fat_rate")
-    header = (
-        f"{week_no}주차: 체지방 {body_fat}%"
-        if body_fat is not None
-        else f"{week_no}주차: 체지방 미기록"
-    )
     details: list[str] = []
-    if log.get("weight_kg") is not None:
-        details.append(f"몸무게 {log['weight_kg']}kg")
     if log.get("exercise_count") is not None:
         details.append(f"운동 {log['exercise_count']}회")
     if log.get("sleep_hours") is not None:
         details.append(f"수면 {log['sleep_hours']}h")
     diet = log.get("diet_quality")
-    if diet:
-        details.append(_DIET_LABEL.get(diet, diet))
-    if log.get("note"):
-        details.append(f"특이사항: {log['note']}")
-    if details:
-        return f"{header} ({', '.join(details)})"
-    return header
+    if isinstance(diet, str) and diet in _DIET_LABEL:
+        details.append(_DIET_LABEL[diet])
+    body = ", ".join(details) if details else "운동·수면·식단 미기록"
+    return f"{week_no}주차: {body}"
 
 
 def _build_user_content(
@@ -372,32 +352,22 @@ def _build_user_content(
     advice_style: str = "",
     advice_goal: str = "",
 ) -> str:
-    age_str = f"{participant['age']}세" if participant.get("age") is not None else "미입력"
-    gender = participant.get("gender")
-    gender_str = "남성" if gender == "M" else "여성" if gender == "F" else "미입력"
-    target_str = (
-        f"목표 {participant['target_body_fat']}%"
-        if participant.get("target_body_fat") is not None
-        else "미설정"
-    )
+    """국외로 보내는 본문. participant·user_context 의 식별·민감 값은 사용하지 않는다."""
+    del participant, user_context  # 시그니처 호환. 닉네임·체지방·자유 기술은 전송하지 않음.
     logs_summary = "\n".join(_format_log_line(log) for log in logs) or "아직 기록 없음"
-
-    extra_context = ""
-    if advice_goal or advice_style or user_context:
-        extra_context = (
-            "\n사용자 추가 요청:\n"
-            f"- 조언 목적: {advice_goal or '일반 감량 전략'}\n"
-            f"- 원하는 톤/방식: {advice_style or '현실적이고 구체적으로'}\n"
-            f"- 현재 상황/고민: {user_context or '추가 입력 없음'}\n"
-        )
-
+    extra: list[str] = []
+    if advice_goal in ADVICE_GOAL_WHITELIST:
+        extra.append(f"조언 목적(범주): {advice_goal}")
+    if advice_style in ADVICE_STYLE_WHITELIST:
+        extra.append(f"조언 톤(범주): {advice_style}")
+    extra_block = ("\n" + "\n".join(extra)) if extra else ""
     return (
-        f"참가자: {participant.get('nickname', '')}\n"
-        f"기본정보: {age_str}, {gender_str}, {target_str}\n"
+        "아래는 운동 횟수·수면·식단 라벨만 포함한 주간 기록이다. "
+        "닉네임, 나이, 성별, 체지방, 몸무게, 사진, 자유 메모는 포함하지 않는다.\n"
         f"대결 기간: {start_date} ~ {end_date}\n\n"
-        f"주간 기록:\n{logs_summary}\n\n"
-        f"{extra_context}\n"
-        "위 데이터를 바탕으로 맞춤 조언을 JSON 스키마에 맞춰 제시하세요."
+        f"주간 기록:\n{logs_summary}\n"
+        f"{extra_block}\n\n"
+        "위 데이터만 사용해 JSON 스키마에 맞춰 제시하세요. 없는 수치는 만들지 마세요."
     )
 
 
@@ -572,6 +542,9 @@ def ai_advice():
     if not participant_id:
         return jsonify({"error": "participant_id required"}), 400
     participant_id = str(participant_id)
+
+    if not request_has_xai_consent():
+        return jsonify({"error": "xai_consent_required"}), 403
 
     device_secret = (request.headers.get("X-Device-Secret") or "").strip()
     client_key = request.headers.get("X-Forwarded-For", request.remote_addr or "unknown").split(",")[0].strip()

@@ -9,6 +9,7 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
 import UpdateNoticeDialog from '../components/UpdateNoticeDialog';
+import PrivacyIncidentBanner from '../components/PrivacyIncidentBanner';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -33,6 +34,9 @@ export default function HomePage() {
       }}
     >
       <UpdateNoticeDialog />
+      <Box sx={{ width: '100%', maxWidth: 400 }}>
+        <PrivacyIncidentBanner />
+      </Box>
       <Box sx={{ textAlign: 'center', mb: 4 }}>
         <LocalFireDepartmentIcon sx={{ fontSize: 64, color: 'primary.main' }} />
         <Typography variant="h4" component="h1" fontWeight={700} color="primary.main" gutterBottom>

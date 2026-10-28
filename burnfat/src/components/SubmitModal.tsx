@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Dialog from '@mui/material/Dialog';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
@@ -12,6 +12,8 @@ import { createSubmission } from '../lib/roomApi';
 import type { SubmissionType } from '../types';
 import { prepareDeviceSecret } from '../lib/deviceSecret';
 import { track } from '../lib/analytics';
+import BodyFatConsentFields from './BodyFatConsentFields';
+import { gateBodyFatWrite, hasBodyFatConsent, saveBodyFatConsent } from '../lib/bodyFatConsent';
 
 /** 체지방률을 5%p 구간 라벨로 버킷팅 (예: 28.0 → "25-30"). PII·정밀값 노출 방지. */
 function bodyFatBucket(rate: number): string {
@@ -41,12 +43,29 @@ export default function SubmitModal({ open, challengeCode, participantId, partic
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [bodyFatRate, setBodyFatRate] = useState('');
+  const [consentChecked, setConsentChecked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    if (!open) return;
+    setConsentChecked(hasBodyFatConsent(participantId));
+    setError('');
+  }, [open, participantId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const rate = parseFloat(bodyFatRate);
+    const raw = bodyFatRate.trim();
+    if (!raw) {
+      setError('체지방률은 선택입니다. 숫자를 입력하지 않으면 인증 행은 만들지 않습니다. 닫으려면 취소를 누르세요.');
+      return;
+    }
+    const gate = gateBodyFatWrite(true, consentChecked);
+    if (!gate.ok) {
+      setError(gate.message);
+      return;
+    }
+    const rate = parseFloat(raw);
     if (isNaN(rate) || rate < 0 || rate > 100) {
       setError('0~100 사이의 체지방률을 입력하세요.');
       return;
@@ -81,6 +100,7 @@ export default function SubmitModal({ open, challengeCode, participantId, partic
     if (inserted?.id) {
       secret.persist(inserted.id);
     }
+    saveBodyFatConsent(participantId);
     track('submission_submitted', { type, body_fat_rate_bucket: bodyFatBucket(rateRounded) });
     onSuccess();
   };
@@ -95,7 +115,8 @@ export default function SubmitModal({ open, challengeCode, participantId, partic
       <form onSubmit={handleSubmit}>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            측정한 체지방률(%)을 숫자로 입력하세요. 사진은 받지 않습니다.
+            체지방률(%)은 선택입니다. 숫자만 입력합니다. 사진은 받지 않습니다.
+            동의하지 않으면 저장하지 않습니다.
           </Typography>
 
           <TextField
@@ -105,8 +126,13 @@ export default function SubmitModal({ open, challengeCode, participantId, partic
             inputProps={{ min: 0, max: 100, step: 0.1, inputMode: 'decimal' }}
             value={bodyFatRate}
             onChange={(e) => setBodyFatRate(e.target.value)}
+            helperText="선택. 비워 두면 저장하지 않습니다."
             sx={{ mt: 1, mb: 2 }}
-            required
+          />
+          <BodyFatConsentFields
+            participantId={participantId}
+            checked={consentChecked}
+            onChange={setConsentChecked}
           />
           {error && (
             <Typography color="error" variant="body2" sx={{ mb: 1 }}>
@@ -116,7 +142,7 @@ export default function SubmitModal({ open, challengeCode, participantId, partic
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={onClose}>취소</Button>
-          <Button type="submit" variant="contained" disabled={loading || bodyFatRate.trim() === ''}>
+          <Button type="submit" variant="contained" disabled={loading}>
             {loading ? '제출 중...' : '제출'}
           </Button>
         </DialogActions>

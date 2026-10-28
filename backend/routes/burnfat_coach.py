@@ -41,6 +41,7 @@ from routes.burnfat_ai import (
     _mark_advice_success,
     _supabase_get,
 )
+from routes.xai_consent import request_has_xai_consent
 
 bp = Blueprint("burnfat_coach", __name__, url_prefix="/api/burnfat/coach")
 logger = logging.getLogger(__name__)
@@ -532,13 +533,9 @@ def _build_system_prompt(
         "<PROFILE_AND_STATS>\n"
         + _build_user_content(participant, logs, start_date, end_date),
     ]
+    # G4: 장기 메모리 요약은 이전 프롬프트의 체지방·닉네임을 담을 수 있어 국외로 보내지 않는다.
     if memory_summary:
-        parts.append(
-            "<MEMORY>\n"
-            + memory_summary
-            + "\n위 <MEMORY> 는 지난 주까지의 흐름·약속이다. "
-            "세션 첫 응답에서 지난 약속을 자연스럽게 인용하라."
-        )
+        logger.debug("coach memory withheld from xAI (%s chars)", len(memory_summary))
     # 안티-반복 신호: 직전 어시스턴트 응답의 도입/마무리를 보여주고 *피하라* 고 지시.
     if recent_signatures:
         parts.append(
@@ -722,6 +719,8 @@ def post_message():
         return jsonify({"error": "메시지를 입력해주세요."}), 400
     if len(content) > USER_MESSAGE_MAX_CHARS:
         return jsonify({"error": f"메시지는 {USER_MESSAGE_MAX_CHARS}자 이하로 입력해주세요."}), 400
+    if not request_has_xai_consent():
+        return jsonify({"error": "xai_consent_required"}), 403
 
     device_secret = _device_secret()
     if not device_secret:
@@ -951,24 +950,25 @@ def end_session(session_id: str):
         logger.exception("coach end_session archive failed: %s", e)
         return jsonify({"error": "Failed to archive session"}), 502
 
-    # 장기 메모리 압축 갱신 (동기, 짧게)
+    # 장기 메모리 압축은 대화 원문을 국외로 보낸다. 옵트인이 있을 때만.
     memory_updated = False
-    try:
-        messages = _fetch_messages(session_id)
-        memory_row = _fetch_memory(str(session["participant_id"]))
-        prev_summary = memory_row.get("summary_md") if memory_row else ""
-        user_content = (
-            f"[기존 장기 메모리]\n{prev_summary or '(없음)'}\n\n"
-            f"[이번 세션 발화]\n{_session_summary_for_memory(messages)}"
-        )
-        new_summary = _call_grok_plain(_MEMORY_SYSTEM, user_content, max_tokens=700)
-        if new_summary:
-            _store_memory(
-                str(session["participant_id"]), new_summary, session.get("week_no")
+    if request_has_xai_consent():
+        try:
+            messages = _fetch_messages(session_id)
+            memory_row = _fetch_memory(str(session["participant_id"]))
+            prev_summary = memory_row.get("summary_md") if memory_row else ""
+            user_content = (
+                f"[기존 장기 메모리]\n{prev_summary or '(없음)'}\n\n"
+                f"[이번 세션 발화]\n{_session_summary_for_memory(messages)}"
             )
-            memory_updated = True
-    except (requests.RequestException, RuntimeError) as e:
-        logger.warning("coach memory compression skipped: %s", e)
+            new_summary = _call_grok_plain(_MEMORY_SYSTEM, user_content, max_tokens=700)
+            if new_summary:
+                _store_memory(
+                    str(session["participant_id"]), new_summary, session.get("week_no")
+                )
+                memory_updated = True
+        except (requests.RequestException, RuntimeError) as e:
+            logger.warning("coach memory compression skipped: %s", e)
 
     return jsonify({"status": "archived", "memory_updated": memory_updated}), 200
 

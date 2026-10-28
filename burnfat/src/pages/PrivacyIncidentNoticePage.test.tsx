@@ -24,6 +24,10 @@ describe('privacy incident notice', () => {
     expect(screen.getByText(/2026-10-19/)).toBeInTheDocument();
     expect(screen.getByText(/숫자만 받습니다/)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '문의' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'support@wodybody.com' })).toHaveAttribute(
+      'href',
+      'mailto:support@wodybody.com'
+    );
     expect(screen.getByText(/열람, 정정, 삭제, 처리정지/)).toBeInTheDocument();
     expect(screen.getByText(/개별 이메일·문자·SNS로는 보내지 않습니다/)).toBeInTheDocument();
   });
